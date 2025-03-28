@@ -3,9 +3,11 @@ import argparse
 import backtrader as bt
 from datetime import datetime, timedelta
 import logging
+import json
 
 from src.data_fetcher import DataFetcher
 from src.magic_nine_strategy import MagicNineStrategy
+from src.multi_asset_strategy import MultiAssetStrategy
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -22,6 +24,9 @@ def parse_args():
     parser.add_argument('--key', type=str, default='config/private_key.pem', help='API私钥路径')
     parser.add_argument('--use-cache', action='store_true', help='使用缓存数据')
     parser.add_argument('--magic-period', type=int, default=2, help='神奇九转比较周期(默认2)')
+    parser.add_argument('--multi-asset', action='store_true', help='使用多资产独立交易策略')
+    parser.add_argument('--weights', type=str, default=None, 
+                        help='资产权重，JSON格式，例如：\'{"QQQ": 0.6, "SPY": 0.4}\'')
     return parser.parse_args()
 
 def main():
@@ -40,6 +45,15 @@ def main():
     
     # 设置滑点为0
     cerebro.broker.set_slippage_perc(0.0)
+    
+    # 解析权重参数
+    weights = None
+    if args.weights:
+        try:
+            weights = json.loads(args.weights)
+            logger.info(f"使用自定义资产权重: {weights}")
+        except json.JSONDecodeError:
+            logger.error(f"权重解析错误，请使用正确的JSON格式。使用平均权重。")
     
     # 添加数据
     for symbol in args.symbols:
@@ -66,7 +80,13 @@ def main():
         cerebro.adddata(data, name=symbol)
     
     # 添加策略和分析器
-    cerebro.addstrategy(MagicNineStrategy, magic_period=args.magic_period)
+    if args.multi_asset:
+        logger.info("使用多资产独立交易策略")
+        cerebro.addstrategy(MultiAssetStrategy, magic_period=args.magic_period, weights=weights)
+    else:
+        logger.info("使用原始神奇九转策略")
+        cerebro.addstrategy(MagicNineStrategy, magic_period=args.magic_period)
+    
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe_ratio')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trade_analyzer')
@@ -85,7 +105,7 @@ def main():
     trade_analyzer = strategy.analyzers.trade_analyzer.get_analysis()
     if hasattr(trade_analyzer, 'total'):
         total_trades = trade_analyzer.total.closed
-        days = args.days if args.days <= 5 else 5  # 使用实际回测天数或最多5天
+        days = args.days
         logger.info(f"总交易次数: {total_trades}")
         logger.info(f"平均每天交易次数: {total_trades / days:.2f}")
         
@@ -96,13 +116,14 @@ def main():
             logger.info(f"胜率: {win_rate:.2f}%")
     
     # 绘制结果
-    from matplotlib import rcParams
-    rcParams['figure.figsize'] = 20, 10
-    rcParams['font.size'] = 12
-    rcParams['lines.linewidth'] = 2
-    
-    cerebro.plot(style='candlestick', barup='red', bardown='green', 
-                 grid=True, plotdist=1.0, volume=True)
+    if len(args.symbols) <= 2:  # 只有少量标的时绘图，避免图表过于复杂
+        from matplotlib import rcParams
+        rcParams['figure.figsize'] = 20, 10
+        rcParams['font.size'] = 12
+        rcParams['lines.linewidth'] = 2
+        
+        cerebro.plot(style='candlestick', barup='red', bardown='green', 
+                     grid=True, plotdist=1.0, volume=True)
 
 if __name__ == '__main__':
     main() 

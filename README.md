@@ -28,6 +28,7 @@
 │   │   ├── rsi_bundle.py       # RSI组合指标
 │   │   └── kdj_bundle.py       # KDJ组合指标
 │   ├── magic_nine_strategy.py  # 策略实现
+│   ├── multi_asset_strategy.py # 多资产独立交易策略
 │   ├── visualization.py        # 可视化模块
 │   └── utils.py                # 工具类
 ├── main.py                     # 主程序
@@ -49,8 +50,19 @@ pip install -r requirements.txt
 
 2. 运行策略
 
+   **原始策略** (单一资金池):
    ```bash
    python main.py --symbols QQQ SPY --days 30 --use-cache
+   ```
+
+   **多资产独立交易策略** (每个标的独立资金池):
+   ```bash
+   python main.py --symbols QQQ SPY AAPL MSFT AMZN GOOGL META NVDA TSLA --days 30 --use-cache --multi-asset
+   ```
+
+   **自定义资产权重配置**:
+   ```bash
+   python main.py --symbols QQQ SPY AAPL --days 30 --use-cache --multi-asset --weights '{"QQQ": 0.5, "SPY": 0.3, "AAPL": 0.2}'
    ```
 
 3. 参数说明
@@ -63,6 +75,8 @@ pip install -r requirements.txt
    - `--key`: 私钥文件路径，默认 config/private_key.pem
    - `--use-cache`: 使用缓存数据，不需要每次都从API获取
    - `--magic-period`: 神奇九转比较周期，默认 2
+   - `--multi-asset`: 使用多资产独立交易策略（每个标的独立资金池）
+   - `--weights`: 资产权重配置，JSON格式，例如: '{"QQQ": 0.6, "SPY": 0.4}'
 
 ## 策略参数
 
@@ -71,6 +85,21 @@ pip install -r requirements.txt
 - RSI超买超卖: 70/30
 - KDJ超买超卖: 80/20
 - MACD信号: 0
+
+## 两种策略对比
+
+1. **原始策略** (magic_nine_strategy.py)
+   - 所有标的共享一个资金池
+   - 一次只交易一个标的
+   - 资金集中，可能导致单个标的交易占据所有资金
+   - 适合当标的之间有高度相关性时
+
+2. **多资产独立交易策略** (multi_asset_strategy.py)
+   - 为每个标的分配独立的资金池
+   - 各标的独立生成信号和执行交易
+   - 实现真正的多标的并行交易
+   - 可自定义各标的的资金权重
+   - 更好的风险分散效果
 
 ## 性能表现
 
