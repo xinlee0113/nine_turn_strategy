@@ -9,6 +9,7 @@ from src.data_fetcher import DataFetcher
 from src.magic_nine_strategy import MagicNineStrategy
 from src.magic_nine_strategy_with_stoploss import MagicNineStrategyWithStopLoss
 from src.magic_nine_strategy_with_advanced_stoploss import MagicNineStrategyWithAdvancedStopLoss
+from src.magic_nine_strategy_with_smart_stoploss import MagicNineStrategyWithSmartStopLoss
 from src.multi_asset_strategy import MultiAssetStrategy
 
 # 配置日志
@@ -32,11 +33,17 @@ def parse_args():
     stoploss_group = parser.add_argument_group('止损策略选项')
     stoploss_group.add_argument('--stop-loss', action='store_true', help='使用普通止损策略')
     stoploss_group.add_argument('--advanced-stop-loss', action='store_true', help='使用高级止损策略(基于ATR和追踪止损)')
+    stoploss_group.add_argument('--smart-stop-loss', action='store_true', help='使用智能止损策略(自适应波动性、市场感知和时间衰减)')
     stoploss_group.add_argument('--stop-loss-pct', type=float, default=3.0, help='止损百分比(默认3%)')
     stoploss_group.add_argument('--atr-period', type=int, default=14, help='ATR周期(默认14)')
     stoploss_group.add_argument('--atr-multiplier', type=float, default=2.5, help='ATR乘数(默认2.5)')
     stoploss_group.add_argument('--min-profit-pct', type=float, default=1.0, help='启动追踪止损的最小盈利百分比(默认1%)')
     stoploss_group.add_argument('--no-trailing', action='store_true', help='禁用追踪止损功能')
+    stoploss_group.add_argument('--risk-aversion', type=float, default=1.0, help='风险规避系数(0.5-2.0)，较高值增加止损紧密度')
+    stoploss_group.add_argument('--time-decay-days', type=int, default=3, help='时间衰减开始的天数(默认3天)')
+    stoploss_group.add_argument('--no-volatility-adjust', action='store_true', help='禁用波动性自适应调整')
+    stoploss_group.add_argument('--no-market-aware', action='store_true', help='禁用市场环境感知')
+    stoploss_group.add_argument('--no-time-decay', action='store_true', help='禁用时间衰减功能')
     
     parser.add_argument('--weights', type=str, default=None, 
                         help='资产权重，JSON格式，例如：\'{"QQQ": 0.6, "SPY": 0.4}\'')
@@ -96,6 +103,25 @@ def main():
     if args.multi_asset:
         logger.info("使用多资产独立交易策略")
         cerebro.addstrategy(MultiAssetStrategy, magic_period=args.magic_period, weights=weights)
+    elif args.smart_stop_loss:
+        logger.info(f"使用智能止损的神奇九转策略 (ATR周期: {args.atr_period}, ATR乘数: {args.atr_multiplier}, " 
+                 f"最大止损: {args.stop_loss_pct}%, 追踪止损: {not args.no_trailing}, "
+                 f"风险规避系数: {args.risk_aversion}, "
+                 f"波动性自适应: {not args.no_volatility_adjust}, "
+                 f"市场感知: {not args.no_market_aware}, "
+                 f"时间衰减: {not args.no_time_decay})")
+        cerebro.addstrategy(MagicNineStrategyWithSmartStopLoss, 
+                         magic_period=args.magic_period,
+                         atr_period=args.atr_period,
+                         atr_multiplier=args.atr_multiplier,
+                         max_loss_pct=args.stop_loss_pct,
+                         min_profit_pct=args.min_profit_pct,
+                         trailing_stop=not args.no_trailing,
+                         risk_aversion=args.risk_aversion,
+                         volatility_adjust=not args.no_volatility_adjust,
+                         market_aware=not args.no_market_aware,
+                         time_decay=not args.no_time_decay,
+                         time_decay_days=args.time_decay_days)
     elif args.advanced_stop_loss:
         logger.info(f"使用高级止损的神奇九转策略 (ATR周期: {args.atr_period}, ATR乘数: {args.atr_multiplier}, " 
                  f"最大止损: {args.stop_loss_pct}%, 追踪止损: {not args.no_trailing})")
@@ -148,8 +174,8 @@ def main():
         rcParams['font.size'] = 12
         rcParams['lines.linewidth'] = 2
         
-        cerebro.plot(style='candlestick', barup='red', bardown='green', 
-                     grid=True, plotdist=1.0, volume=True)
+        # cerebro.plot(style='candlestick', barup='red', bardown='green', 
+        #              grid=True, plotdist=1.0, volume=True)
 
 if __name__ == '__main__':
     main() 
