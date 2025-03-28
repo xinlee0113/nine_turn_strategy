@@ -11,6 +11,9 @@ from src.magic_nine_strategy_with_stoploss import MagicNineStrategyWithStopLoss
 from src.magic_nine_strategy_with_advanced_stoploss import MagicNineStrategyWithAdvancedStopLoss
 from src.magic_nine_strategy_with_smart_stoploss import MagicNineStrategyWithSmartStopLoss
 from src.multi_asset_strategy import MultiAssetStrategy
+from src.strategy_selector import StrategySelector, StrategyType
+from src.market_analyzer import MarketAnalyzer
+from src.adaptive_strategy import AdaptiveStrategy
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -44,6 +47,15 @@ def parse_args():
     stoploss_group.add_argument('--no-volatility-adjust', action='store_true', help='禁用波动性自适应调整')
     stoploss_group.add_argument('--no-market-aware', action='store_true', help='禁用市场环境感知')
     stoploss_group.add_argument('--no-time-decay', action='store_true', help='禁用时间衰减功能')
+    
+    # 自适应策略选项
+    adaptive_group = parser.add_argument_group('自适应策略选项')
+    adaptive_group.add_argument('--adaptive', action='store_true', help='使用自适应策略(动态切换原始、高级和智能止损策略)')
+    adaptive_group.add_argument('--lookback-window', type=int, default=20, help='用于分析市场状态的回溯窗口')
+    adaptive_group.add_argument('--volatility-threshold', type=float, default=0.015, help='波动率阈值，高于此值视为高波动')
+    adaptive_group.add_argument('--trend-threshold', type=float, default=0.03, help='趋势强度阈值，高于此值视为强趋势')
+    adaptive_group.add_argument('--rsi-threshold', type=int, default=70, help='RSI阈值，用于判断超买超卖')
+    adaptive_group.add_argument('--strategy-switch-delay', type=int, default=3, help='策略切换延迟(防止频繁切换)')
     
     parser.add_argument('--weights', type=str, default=None, 
                         help='资产权重，JSON格式，例如：\'{"QQQ": 0.6, "SPY": 0.4}\'')
@@ -100,7 +112,44 @@ def main():
         cerebro.adddata(data, name=symbol)
     
     # 添加策略和分析器
-    if args.multi_asset:
+    if args.adaptive:
+        logger.info("使用自适应策略(动态策略选择)")
+        
+        # 初始化市场分析器
+        market_analyzer = MarketAnalyzer(
+            lookback_window=args.lookback_window,
+            rsi_threshold=args.rsi_threshold,
+            vix_threshold=args.volatility_threshold * 100  # 转换为百分比
+        )
+        
+        # 初始化策略选择器，将市场分析器传入
+        strategy_selector = StrategySelector(
+            market_analyzer=market_analyzer,
+            lookback_window=args.lookback_window,
+            volatility_threshold=args.volatility_threshold,
+            trend_threshold=args.trend_threshold
+        )
+        
+        # 添加自适应策略
+        cerebro.addstrategy(
+            AdaptiveStrategy,
+            magic_period=args.magic_period,
+            strategy_selector=strategy_selector,
+            market_analyzer=market_analyzer,
+            switch_delay=args.strategy_switch_delay,
+            # 止损参数
+            atr_period=args.atr_period,
+            atr_multiplier=args.atr_multiplier,
+            stop_loss_pct=args.stop_loss_pct,
+            min_profit_pct=args.min_profit_pct,
+            trailing_stop=not args.no_trailing,
+            risk_aversion=args.risk_aversion,
+            volatility_adjust=not args.no_volatility_adjust,
+            market_aware=not args.no_market_aware,
+            time_decay=not args.no_time_decay,
+            time_decay_days=args.time_decay_days
+        )
+    elif args.multi_asset:
         logger.info("使用多资产独立交易策略")
         cerebro.addstrategy(MultiAssetStrategy, magic_period=args.magic_period, weights=weights)
     elif args.smart_stop_loss:
@@ -166,6 +215,24 @@ def main():
             win_rate = (winning_trades / total_trades) * 100 if total_trades > 0 else 0
             logger.info(f"盈利交易次数: {winning_trades}")
             logger.info(f"胜率: {win_rate:.2f}%")
+    
+    # 如果使用了自适应策略，输出策略切换统计信息
+    if args.adaptive and hasattr(strategy, 'strategy_switches'):
+        strategy_switches = strategy.strategy_switches
+        logger.info(f"策略切换次数: {len(strategy_switches)}")
+        strategy_usage = strategy.strategy_usage_count
+        total_bars = sum(strategy_usage.values())
+        
+        for strategy_type, count in strategy_usage.items():
+            usage_pct = (count / total_bars) * 100 if total_bars > 0 else 0
+            logger.info(f"策略 {strategy_type.value} 使用比例: {usage_pct:.2f}%")
+        
+        logger.info("策略切换详情:")
+        for i, switch in enumerate(strategy_switches[:10]):  # 只显示前10个切换
+            logger.info(f"  {i+1}. 日期: {switch['date']} 从 {switch['from'].value} 切换到 {switch['to'].value} 原因: {switch['reason']}")
+        
+        if len(strategy_switches) > 10:
+            logger.info(f"  ... 共 {len(strategy_switches)} 次切换")
     
     # 绘制结果
     if len(args.symbols) <= 2:  # 只有少量标的时绘图，避免图表过于复杂
