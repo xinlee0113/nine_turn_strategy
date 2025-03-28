@@ -7,6 +7,8 @@ import json
 
 from src.data_fetcher import DataFetcher
 from src.magic_nine_strategy import MagicNineStrategy
+from src.magic_nine_strategy_with_stoploss import MagicNineStrategyWithStopLoss
+from src.magic_nine_strategy_with_advanced_stoploss import MagicNineStrategyWithAdvancedStopLoss
 from src.multi_asset_strategy import MultiAssetStrategy
 
 # 配置日志
@@ -25,6 +27,17 @@ def parse_args():
     parser.add_argument('--use-cache', action='store_true', help='使用缓存数据')
     parser.add_argument('--magic-period', type=int, default=2, help='神奇九转比较周期(默认2)')
     parser.add_argument('--multi-asset', action='store_true', help='使用多资产独立交易策略')
+    
+    # 止损策略选项
+    stoploss_group = parser.add_argument_group('止损策略选项')
+    stoploss_group.add_argument('--stop-loss', action='store_true', help='使用普通止损策略')
+    stoploss_group.add_argument('--advanced-stop-loss', action='store_true', help='使用高级止损策略(基于ATR和追踪止损)')
+    stoploss_group.add_argument('--stop-loss-pct', type=float, default=3.0, help='止损百分比(默认3%)')
+    stoploss_group.add_argument('--atr-period', type=int, default=14, help='ATR周期(默认14)')
+    stoploss_group.add_argument('--atr-multiplier', type=float, default=2.5, help='ATR乘数(默认2.5)')
+    stoploss_group.add_argument('--min-profit-pct', type=float, default=1.0, help='启动追踪止损的最小盈利百分比(默认1%)')
+    stoploss_group.add_argument('--no-trailing', action='store_true', help='禁用追踪止损功能')
+    
     parser.add_argument('--weights', type=str, default=None, 
                         help='资产权重，JSON格式，例如：\'{"QQQ": 0.6, "SPY": 0.4}\'')
     return parser.parse_args()
@@ -83,6 +96,19 @@ def main():
     if args.multi_asset:
         logger.info("使用多资产独立交易策略")
         cerebro.addstrategy(MultiAssetStrategy, magic_period=args.magic_period, weights=weights)
+    elif args.advanced_stop_loss:
+        logger.info(f"使用高级止损的神奇九转策略 (ATR周期: {args.atr_period}, ATR乘数: {args.atr_multiplier}, " 
+                 f"最大止损: {args.stop_loss_pct}%, 追踪止损: {not args.no_trailing})")
+        cerebro.addstrategy(MagicNineStrategyWithAdvancedStopLoss, 
+                         magic_period=args.magic_period,
+                         atr_period=args.atr_period,
+                         atr_multiplier=args.atr_multiplier,
+                         max_loss_pct=args.stop_loss_pct,
+                         min_profit_pct=args.min_profit_pct,
+                         trailing_stop=not args.no_trailing)
+    elif args.stop_loss:
+        logger.info(f"使用普通止损的神奇九转策略 (止损比例: {args.stop_loss_pct}%)")
+        cerebro.addstrategy(MagicNineStrategyWithStopLoss, magic_period=args.magic_period, stop_loss_pct=args.stop_loss_pct)
     else:
         logger.info("使用原始神奇九转策略")
         cerebro.addstrategy(MagicNineStrategy, magic_period=args.magic_period)
