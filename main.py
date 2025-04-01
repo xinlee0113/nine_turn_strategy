@@ -16,6 +16,7 @@ from src.multi_asset_strategy import MultiAssetStrategy
 from src.strategy_selector import StrategySelector, StrategyType
 from src.market_analyzer import MarketAnalyzer
 from src.adaptive_strategy import AdaptiveStrategy
+from src.trading_fee_util import TradingFeeUtil
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -33,6 +34,20 @@ def parse_args():
     parser.add_argument('--use-cache', action='store_true', help='使用缓存数据')
     parser.add_argument('--magic-period', type=int, default=3, help='神奇九转比较周期(默认2)')
     parser.add_argument('--multi-asset', action='store_true', help='使用多资产独立交易策略')
+    
+    # 交易成本选项
+    cost_group = parser.add_argument_group('交易成本选项')
+    cost_group.add_argument('--real-costs', action='store_true', help='使用真实交易成本(佣金和滑点)')
+    cost_group.add_argument('--broker-type', type=str, default='tiger', choices=['tiger', 'ib'], 
+                           help='券商类型: tiger(老虎证券) or ib(盈透证券)')
+    cost_group.add_argument('--monthly-volume', type=int, default=0, help='月度交易量(用于盈透证券分层佣金)')
+    cost_group.add_argument('--commission-per-share', type=float, default=0.0039, help='每股佣金(美元)')
+    cost_group.add_argument('--min-commission', type=float, default=0.99, help='最低佣金(美元)')
+    cost_group.add_argument('--platform-fee-per-share', type=float, default=0.004, help='每股平台费(美元)')
+    cost_group.add_argument('--min-platform-fee', type=float, default=1.0, help='最低平台费(美元)')
+    cost_group.add_argument('--other-fees-per-share', type=float, default=0.00396, help='每股其他费用(美元)')
+    cost_group.add_argument('--min-other-fees', type=float, default=0.99, help='最低其他费用(美元)')
+    cost_group.add_argument('--slippage', type=float, default=0.0005, help='滑点(价格百分比)')
     
     # 止损策略选项
     stoploss_group = parser.add_argument_group('止损策略选项')
@@ -73,12 +88,59 @@ def main():
     
     # 初始化数据获取器和回测引擎
     data_fetcher = DataFetcher(config_path=args.config, private_key_path=args.key, cache_dir=cache_dir)
-    cerebro = bt.Cerebro()
+    #使用九的buysell，显示在股价线上，更准确
+    cerebro = bt.Cerebro(oldbuysell=True)
     cerebro.broker.setcash(args.cash)
-    cerebro.broker.setcommission(commission=args.commission)
     
-    # 设置滑点为0
-    cerebro.broker.set_slippage_perc(0.0)
+    # 设置交易费用和滑点
+    if args.real_costs:
+        logger.info(f"使用真实交易成本(券商: {args.broker_type}, 滑点: {args.slippage})")
+        
+        # 创建自定义佣金计算类
+        class CustomCommissionInfo(bt.CommInfoBase):
+            params = (
+                ('commission', 0.0),  # 我们将在comminfo方法中计算佣金
+                ('broker_type', args.broker_type),
+                ('monthly_volume', args.monthly_volume),
+                ('commission_per_share', args.commission_per_share),
+                ('min_commission', args.min_commission),
+                ('platform_fee_per_share', args.platform_fee_per_share),
+                ('min_platform_fee', args.min_platform_fee),
+                ('other_fees_per_share', args.other_fees_per_share),
+                ('min_other_fees', args.min_other_fees),
+                ('stocklike', True),
+                ('commtype', bt.CommInfoBase.COMM_FIXED),
+                ('percabs', True),  # 使用绝对值计算
+            )
+            
+            def _getcommission(self, size, price, pseudoexec):
+                """计算总交易成本"""
+                # 使用TradingFeeUtil计算交易费用
+                if self.p.broker_type == 'ib':
+                    return TradingFeeUtil.calculate_ib_fee(
+                        price=price, 
+                        quantity=abs(size), 
+                        monthly_volume=self.p.monthly_volume,
+                        is_buy=(size > 0)
+                    )
+                else:  # 默认使用老虎证券
+                    return TradingFeeUtil.calculate_tiger_fee(
+                        price=price, 
+                        quantity=abs(size), 
+                        is_buy=(size > 0)
+                    )
+        
+        # 设置自定义佣金模型
+        cerebro.broker.addcommissioninfo(CustomCommissionInfo())
+        
+        # 设置滑点
+        cerebro.broker.set_slippage_perc(args.slippage)
+        
+    else:
+        # 使用简单佣金模型
+        cerebro.broker.setcommission(commission=args.commission)
+        # 设置滑点为0
+        cerebro.broker.set_slippage_perc(0.0)
     
     # 解析权重参数
     weights = None
@@ -193,7 +255,7 @@ def main():
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe_ratio')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trade_analyzer')
-    
+    cerebro.addobserver(BuySell)
     # 运行回测
     logger.info(f"初始资金: {cerebro.broker.getvalue():.2f}")
     results = cerebro.run()
@@ -243,7 +305,6 @@ def main():
         rcParams['font.size'] = 12
         rcParams['lines.linewidth'] = 2
 
-        cerebro.addobserver(BuySell)
         cerebro.plot(barup='red', bardown='green',
                      grid=True, plotdist=1.0, volume=True)
 
