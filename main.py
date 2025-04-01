@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 import logging
 import json
 
+from backtrader.observers import BuySell
+
 from src.data_fetcher import DataFetcher
 from src.magic_nine_strategy import MagicNineStrategy
 from src.magic_nine_strategy_with_stoploss import MagicNineStrategyWithStopLoss
@@ -22,14 +24,14 @@ logger = logging.getLogger(__name__)
 def parse_args():
     """解析命令行参数"""
     parser = argparse.ArgumentParser(description='神奇九转策略回测')
-    parser.add_argument('--symbols', nargs='+', default=['QQQ', 'SPY'], help='要交易的股票代码')
+    parser.add_argument('--symbols', nargs='+', default=['QQQ'], help='要交易的股票代码')
     parser.add_argument('--days', type=int, default=30, help='回测天数')
-    parser.add_argument('--cash', type=float, default=100000.0, help='初始资金')
-    parser.add_argument('--commission', type=float, default=0.0, help='佣金率(默认0，不计费用)')
+    parser.add_argument('--cash', type=float, default=10000.0, help='初始资金')
+    parser.add_argument('--commission', type=float, default=0.0000, help='佣金率(默认0，不计费用)')
     parser.add_argument('--config', type=str, default='config', help='API配置文件路径')
     parser.add_argument('--key', type=str, default='config/private_key.pem', help='API私钥路径')
     parser.add_argument('--use-cache', action='store_true', help='使用缓存数据')
-    parser.add_argument('--magic-period', type=int, default=2, help='神奇九转比较周期(默认2)')
+    parser.add_argument('--magic-period', type=int, default=3, help='神奇九转比较周期(默认2)')
     parser.add_argument('--multi-asset', action='store_true', help='使用多资产独立交易策略')
     
     # 止损策略选项
@@ -240,9 +242,10 @@ def main():
         rcParams['figure.figsize'] = 20, 10
         rcParams['font.size'] = 12
         rcParams['lines.linewidth'] = 2
-        
-        # cerebro.plot(style='candlestick', barup='red', bardown='green', 
-        #              grid=True, plotdist=1.0, volume=True)
+
+        cerebro.addobserver(BuySell)
+        cerebro.plot(barup='red', bardown='green',
+                     grid=True, plotdist=1.0, volume=True)
 
 if __name__ == '__main__':
     main() 

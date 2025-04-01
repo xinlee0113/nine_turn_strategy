@@ -105,7 +105,7 @@ class DataFetcher:
             
             current_begin = current_end
             total_days -= days_in_segment
-            time.sleep(1)  # 简单延迟避免API限流
+            # time.sleep(1)  # 简单延迟避免API限流
         
         # 合并数据并保存缓存
         if not all_data_frames:
