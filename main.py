@@ -31,9 +31,11 @@ def parse_args():
     parser.add_argument('--commission', type=float, default=0.0000, help='佣金率(默认0，不计费用)')
     parser.add_argument('--config', type=str, default='config', help='API配置文件路径')
     parser.add_argument('--key', type=str, default='config/private_key.pem', help='API私钥路径')
-    parser.add_argument('--use-cache', action='store_true', help='使用缓存数据')
+    parser.add_argument('--use-cache', action='store_true', help='使用缓存数据，如果缓存存在直接使用缓存，不会调用API')
     parser.add_argument('--magic-period', type=int, default=3, help='神奇九转比较周期(默认2)')
     parser.add_argument('--multi-asset', action='store_true', help='使用多资产独立交易策略')
+    parser.add_argument('--enable-short', action='store_true', help='启用做空交易')
+    parser.add_argument('--no-plot', action='store_true', help='不显示回测图表')
     
     # 交易成本选项
     cost_group = parser.add_argument_group('交易成本选项')
@@ -157,9 +159,17 @@ def main():
         end_date = datetime.now()
         start_date = end_date - timedelta(days=args.days)
         
+        # 如果使用缓存，输出使用缓存的信息
+        if args.use_cache:
+            logger.info(f"使用缓存模式获取数据: {symbol}")
+        
         # 获取数据并添加到回测引擎
         df = data_fetcher.get_bar_data(symbol, begin_time=start_date, end_time=end_date, use_cache=args.use_cache)
         data_file = data_fetcher.prepare_backtrader_data(symbol, df)
+        
+        if data_file is None:
+            logger.error(f"无法获取或准备 {symbol} 的数据")
+            continue
         
         data = bt.feeds.GenericCSVData(
             dataname=data_file,
@@ -211,18 +221,20 @@ def main():
             volatility_adjust=not args.no_volatility_adjust,
             market_aware=not args.no_market_aware,
             time_decay=not args.no_time_decay,
-            time_decay_days=args.time_decay_days
+            time_decay_days=args.time_decay_days,
+            enable_short=args.enable_short
         )
     elif args.multi_asset:
         logger.info("使用多资产独立交易策略")
-        cerebro.addstrategy(MultiAssetStrategy, magic_period=args.magic_period, weights=weights)
+        cerebro.addstrategy(MultiAssetStrategy, magic_period=args.magic_period, weights=weights, enable_short=args.enable_short)
     elif args.smart_stop_loss:
         logger.info(f"使用智能止损的神奇九转策略 (ATR周期: {args.atr_period}, ATR乘数: {args.atr_multiplier}, " 
                  f"最大止损: {args.stop_loss_pct}%, 追踪止损: {not args.no_trailing}, "
                  f"风险规避系数: {args.risk_aversion}, "
                  f"波动性自适应: {not args.no_volatility_adjust}, "
                  f"市场感知: {not args.no_market_aware}, "
-                 f"时间衰减: {not args.no_time_decay})")
+                 f"时间衰减: {not args.no_time_decay}, "
+                 f"做空交易: {args.enable_short})")
         cerebro.addstrategy(MagicNineStrategyWithSmartStopLoss, 
                          magic_period=args.magic_period,
                          atr_period=args.atr_period,
@@ -234,23 +246,26 @@ def main():
                          volatility_adjust=not args.no_volatility_adjust,
                          market_aware=not args.no_market_aware,
                          time_decay=not args.no_time_decay,
-                         time_decay_days=args.time_decay_days)
+                         time_decay_days=args.time_decay_days,
+                         enable_short=args.enable_short)
     elif args.advanced_stop_loss:
         logger.info(f"使用高级止损的神奇九转策略 (ATR周期: {args.atr_period}, ATR乘数: {args.atr_multiplier}, " 
-                 f"最大止损: {args.stop_loss_pct}%, 追踪止损: {not args.no_trailing})")
+                 f"最大止损: {args.stop_loss_pct}%, 追踪止损: {not args.no_trailing}, "
+                 f"做空交易: {args.enable_short})")
         cerebro.addstrategy(MagicNineStrategyWithAdvancedStopLoss, 
                          magic_period=args.magic_period,
                          atr_period=args.atr_period,
                          atr_multiplier=args.atr_multiplier,
                          max_loss_pct=args.stop_loss_pct,
                          min_profit_pct=args.min_profit_pct,
-                         trailing_stop=not args.no_trailing)
+                         trailing_stop=not args.no_trailing,
+                         enable_short=args.enable_short)
     elif args.stop_loss:
-        logger.info(f"使用普通止损的神奇九转策略 (止损比例: {args.stop_loss_pct}%)")
-        cerebro.addstrategy(MagicNineStrategyWithStopLoss, magic_period=args.magic_period, stop_loss_pct=args.stop_loss_pct)
+        logger.info(f"使用普通止损的神奇九转策略 (止损比例: {args.stop_loss_pct}%, 做空交易: {args.enable_short})")
+        cerebro.addstrategy(MagicNineStrategyWithStopLoss, magic_period=args.magic_period, stop_loss_pct=args.stop_loss_pct, enable_short=args.enable_short)
     else:
-        logger.info("使用原始神奇九转策略")
-        cerebro.addstrategy(MagicNineStrategy, magic_period=args.magic_period)
+        logger.info(f"使用原始神奇九转策略 (做空交易: {args.enable_short})")
+        cerebro.addstrategy(MagicNineStrategy, magic_period=args.magic_period, enable_short=args.enable_short)
     
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe_ratio')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -268,17 +283,24 @@ def main():
     
     # 输出交易分析
     trade_analyzer = strategy.analyzers.trade_analyzer.get_analysis()
-    if hasattr(trade_analyzer, 'total'):
-        total_trades = trade_analyzer.total.closed
-        days = args.days
-        logger.info(f"总交易次数: {total_trades}")
-        logger.info(f"平均每天交易次数: {total_trades / days:.2f}")
-        
-        if hasattr(trade_analyzer, 'won') and hasattr(trade_analyzer.won, 'total'):
-            winning_trades = trade_analyzer.won.total
-            win_rate = (winning_trades / total_trades) * 100 if total_trades > 0 else 0
-            logger.info(f"盈利交易次数: {winning_trades}")
-            logger.info(f"胜率: {win_rate:.2f}%")
+    
+    # 简单检查是否有交易发生（更安全的方式）
+    if trade_analyzer:  # 如果有分析结果
+        if 'total' in trade_analyzer and 'closed' in trade_analyzer.total:
+            total_trades = trade_analyzer.total.closed
+            days = args.days
+            logger.info(f"总交易次数: {total_trades}")
+            logger.info(f"平均每天交易次数: {total_trades / days:.2f}")
+            
+            if 'won' in trade_analyzer and 'total' in trade_analyzer.won:
+                winning_trades = trade_analyzer.won.total
+                win_rate = (winning_trades / total_trades) * 100 if total_trades > 0 else 0
+                logger.info(f"盈利交易次数: {winning_trades}")
+                logger.info(f"胜率: {win_rate:.2f}%")
+        else:
+            logger.info("没有交易发生")
+    else:
+        logger.info("没有交易分析数据")
     
     # 如果使用了自适应策略，输出策略切换统计信息
     if args.adaptive and hasattr(strategy, 'strategy_switches'):
@@ -299,7 +321,7 @@ def main():
             logger.info(f"  ... 共 {len(strategy_switches)} 次切换")
     
     # 绘制结果
-    if len(args.symbols) <= 2:  # 只有少量标的时绘图，避免图表过于复杂
+    if len(args.symbols) <= 2 and not args.no_plot:  # 只有少量标的且不禁用绘图时才绘图
         from matplotlib import rcParams
         rcParams['figure.figsize'] = 20, 10
         rcParams['font.size'] = 12
