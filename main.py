@@ -4,6 +4,8 @@ import backtrader as bt
 from datetime import datetime, timedelta
 import logging
 import json
+import sys
+import numpy as np
 
 from backtrader.observers import BuySell
 
@@ -17,10 +19,45 @@ from src.strategy_selector import StrategySelector, StrategyType
 from src.market_analyzer import MarketAnalyzer
 from src.adaptive_strategy import AdaptiveStrategy
 from src.trading_fee_util import TradingFeeUtil
+# 导入配置系统和参数优化器
+from src.config_system import SymbolConfig, StrategyFactory
+from src.parameter_optimizer import ParameterOptimizer
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# 自定义回撤分析器
+class CustomDrawDown(bt.Analyzer):
+    """自定义回撤分析器，确保计算正确的回撤值"""
+    
+    def __init__(self):
+        self.peak = 0.0
+        self.valley = float('inf')
+        self.max_dd = 0.0
+        self.max_dd_len = 0
+        self.dd_len = 0
+        
+    def next(self):
+        # 获取当前资金曲线值
+        value = self.strategy.broker.getvalue()
+        
+        # 更新峰值
+        if value > self.peak:
+            self.peak = value
+            self.dd_len = 0
+        else:
+            self.dd_len += 1
+            
+        # 计算回撤
+        if self.peak > 0:
+            dd = (self.peak - value) / self.peak
+            if dd > self.max_dd:
+                self.max_dd = dd
+                self.max_dd_len = self.dd_len
+        
+    def get_analysis(self):
+        return {'max': {'drawdown': self.max_dd, 'len': self.max_dd_len}}
 
 def parse_args():
     """解析命令行参数"""
@@ -36,6 +73,7 @@ def parse_args():
     parser.add_argument('--multi-asset', action='store_true', help='使用多资产独立交易策略')
     parser.add_argument('--enable-short', action='store_true', help='启用做空交易')
     parser.add_argument('--no-plot', action='store_true', help='不显示回测图表')
+    parser.add_argument('--verbose', action='store_true', help='显示详细日志')
     
     # 交易成本选项
     cost_group = parser.add_argument_group('交易成本选项')
@@ -54,15 +92,15 @@ def parse_args():
     # 止损策略选项
     stoploss_group = parser.add_argument_group('止损策略选项')
     stoploss_group.add_argument('--stop-loss', action='store_true', help='使用普通止损策略')
-    stoploss_group.add_argument('--advanced-stop-loss', action='store_true', help='使用高级止损策略(基于ATR和追踪止损)')
-    stoploss_group.add_argument('--smart-stop-loss', action='store_true', help='使用智能止损策略(自适应波动性、市场感知和时间衰减)')
-    stoploss_group.add_argument('--stop-loss-pct', type=float, default=3.0, help='止损百分比(默认3%)')
-    stoploss_group.add_argument('--atr-period', type=int, default=14, help='ATR周期(默认14)')
-    stoploss_group.add_argument('--atr-multiplier', type=float, default=2.5, help='ATR乘数(默认2.5)')
-    stoploss_group.add_argument('--min-profit-pct', type=float, default=1.0, help='启动追踪止损的最小盈利百分比(默认1%)')
+    stoploss_group.add_argument('--advanced-stop-loss', action='store_true', help='使用高级止损策略[基于ATR和追踪止损]')
+    stoploss_group.add_argument('--smart-stop-loss', action='store_true', help='使用智能止损策略[自适应波动性、市场感知和时间衰减]')
+    stoploss_group.add_argument('--stop-loss-pct', type=float, default=3.0, help='止损百分比[默认3%%]')
+    stoploss_group.add_argument('--atr-period', type=int, default=14, help='ATR周期[默认14]')
+    stoploss_group.add_argument('--atr-multiplier', type=float, default=2.5, help='ATR乘数[默认2.5]')
+    stoploss_group.add_argument('--min-profit-pct', type=float, default=1.0, help='启动追踪止损的最小盈利百分比[默认1%%]')
     stoploss_group.add_argument('--no-trailing', action='store_true', help='禁用追踪止损功能')
-    stoploss_group.add_argument('--risk-aversion', type=float, default=1.0, help='风险规避系数(0.5-2.0)，较高值增加止损紧密度')
-    stoploss_group.add_argument('--time-decay-days', type=int, default=3, help='时间衰减开始的天数(默认3天)')
+    stoploss_group.add_argument('--risk-aversion', type=float, default=1.0, help='风险规避系数[0.5-2.0]，较高值增加止损紧密度')
+    stoploss_group.add_argument('--time-decay-days', type=int, default=3, help='时间衰减开始的天数[默认3天]')
     stoploss_group.add_argument('--no-volatility-adjust', action='store_true', help='禁用波动性自适应调整')
     stoploss_group.add_argument('--no-market-aware', action='store_true', help='禁用市场环境感知')
     stoploss_group.add_argument('--no-time-decay', action='store_true', help='禁用时间衰减功能')
@@ -78,20 +116,141 @@ def parse_args():
     
     parser.add_argument('--weights', type=str, default=None, 
                         help='资产权重，JSON格式，例如：\'{"QQQ": 0.6, "SPY": 0.4}\'')
+    
+    # 配置系统相关参数
+    config_group = parser.add_argument_group('配置选项')
+    config_group.add_argument('--symbol-config', type=str, default='config/symbol_params.json',
+                          help='标的参数配置文件路径(JSON格式)')
+    config_group.add_argument('--generate-default-config', action='store_true',
+                          help='生成默认配置文件并退出')
+    config_group.add_argument('--use-config', action='store_true',
+                          help='使用配置文件中的参数覆盖命令行参数')
+    
+    # 参数优化选项
+    optimize_group = parser.add_argument_group('参数优化选项')
+    optimize_group.add_argument('--optimize-params', action='store_true',
+                             help='对指定标的进行参数优化')
+    optimize_group.add_argument('--optimize-all', action='store_true',
+                             help='优化所有标的的参数')
+    optimize_group.add_argument('--optimize-strategy-types', action='store_true',
+                             help='优化标的的策略类型')
+    optimize_group.add_argument('--optimize-metrics', type=str, default='sharpe_ratio',
+                             choices=['return', 'sharpe_ratio', 'sortino_ratio', 'drawdown', 'win_rate'],
+                             help='优化指标 (默认: 夏普比率)')
+    optimize_group.add_argument('--param-sets', type=int, default=20,
+                             help='参数优化时测试的参数组合数量')
+    optimize_group.add_argument('--optimization-output', type=str, default='logs/optimization',
+                             help='优化结果输出目录')
+    
     return parser.parse_args()
+
+# 辅助函数：获取数据
+def fetch_data(symbol, days, use_cache, data_fetcher):
+    """获取回测数据"""
+    # 计算日期范围
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days)
+    
+    # 如果使用缓存，输出使用缓存的信息
+    if use_cache:
+        logger.info(f"使用缓存模式获取数据: {symbol}")
+    
+    # 获取数据并准备用于backtrader
+    df = data_fetcher.get_bar_data(symbol, begin_time=start_date, end_time=end_date, use_cache=use_cache)
+    data_file = data_fetcher.prepare_backtrader_data(symbol, df)
+    
+    if data_file is None:
+        logger.error(f"无法获取或准备 {symbol} 的数据")
+        return None
+    
+    # 创建backtrader数据源
+    data = bt.feeds.GenericCSVData(
+        dataname=data_file,
+        datetime=0,
+        open=1,
+        high=2,
+        low=3,
+        close=4,
+        volume=5,
+        openinterest=-1,
+        dtformat='%Y-%m-%d %H:%M:%S',
+        timeframe=bt.TimeFrame.Minutes
+    )
+    return data
 
 def main():
     """主函数"""
+    # 解析命令行参数
     args = parse_args()
+    
+    # 设置日志级别
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+        
+    # 确保日志目录存在
+    os.makedirs("logs", exist_ok=True)
+    
+    # 添加文件处理器，以便记录日志到文件
+    log_path = f"logs/backtest_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    file_handler = logging.FileHandler(log_path, encoding='utf-8')
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logging.getLogger().addHandler(file_handler)
+    
+    logger.info(f"日志将保存到: {log_path}")
+    
+    # 处理生成默认配置的情况
+    if args.generate_default_config:
+        config_path = args.symbol_config
+        config = SymbolConfig()
+        saved_path = config.save_config(config_path)
+        logger.info(f"已生成默认配置文件: {saved_path}")
+        sys.exit(0)
     
     # 创建缓存目录
     cache_dir = 'data/cache'
     os.makedirs(cache_dir, exist_ok=True)
     
-    # 初始化数据获取器和回测引擎
+    # 初始化数据获取器
     data_fetcher = DataFetcher(config_path=args.config, private_key_path=args.key, cache_dir=cache_dir)
-    #使用九的buysell，显示在股价线上，更准确
+    
+    # 处理参数优化
+    if args.optimize_params or args.optimize_all or args.optimize_strategy_types:
+        optimizer = ParameterOptimizer(
+            days=args.days,
+            cash=args.cash,
+            commission=args.commission,
+            use_cache=args.use_cache,
+            config_path=args.symbol_config,
+            optimize_metrics=args.optimize_metrics,
+            output_dir=args.optimization_output,
+            api_config_path=args.config,
+            api_key_path=args.key
+        )
+        
+        if args.optimize_params:
+            logger.info(f"开始为指定标的优化参数...")
+            for symbol in args.symbols:
+                optimizer.optimize_strategy_params(symbol)
+        elif args.optimize_strategy_types:
+            logger.info(f"开始为指定标的优化策略类型...")
+            for symbol in args.symbols:
+                optimizer.optimize_strategy_types(symbol)
+        elif args.optimize_all:
+            logger.info(f"开始为所有支持的标的优化参数...")
+            optimizer.optimize_all_symbols()
+        
+        logger.info("参数优化完成")
+        sys.exit(0)
+    
+    # 显示初始资金
+    logger.info(f"初始资金: {args.cash:.2f}")
+    
+    # 创建Cerebro实例
     cerebro = bt.Cerebro(oldbuysell=True)
+    
+    # 设置初始资金
     cerebro.broker.setcash(args.cash)
     
     # 设置交易费用和滑点
@@ -153,41 +312,20 @@ def main():
         except json.JSONDecodeError:
             logger.error(f"权重解析错误，请使用正确的JSON格式。使用平均权重。")
     
-    # 添加数据
-    for symbol in args.symbols:
-        # 计算日期范围
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=args.days)
-        
-        # 如果使用缓存，输出使用缓存的信息
-        if args.use_cache:
-            logger.info(f"使用缓存模式获取数据: {symbol}")
-        
-        # 获取数据并添加到回测引擎
-        df = data_fetcher.get_bar_data(symbol, begin_time=start_date, end_time=end_date, use_cache=args.use_cache)
-        data_file = data_fetcher.prepare_backtrader_data(symbol, df)
-        
-        if data_file is None:
-            logger.error(f"无法获取或准备 {symbol} 的数据")
-            continue
-        
-        data = bt.feeds.GenericCSVData(
-            dataname=data_file,
-            datetime=0,
-            open=1,
-            high=2,
-            low=3,
-            close=4,
-            volume=5,
-            openinterest=-1,
-            dtformat='%Y-%m-%d %H:%M:%S',
-            timeframe=bt.TimeFrame.Minutes
-        )
-        cerebro.adddata(data, name=symbol)
+    # 加载配置
+    symbol_config = SymbolConfig.load_config(args.symbol_config)
+    strategy_factory = StrategyFactory(symbol_config)
     
-    # 添加策略和分析器
+    # 处理回测
     if args.adaptive:
         logger.info("使用自适应策略(动态策略选择)")
+        
+        # 添加数据
+        for symbol in args.symbols:
+            data = fetch_data(symbol, args.days, args.use_cache, data_fetcher)
+            if data is None:
+                continue
+            cerebro.adddata(data, name=symbol)
         
         # 初始化市场分析器
         market_analyzer = MarketAnalyzer(
@@ -224,53 +362,156 @@ def main():
             time_decay_days=args.time_decay_days,
             enable_short=args.enable_short
         )
-    elif args.multi_asset:
-        logger.info("使用多资产独立交易策略")
-        cerebro.addstrategy(MultiAssetStrategy, magic_period=args.magic_period, weights=weights, enable_short=args.enable_short)
-    elif args.smart_stop_loss:
-        logger.info(f"使用智能止损的神奇九转策略 (ATR周期: {args.atr_period}, ATR乘数: {args.atr_multiplier}, " 
-                 f"最大止损: {args.stop_loss_pct}%, 追踪止损: {not args.no_trailing}, "
-                 f"风险规避系数: {args.risk_aversion}, "
-                 f"波动性自适应: {not args.no_volatility_adjust}, "
-                 f"市场感知: {not args.no_market_aware}, "
-                 f"时间衰减: {not args.no_time_decay}, "
-                 f"做空交易: {args.enable_short})")
-        cerebro.addstrategy(MagicNineStrategyWithSmartStopLoss, 
-                         magic_period=args.magic_period,
-                         atr_period=args.atr_period,
-                         atr_multiplier=args.atr_multiplier,
-                         max_loss_pct=args.stop_loss_pct,
-                         min_profit_pct=args.min_profit_pct,
-                         trailing_stop=not args.no_trailing,
-                         risk_aversion=args.risk_aversion,
-                         volatility_adjust=not args.no_volatility_adjust,
-                         market_aware=not args.no_market_aware,
-                         time_decay=not args.no_time_decay,
-                         time_decay_days=args.time_decay_days,
-                         enable_short=args.enable_short)
-    elif args.advanced_stop_loss:
-        logger.info(f"使用高级止损的神奇九转策略 (ATR周期: {args.atr_period}, ATR乘数: {args.atr_multiplier}, " 
-                 f"最大止损: {args.stop_loss_pct}%, 追踪止损: {not args.no_trailing}, "
-                 f"做空交易: {args.enable_short})")
-        cerebro.addstrategy(MagicNineStrategyWithAdvancedStopLoss, 
-                         magic_period=args.magic_period,
-                         atr_period=args.atr_period,
-                         atr_multiplier=args.atr_multiplier,
-                         max_loss_pct=args.stop_loss_pct,
-                         min_profit_pct=args.min_profit_pct,
-                         trailing_stop=not args.no_trailing,
-                         enable_short=args.enable_short)
-    elif args.stop_loss:
-        logger.info(f"使用普通止损的神奇九转策略 (止损比例: {args.stop_loss_pct}%, 做空交易: {args.enable_short})")
-        cerebro.addstrategy(MagicNineStrategyWithStopLoss, magic_period=args.magic_period, stop_loss_pct=args.stop_loss_pct, enable_short=args.enable_short)
+    elif args.multi_asset and len(args.symbols) > 1:
+        # 多资产模式 - 为每个标的创建独立的策略实例
+        logger.info("使用多资产独立交易策略(基于配置)")
+        
+        for symbol in args.symbols:
+            # 获取数据
+            data = fetch_data(symbol, args.days, args.use_cache, data_fetcher)
+            if data is None:
+                continue
+            
+            # 添加数据
+            data_feed = cerebro.adddata(data, name=symbol)
+            
+            # 获取标的特定的策略和参数
+            strategy_class, strategy_params = strategy_factory.create_strategy(symbol)
+            
+            # 命令行参数可以覆盖配置文件中的参数
+            if args.magic_period and not args.use_config:
+                strategy_params['magic_period'] = args.magic_period
+                
+            # 根据命令行选项设置策略
+            if args.advanced_stop_loss and not args.use_config:
+                strategy_params['strategy_type'] = 'advanced_stoploss'
+            elif args.smart_stop_loss and not args.use_config:
+                strategy_params['strategy_type'] = 'smart_stoploss'
+            elif args.stop_loss and not args.use_config:
+                strategy_params['strategy_type'] = 'stoploss'
+            
+            # 设置做空选项
+            if not args.use_config:
+                strategy_params['enable_short'] = args.enable_short
+            
+            # 设置追踪止损选项
+            if args.no_trailing and not args.use_config:
+                strategy_params['trailing_stop'] = False
+            
+            # 再次过滤参数以确保兼容性
+            for key in list(strategy_params.keys()):
+                try:
+                    # 尝试访问参数，如果不存在会抛出异常
+                    getattr(strategy_class.params, key)
+                except AttributeError:
+                    logger.debug(f"参数 {key} 不适用于策略类 {strategy_class.__name__}，将被忽略")
+                    strategy_params.pop(key, None)
+            
+            # 创建策略并关联特定的数据
+            cerebro.addstrategy(strategy_class, data=data_feed, **strategy_params)
+            
+            logger.info(f"已添加标的 {symbol} 使用 {strategy_class.__name__} 参数: {strategy_params}")
     else:
-        logger.info(f"使用原始神奇九转策略 (做空交易: {args.enable_short})")
-        cerebro.addstrategy(MagicNineStrategy, magic_period=args.magic_period, enable_short=args.enable_short)
+        # 添加数据
+        for symbol in args.symbols:
+            data = fetch_data(symbol, args.days, args.use_cache, data_fetcher)
+            if data is None:
+                continue
+            cerebro.adddata(data, name=symbol)
+                
+        # 单资产或简单多资产模式
+        if len(args.symbols) == 1 and (args.use_config or not (args.advanced_stop_loss or args.smart_stop_loss or args.stop_loss)):
+            # 使用配置文件中的参数
+            symbol = args.symbols[0]
+            strategy_class, strategy_params = strategy_factory.create_strategy(symbol)
+            
+            # 命令行参数可以覆盖配置文件中的参数
+            if not args.use_config:
+                if args.magic_period:
+                    strategy_params['magic_period'] = args.magic_period
+                if args.atr_period:
+                    strategy_params['atr_period'] = args.atr_period
+                if args.atr_multiplier:
+                    strategy_params['atr_multiplier'] = args.atr_multiplier
+                if args.stop_loss_pct:
+                    strategy_params['max_loss_pct'] = args.stop_loss_pct
+                
+                # 设置做空选项
+                strategy_params['enable_short'] = args.enable_short
+                
+                # 设置追踪止损选项
+                if args.no_trailing:
+                    strategy_params['trailing_stop'] = False
+            
+            # 再次过滤参数以确保兼容性
+            for key in list(strategy_params.keys()):
+                try:
+                    # 尝试访问参数，如果不存在会抛出异常
+                    getattr(strategy_class.params, key)
+                except AttributeError:
+                    logger.debug(f"参数 {key} 不适用于策略类 {strategy_class.__name__}，将被忽略")
+                    strategy_params.pop(key, None)
+            
+            # 添加策略
+            cerebro.addstrategy(strategy_class, **strategy_params)
+            
+            logger.info(f"使用策略 {strategy_class.__name__} 参数: {strategy_params}")
+        else:
+            # 使用命令行指定的策略参数
+            if args.smart_stop_loss:
+                logger.info(f"使用智能止损的神奇九转策略 [ATR周期: {args.atr_period}, ATR乘数: {args.atr_multiplier}, " 
+                        f"最大止损: {args.stop_loss_pct}%%, 追踪止损: {not args.no_trailing}, "
+                        f"风险规避系数: {args.risk_aversion}, "
+                        f"波动性自适应: {not args.no_volatility_adjust}, "
+                        f"市场感知: {not args.no_market_aware}, "
+                        f"时间衰减: {not args.no_time_decay}, "
+                        f"做空交易: {args.enable_short}]")
+                cerebro.addstrategy(MagicNineStrategyWithSmartStopLoss, 
+                                magic_period=args.magic_period,
+                                atr_period=args.atr_period,
+                                atr_multiplier=args.atr_multiplier,
+                                max_loss_pct=args.stop_loss_pct,
+                                min_profit_pct=args.min_profit_pct,
+                                trailing_stop=not args.no_trailing,
+                                risk_aversion=args.risk_aversion,
+                                volatility_adjust=not args.no_volatility_adjust,
+                                market_aware=not args.no_market_aware,
+                                time_decay=not args.no_time_decay,
+                                time_decay_days=args.time_decay_days,
+                                enable_short=args.enable_short)
+            elif args.advanced_stop_loss:
+                logger.info(f"使用高级止损的神奇九转策略 [ATR周期: {args.atr_period}, ATR乘数: {args.atr_multiplier}, " 
+                        f"最大止损: {args.stop_loss_pct}%%, 追踪止损: {not args.no_trailing}, "
+                        f"做空交易: {args.enable_short}]")
+                cerebro.addstrategy(MagicNineStrategyWithAdvancedStopLoss, 
+                                magic_period=args.magic_period,
+                                atr_period=args.atr_period,
+                                atr_multiplier=args.atr_multiplier,
+                                max_loss_pct=args.stop_loss_pct,
+                                min_profit_pct=args.min_profit_pct,
+                                trailing_stop=not args.no_trailing,
+                                enable_short=args.enable_short)
+            elif args.stop_loss:
+                logger.info(f"使用普通止损的神奇九转策略 [止损比例: {args.stop_loss_pct}%%, 做空交易: {args.enable_short}]")
+                cerebro.addstrategy(MagicNineStrategyWithStopLoss, 
+                               magic_period=args.magic_period, 
+                               stop_loss_pct=args.stop_loss_pct, 
+                               enable_short=args.enable_short)
+            else:
+                # 原始策略
+                logger.info(f"使用原始神奇九转策略 [做空交易: {args.enable_short}]")
+                cerebro.addstrategy(MagicNineStrategy, 
+                                magic_period=args.magic_period, 
+                                stop_loss_pct=args.stop_loss_pct,
+                                enable_short=args.enable_short)
     
+    # 添加分析器
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe_ratio')
-    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+    cerebro.addanalyzer(CustomDrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trade_analyzer')
+    cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
     cerebro.addobserver(BuySell)
+    
     # 运行回测
     logger.info(f"初始资金: {cerebro.broker.getvalue():.2f}")
     results = cerebro.run()
@@ -278,10 +519,28 @@ def main():
     
     # 输出结果
     final_value = cerebro.broker.getvalue()
-    logger.info(f"最终资金: {final_value:.2f}")
-    logger.info(f"总收益率: {(final_value / args.cash - 1) * 100:.2f}%")
+    total_return_pct = (final_value / args.cash - 1) * 100
     
-    # 输出交易分析
+    logger.info(f"最终资金: {final_value:.2f}")
+    logger.info(f"总收益率: {total_return_pct:.2f}%")
+    
+    # 获取分析结果
+    sharpe = strategy.analyzers.sharpe_ratio.get_analysis()
+    if sharpe:
+        sharpe_ratio = sharpe.get('sharperatio', 0.0)
+        if sharpe_ratio is not None and np.isfinite(sharpe_ratio):
+            logger.info(f"夏普比率: {sharpe_ratio:.4f}")
+        else:
+            logger.info("夏普比率: 无效")
+
+    # 使用自定义回撤分析器结果
+    drawdown = strategy.analyzers.drawdown.get_analysis()
+    if drawdown:
+        raw_drawdown = drawdown.get('max', {}).get('drawdown', 0.0)
+        max_drawdown = raw_drawdown * 100  # 正确转换为百分比
+        max_dd_len = drawdown.get('max', {}).get('len', 0)
+        logger.info(f"最大回撤: {max_drawdown:.2f}%，持续周期: {max_dd_len}")
+
     trade_analyzer = strategy.analyzers.trade_analyzer.get_analysis()
     
     # 简单检查是否有交易发生（更安全的方式）
@@ -301,6 +560,13 @@ def main():
             logger.info("没有交易发生")
     else:
         logger.info("没有交易分析数据")
+    
+    # 输出SQN
+    sqn_analyzer = strategy.analyzers.sqn.get_analysis()
+    if sqn_analyzer:
+        sqn_value = sqn_analyzer.get('sqn', 0.0)
+        if np.isfinite(sqn_value):
+            logger.info(f"系统质量指标(SQN): {sqn_value:.4f}")
     
     # 如果使用了自适应策略，输出策略切换统计信息
     if args.adaptive and hasattr(strategy, 'strategy_switches'):

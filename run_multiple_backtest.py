@@ -81,10 +81,14 @@ SYMBOLS = ['QQQ', 'SPY', 'AAPL', 'TSLA', 'GOOGL', 'META', 'NVDA', 'AMZN', 'MSFT'
 
 # 定义要测试的策略
 STRATEGIES = {
-    "原始策略(无做空)": "--use-cache",
-    "原始策略(有做空)": "--use-cache --enable-short",
-    "高级止损策略(有做空)": "--use-cache --enable-short --advanced-stop-loss",
-    "智能止损策略(有做空)": "--use-cache --enable-short --smart-stop-loss"
+    "原始策略(无做空,无费用,100万)": "--use-cache --cash 1000000",
+    "原始策略(有做空,无费用,100万)": "--use-cache --enable-short --cash 1000000",
+    "高级止损策略(有做空,无费用,100万)": "--use-cache --enable-short --advanced-stop-loss --cash 1000000",
+    "智能止损策略(有做空,无费用,100万)": "--use-cache --enable-short --smart-stop-loss --cash 1000000",
+    "原始策略(无做空,有费用,100万)": "--use-cache --real-costs --broker-type tiger --cash 1000000",
+    "原始策略(有做空,有费用,100万)": "--use-cache --enable-short --real-costs --broker-type tiger --cash 1000000",
+    "高级止损策略(有做空,有费用,100万)": "--use-cache --enable-short --advanced-stop-loss --real-costs --broker-type tiger --cash 1000000",
+    "智能止损策略(有做空,有费用,100万)": "--use-cache --enable-short --smart-stop-loss --real-costs --broker-type tiger --cash 1000000"
 }
 
 # 设置回测天数
