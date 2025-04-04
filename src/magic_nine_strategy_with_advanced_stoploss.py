@@ -235,6 +235,50 @@ class MagicNineStrategyWithAdvancedStopLoss(bt.Strategy):
         if self.order:
             return
             
+        # 获取当前时间
+        current_time = self.data.datetime.datetime(0)
+        
+        # 检查是否接近收盘时间或已过收盘时间
+        # 考虑时区差异，将任何时间格式转换为美东时间后再判断
+        # UTC比美东时间快4-5小时（取决于是否为夏令时）
+
+        # 判断月份确定是否是夏令时（粗略判断，美国夏令时一般3月至11月）
+        is_dst = 3 <= current_time.month <= 11
+
+        # 计算美东时间
+        et_hour = current_time.hour
+        et_minute = current_time.minute
+
+        # 如果可能是UTC时间，转换为美东时间
+        if current_time.hour >= 19:  # 可能是UTC时间
+            if is_dst:
+                # 夏令时：UTC-4
+                et_hour = (current_time.hour - 4) % 24
+            else:
+                # 标准时：UTC-5
+                et_hour = (current_time.hour - 5) % 24
+
+        # 根据转换后的美东时间判断是否接近收盘
+        is_near_close = (et_hour == 15 and et_minute >= 45) or et_hour >= 16
+
+        # 如果接近收盘且有持仓，强制平仓
+        if is_near_close and self.position:
+            if self.position.size > 0:  # 多头持仓
+                logger.info(f'{current_time.isoformat()} 收盘前强制平仓多头! 价格: {self.data.close[0]:.2f}, ET时间约: {et_hour}:{et_minute}')
+                self.order = self.sell(size=self.position_size)
+                self.position_size = 0
+                self.stop_loss_price = None
+                self.highest_price = None
+                return
+            elif self.position.size < 0:  # 空头持仓
+                logger.info(f'{current_time.isoformat()} 收盘前强制平仓空头! 价格: {self.data.close[0]:.2f}, ET时间约: {et_hour}:{et_minute}')
+                self.order = self.buy(size=self.position_size)
+                self.position_size = 0
+                self.stop_loss_price = None
+                self.lowest_price = None
+                self.is_short = False
+                return
+        
         # 获取当前价格
         current_price = self.data.close[0]
         

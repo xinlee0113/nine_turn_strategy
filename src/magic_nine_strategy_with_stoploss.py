@@ -1,5 +1,7 @@
 import backtrader as bt
 import logging
+import pytz
+from datetime import datetime, timedelta
 from src.indicators import MagicNine, KDJBundle
 
 logger = logging.getLogger(__name__)
@@ -102,6 +104,72 @@ class MagicNineStrategyWithStopLoss(bt.Strategy):
         if self.order:
             return
             
+        # 获取当前时间
+        current_time = self.data.datetime.datetime(0)
+        
+        # 时区判断与转换 - 证券交易时间处理
+        # 美股正常交易时间是美东时间(ET)的9:30-16:00
+        
+        # 使用pytz准确判断是否是夏令时
+        eastern = pytz.timezone('US/Eastern')
+        # 使用当前日期构建一个aware datetime对象
+        # backtrader提供的datetime对象是naive的，我们需要假设它是UTC时间
+        # 然后验证当前时间对应的美东时间是否在夏令时
+        utc_time = pytz.utc.localize(datetime(
+            current_time.year, current_time.month, current_time.day,
+            current_time.hour, current_time.minute, current_time.second
+        ))
+        et_time = utc_time.astimezone(eastern)
+        is_dst = et_time.dst() != timedelta(0)
+        
+        # 初始假设时间是美东时间
+        et_hour = current_time.hour
+        et_minute = current_time.minute
+        is_utc_time = False
+        
+        # 判断是否可能是UTC时间格式，根据交易时间合理性判断
+        # UTC时间对应美股交易时间：
+        # 美东标准时(EST)：UTC-5，交易时间是UTC 14:30-21:00
+        # 美东夏令时(EDT)：UTC-4，交易时间是UTC 13:30-20:00
+        if is_dst:  # 夏令时
+            # 如果时间在UTC交易范围内，可能是UTC时间
+            if 13 <= current_time.hour <= 20:
+                is_utc_time = True
+                et_hour = (current_time.hour - 4) % 24  # UTC-4
+        else:  # 标准时
+            # 如果时间在UTC交易范围内，可能是UTC时间
+            if 14 <= current_time.hour <= 21:
+                is_utc_time = True
+                et_hour = (current_time.hour - 5) % 24  # UTC-5
+        
+        # 判断是否在交易时段 (美东时间9:30-16:00)
+        is_trading_time = (9 < et_hour < 16) or (et_hour == 9 and et_minute >= 30) or (et_hour == 16 and et_minute == 0)
+        
+        # 判断是否接近美股收盘时间 (美东时间15:45-16:00)
+        is_near_close = (et_hour == 15 and et_minute >= 45) or et_hour == 16
+        
+        # 记录详细的时间信息用于调试
+        if len(self) % 100 == 0 or is_near_close:  # 每100个bar记录一次或接近收盘时记录
+            time_format = "UTC" if is_utc_time else "ET"
+            logger.info(f"时间检查: 原始时间={current_time.isoformat()}, 计算为美东时间:{et_hour}:{et_minute:02d}, "
+                       f"时间格式:{time_format}, 交易时段:{is_trading_time}, 接近收盘:{is_near_close}, 夏令时:{is_dst}")
+        
+        # 如果接近收盘且有持仓，强制平仓
+        if is_near_close and self.position:
+            if self.position.size > 0:  # 多头持仓
+                logger.info(f'{current_time.isoformat()} 收盘前强制平仓多头! 价格: {self.data.close[0]:.2f}, ET时间约: {et_hour}:{et_minute:02d}')
+                self.order = self.sell(size=self.position_size)
+                self.position_size = 0
+                self.stop_loss = None
+                return
+            elif self.position.size < 0:  # 空头持仓
+                logger.info(f'{current_time.isoformat()} 收盘前强制平仓空头! 价格: {self.data.close[0]:.2f}, ET时间约: {et_hour}:{et_minute:02d}')
+                self.order = self.buy(size=self.position_size)
+                self.position_size = 0
+                self.stop_loss = None
+                self.is_short = False
+                return
+        
         # 获取当前价格
         current_price = self.data.close[0]
         
@@ -118,15 +186,19 @@ class MagicNineStrategyWithStopLoss(bt.Strategy):
                 current_rsi = self.rsi[0]
                 rsi_ok = current_rsi < self.p.rsi_overbought
                 
-                # 同时满足条件时买入
-                if trend_up and rsi_ok:
+                # 同时满足条件时买入：
+                # 1. 趋势向上
+                # 2. RSI不超买
+                # 3. 在交易时段内
+                # 4. 不在接近收盘时段
+                if trend_up and rsi_ok and is_trading_time and not is_near_close:
                     # 神奇九转买入信号 - 无需其他指标确认
                     value = self.broker.get_value()
                     size = int(value * 0.95 / current_price)  # 使用95%资金
                     
                     if size > 0:
                         logger.info(f'{self.data.datetime.datetime(0).isoformat()} 买入信号! 神奇九转计数: {self.magic_nine.buy_count}, '
-                                 f'价格: {current_price:.2f}, 数量: {size}')
+                                 f'价格: {current_price:.2f}, 数量: {size}, ET时间: {et_hour}:{et_minute:02d}')
                         
                         # 下买入订单
                         self.order = self.buy(size=size)
@@ -144,15 +216,19 @@ class MagicNineStrategyWithStopLoss(bt.Strategy):
                 current_rsi = self.rsi[0]
                 rsi_ok = current_rsi > self.p.rsi_oversold
                 
-                # 同时满足条件时卖空
-                if trend_down and rsi_ok:
+                # 同时满足条件时卖空：
+                # 1. 趋势向下
+                # 2. RSI不超卖
+                # 3. 在交易时段内
+                # 4. 不在接近收盘时段
+                if trend_down and rsi_ok and is_trading_time and not is_near_close:
                     # 神奇九转卖空信号
                     value = self.broker.get_value()
                     size = int(value * 0.95 / current_price)  # 使用95%资金
                     
                     if size > 0:
                         logger.info(f'{self.data.datetime.datetime(0).isoformat()} 卖空信号! 神奇九转计数: {self.magic_nine.sell_count}, '
-                                 f'价格: {current_price:.2f}, 数量: {size}')
+                                 f'价格: {current_price:.2f}, 数量: {size}, ET时间: {et_hour}:{et_minute:02d}')
                         
                         # 下卖空订单
                         self.order = self.sell(size=size)

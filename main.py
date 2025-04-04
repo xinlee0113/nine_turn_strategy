@@ -507,9 +507,14 @@ def main():
     
     # 添加分析器
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe_ratio')
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name='sortino_ratio')  # 索提诺比率
     cerebro.addanalyzer(CustomDrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trade_analyzer')
     cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
+    cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')  # 用于计算各种收益率指标
+    cerebro.addanalyzer(bt.analyzers.Calmar, _name='calmar')  # 卡尔玛比率
+    cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annual')  # 年化收益率
+    cerebro.addanalyzer(bt.analyzers.PeriodStats, _name='period_stats')  # 周期统计
     cerebro.addobserver(BuySell)
     
     # 运行回测
@@ -532,7 +537,16 @@ def main():
             logger.info(f"夏普比率: {sharpe_ratio:.4f}")
         else:
             logger.info("夏普比率: 无效")
-
+            
+    # 添加索提诺比率
+    sortino = strategy.analyzers.sortino_ratio.get_analysis()
+    if sortino:
+        sortino_ratio = sortino.get('sortino', 0.0)
+        if sortino_ratio is not None and np.isfinite(sortino_ratio):
+            logger.info(f"索提诺比率: {sortino_ratio:.4f}")
+        else:
+            logger.info("索提诺比率: 无效")
+    
     # 使用自定义回撤分析器结果
     drawdown = strategy.analyzers.drawdown.get_analysis()
     if drawdown:
@@ -540,6 +554,35 @@ def main():
         max_drawdown = raw_drawdown * 100  # 正确转换为百分比
         max_dd_len = drawdown.get('max', {}).get('len', 0)
         logger.info(f"最大回撤: {max_drawdown:.2f}%，持续周期: {max_dd_len}")
+            
+    # 添加卡尔玛比率
+    calmar = strategy.analyzers.calmar.get_analysis()
+    if calmar:
+        calmar_ratio = calmar.get('calmar', 0.0)
+        if calmar_ratio is not None and np.isfinite(calmar_ratio):
+            logger.info(f"卡尔玛比率: {calmar_ratio:.4f}")
+        else:
+            logger.info("卡尔玛比率: 无效")
+            
+    # 添加年化收益率
+    annual = strategy.analyzers.annual.get_analysis()
+    if annual:
+        # 显示最近一年的年化收益率，或者整个回测期间的平均年化收益率
+        years = list(annual.keys())
+        if years:
+            latest_year = max(years)
+            annual_return = annual[latest_year] * 100
+            logger.info(f"年化收益率: {annual_return:.2f}%")
+                
+    # 获取周期统计数据
+    period_stats = strategy.analyzers.period_stats.get_analysis()
+    if period_stats:
+        if 'rnorm100' in period_stats:
+            norm_return = period_stats['rnorm100']
+            logger.info(f"标准化百日收益率: {norm_return:.2f}%")
+        if 'volatility' in period_stats:
+            volatility = period_stats['volatility'] * 100
+            logger.info(f"价格波动率: {volatility:.2f}%")
 
     trade_analyzer = strategy.analyzers.trade_analyzer.get_analysis()
     
@@ -556,6 +599,30 @@ def main():
                 win_rate = (winning_trades / total_trades) * 100 if total_trades > 0 else 0
                 logger.info(f"盈利交易次数: {winning_trades}")
                 logger.info(f"胜率: {win_rate:.2f}%")
+                
+                # 添加平均盈亏比
+                avg_won = trade_analyzer.won.pnl.average if hasattr(trade_analyzer.won, 'pnl') and hasattr(trade_analyzer.won.pnl, 'average') else 0
+                avg_lost = trade_analyzer.lost.pnl.average if hasattr(trade_analyzer.lost, 'pnl') and hasattr(trade_analyzer.lost.pnl, 'average') else 0
+                if avg_lost < 0:  # 确保分母为负数转为正数
+                    profit_loss_ratio = abs(avg_won / avg_lost) if avg_lost != 0 else float('inf')
+                    logger.info(f"平均盈亏比: {profit_loss_ratio:.2f}")
+                
+                # 添加盈利因子
+                gross_won = trade_analyzer.won.pnl.total if hasattr(trade_analyzer.won, 'pnl') and hasattr(trade_analyzer.won.pnl, 'total') else 0
+                gross_lost = trade_analyzer.lost.pnl.total if hasattr(trade_analyzer.lost, 'pnl') and hasattr(trade_analyzer.lost.pnl, 'total') else 0
+                if gross_lost < 0:  # 确保分母为负数转为正数
+                    profit_factor = abs(gross_won / gross_lost) if gross_lost != 0 else float('inf')
+                    logger.info(f"盈利因子: {profit_factor:.2f}")
+                
+                # 添加期望收益
+                expected_return = (win_rate/100 * avg_won) + ((100-win_rate)/100 * avg_lost)
+                logger.info(f"每笔交易期望收益: {expected_return:.2f}")
+                
+                # 添加最大连续盈利和亏损次数
+                max_win_streak = trade_analyzer.streak.won.longest if hasattr(trade_analyzer, 'streak') and hasattr(trade_analyzer.streak, 'won') and hasattr(trade_analyzer.streak.won, 'longest') else 0
+                max_loss_streak = trade_analyzer.streak.lost.longest if hasattr(trade_analyzer, 'streak') and hasattr(trade_analyzer.streak, 'lost') and hasattr(trade_analyzer.streak.lost, 'longest') else 0
+                logger.info(f"最大连续盈利次数: {max_win_streak}")
+                logger.info(f"最大连续亏损次数: {max_loss_streak}")
         else:
             logger.info("没有交易发生")
     else:
