@@ -7,28 +7,30 @@ logger = logging.getLogger(__name__)
 class MagicNineStrategyWithAdvancedStopLoss(bt.Strategy):
     """神奇九转交易策略 - 高级止损版本，包含ATR止损和追踪止损，支持双向交易（多空）"""
     params = (
-        ('magic_period', 2),     # 神奇九转比较周期，默认改为2使信号更频繁
-        ('magic_count', 5),      # 神奇九转信号触发计数，默认改为5增加交易次数
+        ('magic_period', 3),     # 神奇九转比较周期
+        ('magic_count', 5),      # 神奇九转信号触发计数
         ('rsi_oversold', 30),    # RSI超卖值
         ('rsi_overbought', 70),  # RSI超买值
         ('kdj_oversold', 20),    # KDJ超卖值
         ('kdj_overbought', 80),  # KDJ超买值
         ('macd_signal', 0),      # MACD信号线
-        ('atr_period', 14),      # ATR周期
-        ('atr_multiplier', 2.5), # ATR乘数，用于设置止损距离
+        ('atr_period', 14),      # ATR计算周期
+        ('atr_multiplier', 2.5), # ATR乘数
         ('long_atr_multiplier', 2.5),  # 多头ATR乘数
         ('short_atr_multiplier', 3.2), # 空头ATR乘数，更大以提供更宽松的止损空间
         ('trailing_stop', True), # 是否启用追踪止损
-        ('max_loss_pct', 3.0),   # 最大止损百分比，作为上限
+        ('max_loss_pct', 3.0),   # 最大止损比例
         ('long_max_loss_pct', 3.0),  # 多头最大止损百分比
         ('short_max_loss_pct', 4.0), # 空头最大止损百分比，更大以适应空头波动
-        ('min_profit_pct', 1.0), # 追踪止损启动的最小盈利百分比
+        ('min_profit_pct', 1.0), # 启动追踪止损的最小盈利百分比
         ('long_min_profit_pct', 1.0),  # 多头追踪止损启动的最小盈利百分比
         ('short_min_profit_pct', 1.5), # 空头追踪止损启动的最小盈利百分比，更大以确保利润
         ('enable_short', True),  # 是否允许做空
         ('position_pct', 0.95),  # 使用资金的百分比，默认95%
         ('short_volatility_factor', 1.2),  # 空头波动因子，用于调整空头止损计算
         ('max_holding_periods', 20),  # 最大持有周期，超过此期限考虑强制平仓
+        ('avoid_open_minutes', 30),  # 避开开盘后的分钟数
+        ('avoid_close_minutes', 30),  # 避开收盘前的分钟数
     )
     
     def __init__(self):
@@ -87,12 +89,9 @@ class MagicNineStrategyWithAdvancedStopLoss(bt.Strategy):
             self.p.long_min_profit_pct = self.p.min_profit_pct
             self.p.short_min_profit_pct = self.p.min_profit_pct
         
-        logger.info(f"策略初始化完成 - 高级止损的神奇九转模式 (比较周期:{self.p.magic_period}, "
-                  f"信号触发计数:{self.p.magic_count}, ATR周期:{self.p.atr_period}, "
-                  f"多头ATR乘数:{self.p.long_atr_multiplier}, 空头ATR乘数:{self.p.short_atr_multiplier}, "
-                  f"多头最大止损:{self.p.long_max_loss_pct}%, 空头最大止损:{self.p.short_max_loss_pct}%, "
-                  f"空头波动因子:{self.p.short_volatility_factor}, 最大持有周期:{self.p.max_holding_periods}, "
-                  f"追踪止损:{self.p.trailing_stop}, 做空交易:{self.p.enable_short})")
+        logger.info(f"策略初始化完成 - 高级止损双向神奇九转模式 (比较周期:{self.p.magic_period}, ATR周期:{self.p.atr_period}, "
+                  f"ATR乘数:{self.p.atr_multiplier}, 最大止损:{self.p.max_loss_pct}%, 追踪止损:{self.p.trailing_stop})")
+        logger.info(f"避开开盘后{self.p.avoid_open_minutes}分钟和收盘前{self.p.avoid_close_minutes}分钟的交易")
     
     def notify_order(self, order):
         """订单状态通知"""
@@ -257,10 +256,31 @@ class MagicNineStrategyWithAdvancedStopLoss(bt.Strategy):
             else:
                 # 标准时：UTC-5
                 et_hour = (current_time.hour - 5) % 24
+                
+        # 计算开盘和收盘时间
+        market_open_hour = 9
+        market_open_minute = 30
+        market_close_hour = 16
+        market_close_minute = 0
+        
+        # 计算交易时间分钟数（相对于开盘时间）
+        minutes_since_open = (et_hour - market_open_hour) * 60 + (et_minute - market_open_minute)
+        minutes_before_close = (market_close_hour - et_hour) * 60 + (market_close_minute - et_minute)
+        
+        # 判断是否在交易时段 (美东时间9:30-16:00)，并避开开盘和收盘的30分钟
+        is_trading_time = (9 < et_hour < 16) or (et_hour == 9 and et_minute >= 30) or (et_hour == 16 and et_minute == 0)
+        is_safe_trading_time = is_trading_time and minutes_since_open >= self.p.avoid_open_minutes and minutes_before_close >= self.p.avoid_close_minutes
 
         # 根据转换后的美东时间判断是否接近收盘
         is_near_close = (et_hour == 15 and et_minute >= 45) or et_hour >= 16
-
+        
+        # 记录详细的时间信息用于调试
+        if len(self) % 100 == 0 or is_near_close:  # 每100个bar记录一次或接近收盘时记录
+            logger.info(f"时间检查: 原始时间={current_time.isoformat()}, 计算为美东时间:{et_hour}:{et_minute:02d}, "
+                       f"交易时段:{is_trading_time}, 安全交易时段:{is_safe_trading_time}, "
+                       f"开盘后分钟数:{minutes_since_open}, 收盘前分钟数:{minutes_before_close}, "
+                       f"接近收盘:{is_near_close}, 夏令时:{is_dst}")
+        
         # 如果接近收盘且有持仓，强制平仓
         if is_near_close and self.position:
             if self.position.size > 0:  # 多头持仓
@@ -305,67 +325,94 @@ class MagicNineStrategyWithAdvancedStopLoss(bt.Strategy):
         if not self.position or self.position.size == 0:
             # 没有仓位，检查买入或卖空信号
             
-            # 多头信号条件：只要有买入信号就交易
-            if self.magic_nine.lines.buy_signal[0] >= 1:
-                # 记录趋势和RSI信息，但不作为强制条件
+            # 多头信号条件：买入计数达标且EMA20>EMA50（上升趋势）且不超买
+            if self.magic_nine.buy_count >= self.p.magic_count:
+                # 确认趋势方向 (EMA20 > EMA50 为上升趋势)
                 trend_up = self.ema20[0] > self.ema50[0]
-                current_rsi = self.rsi.lines.rsi6[0]
                 
-                # 极度超买时避免买入
-                rsi_too_high = current_rsi > 85  # 只在极端情况下禁止买入
+                # RSI不在超买区域 (降低错误信号概率)
+                rsi_ok = self.rsi.lines.rsi6[0] < 70
                 
-                # 只有RSI极度超买时才不买入
-                if not rsi_too_high:
+                # 在安全交易时段内且不在收盘前
+                if trend_up and rsi_ok and is_safe_trading_time and not is_near_close:
+                    # 计算ATR止损点
+                    atr_value = self.atr[0]
+                    stop_loss_atr = current_price - (atr_value * self.p.atr_multiplier)
+                    
+                    # 计算百分比止损点
+                    stop_loss_pct = current_price * (1 - self.p.max_loss_pct / 100)
+                    
+                    # 取两种方法中更靠近当前价格的（更严格的）止损点
+                    stop_loss = max(stop_loss_atr, stop_loss_pct)
+                    
                     # 计算仓位大小
                     value = self.broker.get_value()
-                    size = int(value * self.p.position_pct / current_price)  # 使用设定的资金比例
+                    risk_per_trade = value * 0.02  # 每笔交易风险资金的2%
+                    
+                    # 基于止损点计算头寸大小
+                    price_risk = current_price - stop_loss
+                    size = int(risk_per_trade / price_risk) if price_risk > 0 else 0
+                    
+                    # 确保头寸大小合理
+                    max_size = int(value * 0.95 / current_price)  # 最多使用账户95%的资金
+                    size = min(size, max_size)
                     
                     if size > 0:
-                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 买入执行前检查 - 资金: {value:.2f}, 计算仓位: {size}')
-                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 买入信号! 神奇九转计数: {self.magic_nine.lines.buy_setup[0]}, '
-                                 f'价格: {current_price:.2f}, 数量: {size}, RSI: {current_rsi:.2f}, 趋势上升: {trend_up}')
-                        
-                        # 确保任何旧的标志被重置
-                        self.is_short = False
+                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 买入信号! 计数: {self.magic_nine.buy_count}, '
+                                  f'价格: {current_price:.2f}, 数量: {size}, ATR止损: {stop_loss:.2f}')
                         
                         # 下买入订单
                         self.order = self.buy(size=size)
                         self.position_size = size
-                    else:
-                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 买入信号存在但计算的仓位大小为0，资金: {value:.2f}')
-                else:
-                    logger.info(f'{self.data.datetime.datetime(0).isoformat()} 买入信号存在但RSI过高: {current_rsi:.2f}')
+                        self.buy_price = current_price
+                        self.stop_loss_price = stop_loss
+                        self.highest_price = current_price
+                        self.position_entry_bar = len(self)
             
-            # 空头信号条件：只要有卖出信号就交易
-            elif self.magic_nine.lines.sell_signal[0] >= 1 and self.p.enable_short:
-                # 记录趋势和RSI信息，但不作为强制条件
+            # 空头信号条件：卖出计数达标且EMA20<EMA50（下降趋势）且不超卖
+            elif self.magic_nine.sell_count >= self.p.magic_count and self.p.enable_short:
+                # 确认趋势方向 (EMA20 < EMA50 为下降趋势)
                 trend_down = self.ema20[0] < self.ema50[0]
-                current_rsi = self.rsi.lines.rsi6[0]
                 
-                # 极度超卖时避免卖空
-                rsi_too_low = current_rsi < 15  # 只在极端情况下禁止卖空
+                # RSI不在超卖区域 (降低错误信号概率)
+                rsi_ok = self.rsi.lines.rsi6[0] > 30
                 
-                # 只有RSI极度超卖时才不卖空
-                if not rsi_too_low:
+                # 在安全交易时段内且不在收盘前
+                if trend_down and rsi_ok and is_safe_trading_time and not is_near_close:
+                    # 计算ATR止损点
+                    atr_value = self.atr[0]
+                    stop_loss_atr = current_price + (atr_value * self.p.atr_multiplier)
+                    
+                    # 计算百分比止损点
+                    stop_loss_pct = current_price * (1 + self.p.max_loss_pct / 100)
+                    
+                    # 取两种方法中更靠近当前价格的（更严格的）止损点
+                    stop_loss = min(stop_loss_atr, stop_loss_pct)
+                    
                     # 计算仓位大小
                     value = self.broker.get_value()
-                    size = int(value * self.p.position_pct / current_price)  # 使用设定的资金比例
+                    risk_per_trade = value * 0.02  # 每笔交易风险资金的2%
+                    
+                    # 基于止损点计算头寸大小
+                    price_risk = stop_loss - current_price
+                    size = int(risk_per_trade / price_risk) if price_risk > 0 else 0
+                    
+                    # 确保头寸大小合理
+                    max_size = int(value * 0.95 / current_price)  # 最多使用账户95%的资金
+                    size = min(size, max_size)
                     
                     if size > 0:
-                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 卖空执行前检查 - 资金: {value:.2f}, 计算仓位: {size}')
-                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 卖空信号! 神奇九转计数: {self.magic_nine.lines.sell_setup[0]}, '
-                                 f'价格: {current_price:.2f}, 数量: {size}, RSI: {current_rsi:.2f}, 趋势下降: {trend_down}')
-                        
-                        # 确保正确设置空头标志
-                        self.is_short = True
+                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 卖空信号! 计数: {self.magic_nine.sell_count}, '
+                                  f'价格: {current_price:.2f}, 数量: {size}, ATR止损: {stop_loss:.2f}')
                         
                         # 下卖空订单
                         self.order = self.sell(size=size)
                         self.position_size = size
-                    else:
-                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 卖空信号存在但计算的仓位大小为0，资金: {value:.2f}')
-                else:
-                    logger.info(f'{self.data.datetime.datetime(0).isoformat()} 卖空信号存在但RSI过低: {current_rsi:.2f}')
+                        self.buy_price = current_price
+                        self.stop_loss_price = stop_loss
+                        self.lowest_price = current_price
+                        self.is_short = True
+                        self.position_entry_bar = len(self)
         
         else:
             # 已有仓位，检查是多头还是空头

@@ -8,29 +8,31 @@ logger = logging.getLogger(__name__)
 class MagicNineStrategyWithSmartStopLoss(bt.Strategy):
     """神奇九转交易策略 - 智能止损版本，包含波动性自适应、市场环境感知和时间衰减等功能，支持多空双向交易"""
     params = (
-        ('magic_period', 2),     # 神奇九转比较周期，默认改为2使信号更频繁
-        ('magic_count', 5),      # 神奇九转信号触发计数，默认改为5增加交易次数
+        ('magic_period', 3),     # 神奇九转比较周期
+        ('magic_count', 5),      # 神奇九转信号触发计数
         ('rsi_oversold', 30),    # RSI超卖值
         ('rsi_overbought', 70),  # RSI超买值
         ('kdj_oversold', 20),    # KDJ超卖值
         ('kdj_overbought', 80),  # KDJ超买值
         ('macd_signal', 0),      # MACD信号线
-        ('atr_period', 14),      # ATR周期
-        ('atr_multiplier', 2.5), # ATR乘数，用于设置止损距离
+        ('atr_period', 14),      # ATR计算周期
+        ('atr_multiplier', 3.0), # ATR乘数
         ('trailing_stop', True), # 是否启用追踪止损
-        ('max_loss_pct', 3.0),   # 最大止损百分比，作为上限
-        ('min_profit_pct', 1.0), # 追踪止损启动的最小盈利百分比
-        ('time_decay', True),    # 是否启用时间衰减
-        ('time_decay_days', 3),  # 时间衰减开始的天数(以5分钟k线计算，一天约有78个5分钟k线)
-        ('volatility_adjust', True), # 是否根据波动性调整止损
-        ('market_aware', True),  # 是否感知市场环境
-        ('risk_aversion', 1.0),  # 风险规避系数(0.5-2.0)，较高的值增加止损紧密度
-        ('enable_short', True),  # 是否允许做空交易
-        ('position_pct', 0.95),  # 使用资金的百分比，默认95%
+        ('max_loss_pct', 3.0),   # 最大止损百分比
+        ('min_profit_pct', 1.0), # 激活追踪止损的最小盈利百分比
+        ('time_decay', True),    # 是否启用时间衰减调整
+        ('time_decay_days', 3),  # 时间衰减开始的天数
+        ('volatility_adjust', True),  # 是否启用波动性自适应调整
+        ('market_aware', True),       # 是否启用市场环境感知调整
+        ('risk_aversion', 1.0),  # 风险规避系数，更高的值会使止损更紧
+        ('enable_short', True),       # 是否允许做空交易
+        ('position_pct', 0.95),  # 仓位百分比(占总资金)
         ('short_atr_multiplier', 2.8), # 空头ATR乘数，默认略大于多头以提供更宽松的止损
         ('short_max_loss_pct', 3.5),   # 空头最大止损百分比，默认略大于多头
         ('short_min_profit_pct', 1.2),  # 空头追踪止损启动的最小盈利百分比，默认略大于多头
         ('short_volatility_factor', 1.2),  # 空头波动因子，用于进一步调整空头止损计算
+        ('avoid_open_minutes', 30),  # 避开开盘后的分钟数
+        ('avoid_close_minutes', 30),  # 避开收盘前的分钟数
     )
     
     def __init__(self):
@@ -77,10 +79,11 @@ class MagicNineStrategyWithSmartStopLoss(bt.Strategy):
                                       period_me2=26, 
                                       period_signal=9)
         
-        logger.info(f"策略初始化完成 - 智能止损的神奇九转模式 (比较周期:{self.p.magic_period}, "
-                  f"信号触发计数:{self.p.magic_count}, ATR周期:{self.p.atr_period}, "
-                  f"多头ATR乘数:{self.p.atr_multiplier}, 空头ATR乘数:{self.p.short_atr_multiplier}, "
-                  f"追踪止损:{self.p.trailing_stop}, 做空交易:{self.p.enable_short})")
+        logger.info(f"策略初始化完成 - 智能止损神奇九转模式 (比较周期:{self.p.magic_period}, ATR周期:{self.p.atr_period}, "
+                  f"ATR乘数:{self.p.atr_multiplier}, 最大止损:{self.p.max_loss_pct}%, 追踪止损:{self.p.trailing_stop}, "
+                  f"风险规避系数:{self.p.risk_aversion}, 波动性自适应:{self.p.volatility_adjust}, "
+                  f"市场感知:{self.p.market_aware}, 时间衰减:{self.p.time_decay})")
+        logger.info(f"避开开盘后{self.p.avoid_open_minutes}分钟和收盘前{self.p.avoid_close_minutes}分钟的交易")
     
     def notify_order(self, order):
         """订单状态通知"""
@@ -415,10 +418,31 @@ class MagicNineStrategyWithSmartStopLoss(bt.Strategy):
             else:
                 # 标准时：UTC-5
                 et_hour = (current_time.hour - 5) % 24
+                
+        # 计算开盘和收盘时间
+        market_open_hour = 9
+        market_open_minute = 30
+        market_close_hour = 16
+        market_close_minute = 0
+        
+        # 计算交易时间分钟数（相对于开盘时间）
+        minutes_since_open = (et_hour - market_open_hour) * 60 + (et_minute - market_open_minute)
+        minutes_before_close = (market_close_hour - et_hour) * 60 + (market_close_minute - et_minute)
+        
+        # 判断是否在交易时段 (美东时间9:30-16:00)，并避开开盘和收盘的30分钟
+        is_trading_time = (9 < et_hour < 16) or (et_hour == 9 and et_minute >= 30) or (et_hour == 16 and et_minute == 0)
+        is_safe_trading_time = is_trading_time and minutes_since_open >= self.p.avoid_open_minutes and minutes_before_close >= self.p.avoid_close_minutes
 
         # 根据转换后的美东时间判断是否接近收盘
         is_near_close = (et_hour == 15 and et_minute >= 45) or et_hour >= 16
-
+        
+        # 记录详细的时间信息用于调试
+        if len(self) % 100 == 0 or is_near_close:  # 每100个bar记录一次或接近收盘时记录
+            logger.info(f"时间检查: 原始时间={current_time.isoformat()}, 计算为美东时间:{et_hour}:{et_minute:02d}, "
+                       f"交易时段:{is_trading_time}, 安全交易时段:{is_safe_trading_time}, "
+                       f"开盘后分钟数:{minutes_since_open}, 收盘前分钟数:{minutes_before_close}, "
+                       f"接近收盘:{is_near_close}, 夏令时:{is_dst}")
+        
         # 如果接近收盘且有持仓，强制平仓
         if is_near_close and self.position:
             if self.position.size > 0:  # 多头持仓
@@ -446,31 +470,49 @@ class MagicNineStrategyWithSmartStopLoss(bt.Strategy):
             
             # 检查多头买入信号
             if self.magic_nine.lines.buy_setup[0] >= self.p.magic_count:
-                value = self.broker.get_value()
-                size = int(value * self.p.position_pct / current_price)
                 
-                if size > 0:
-                    logger.info(f'{self.data.datetime.datetime(0).isoformat()} 买入信号! 神奇九转计数: {self.magic_nine.lines.buy_setup[0]}, '
-                             f'价格: {current_price:.2f}, 数量: {size}')
+                # 确认趋势方向 (EMA20 > EMA50 为上升趋势)
+                trend_up = self.ema20[0] > self.ema50[0]
+                
+                # RSI不在超买区域 (降低错误信号概率)
+                rsi_ok = self.rsi.lines.rsi6[0] < 70
+                
+                # 在安全交易时段内并且趋势向上且RSI不超买
+                if trend_up and rsi_ok and is_safe_trading_time and not is_near_close:
+                    value = self.broker.get_value()
+                    size = int(value * self.p.position_pct / current_price)
                     
-                    # 下买入订单
-                    self.order = self.buy(size=size)
-                    self.position_size = size
-                    self.is_short = False
+                    if size > 0:
+                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 买入信号! 神奇九转计数: {self.magic_nine.lines.buy_setup[0]}, '
+                                 f'价格: {current_price:.2f}, 数量: {size}')
+                        
+                        # 下买入订单
+                        self.order = self.buy(size=size)
+                        self.position_size = size
+                        self.is_short = False
             
             # 检查空头卖出信号
             elif self.magic_nine.lines.sell_setup[0] >= self.p.magic_count and self.p.enable_short:
-                value = self.broker.get_value()
-                size = int(value * self.p.position_pct / current_price)
                 
-                if size > 0:
-                    logger.info(f'{self.data.datetime.datetime(0).isoformat()} 卖空信号! 神奇九转计数: {self.magic_nine.lines.sell_setup[0]}, '
-                             f'价格: {current_price:.2f}, 数量: {size}')
+                # 确认趋势方向 (EMA20 < EMA50 为下降趋势)
+                trend_down = self.ema20[0] < self.ema50[0]
+                
+                # RSI不在超卖区域 (降低错误信号概率)
+                rsi_ok = self.rsi.lines.rsi6[0] > 30
+                
+                # 在安全交易时段内并且趋势向下且RSI不超卖
+                if trend_down and rsi_ok and is_safe_trading_time and not is_near_close:
+                    value = self.broker.get_value()
+                    size = int(value * self.p.position_pct / current_price)
                     
-                    # 下卖空订单
-                    self.order = self.sell(size=size)
-                    self.position_size = size
-                    self.is_short = True
+                    if size > 0:
+                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 卖空信号! 神奇九转计数: {self.magic_nine.lines.sell_setup[0]}, '
+                                 f'价格: {current_price:.2f}, 数量: {size}')
+                        
+                        # 下卖空订单
+                        self.order = self.sell(size=size)
+                        self.position_size = size
+                        self.is_short = True
         
         else:
             # 更新入场后的K线计数

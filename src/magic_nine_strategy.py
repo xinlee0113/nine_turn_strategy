@@ -19,6 +19,8 @@ class MagicNineStrategy(bt.Strategy):
         ('trailing_pct', 1.0),  # 移动止损激活百分比
         ('position_size', 0.95), # 仓位大小(占总资金比例)
         ('enable_short', True),  # 是否允许做空
+        ('avoid_open_minutes', 30),  # 避开开盘后的分钟数
+        ('avoid_close_minutes', 30),  # 避开收盘前的分钟数
     )
     
     def __init__(self):
@@ -39,52 +41,40 @@ class MagicNineStrategy(bt.Strategy):
         self.ema50 = bt.indicators.EMA(self.data, period=50)
         
         logger.info(f"策略初始化完成 - 双向交易神奇九转模式 (比较周期:{self.p.magic_period}, 信号触发计数:{self.p.magic_count})")
+        logger.info(f"避开开盘后{self.p.avoid_open_minutes}分钟和收盘前{self.p.avoid_close_minutes}分钟的交易")
     
     def notify_order(self, order):
         """订单状态通知回调"""
         if order.status in [order.Submitted, order.Accepted]:
-            # 订单已提交或已接受，等待执行
+            # 订单已提交或已接受 - 无需操作
             return
-        
+
+        # 检查订单是否已完成
         if order.status in [order.Completed]:
             if order.isbuy():
-                logger.info(f'{self.data.datetime.datetime(0).isoformat()} 买入执行: 价格: {order.executed.price:.2f}, '
-                         f'成本: {order.executed.value:.2f}, 手续费: {order.executed.comm:.2f}')
+                logger.info(
+                    f'{self.data.datetime.datetime(0).isoformat()} 买入执行，价格: {order.executed.price:.2f}, '
+                    f'成本: {order.executed.value:.2f}, 手续费: {order.executed.comm:.2f}'
+                )
                 self.buy_price = order.executed.price
                 self.buy_comm = order.executed.comm
-                
-                # 设置止损价格 - 多头仓位止损在价格下方
-                if not self.is_short:
-                    self.stop_loss = self.buy_price * (1 - self.p.stop_loss_pct / 100)
+            else:  # 卖出
+                if self.is_short:
+                    logger.info(
+                        f'{self.data.datetime.datetime(0).isoformat()} 卖空执行，价格: {order.executed.price:.2f}, '
+                        f'成本: {order.executed.value:.2f}, 手续费: {order.executed.comm:.2f}'
+                    )
+                    self.buy_price = order.executed.price  # 记录卖空价格
+                    self.buy_comm = order.executed.comm  
                 else:
-                    # 平空仓后重置标志
-                    self.is_short = False
-                    self.stop_loss = None
-                
-                self.trailing_activated = False
-                
-            elif order.issell():
-                logger.info(f'{self.data.datetime.datetime(0).isoformat()} 卖出执行: 价格: {order.executed.price:.2f}, '
-                         f'成本: {order.executed.value:.2f}, 手续费: {order.executed.comm:.2f}')
-                
-                if self.buy_price and not self.is_short:
-                    # 多头仓位平仓
-                    profit = (order.executed.price - self.buy_price) * order.executed.size
-                    profit_pct = (order.executed.price / self.buy_price - 1) * 100
-                    logger.info(f'{self.data.datetime.datetime(0).isoformat()} 多头交易利润: {profit:.2f}, 收益率: {profit_pct:.2f}%')
-                elif self.is_short:
-                    # 建立空头仓位
-                    self.buy_price = order.executed.price
-                    self.buy_comm = order.executed.comm
-                    
-                    # 设置止损价格 - 空头仓位止损在价格上方
-                    self.stop_loss = self.buy_price * (1 + self.p.stop_loss_pct / 100)
-                    self.trailing_activated = False
-        
+                    logger.info(
+                        f'{self.data.datetime.datetime(0).isoformat()} 卖出执行，价格: {order.executed.price:.2f}, '
+                        f'成本: {order.executed.value:.2f}, 手续费: {order.executed.comm:.2f}'
+                    )
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
-            logger.warning(f'{self.data.datetime.datetime(0).isoformat()} 订单被取消/拒绝/保证金不足')
-        
-        # 重置订单
+            logger.warning(f'{self.data.datetime.datetime(0).isoformat()} 订单取消/保证金不足/拒绝')
+
+        # 重置订单引用
         self.order = None
     
     def notify_trade(self, trade):
@@ -143,8 +133,19 @@ class MagicNineStrategy(bt.Strategy):
                 is_utc_time = True
                 et_hour = (current_time.hour - 5) % 24  # UTC-5
         
-        # 判断是否在交易时段 (美东时间9:30-16:00)
+        # 计算开盘和收盘时间
+        market_open_hour = 9
+        market_open_minute = 30
+        market_close_hour = 16
+        market_close_minute = 0
+        
+        # 计算交易时间分钟数（相对于开盘时间）
+        minutes_since_open = (et_hour - market_open_hour) * 60 + (et_minute - market_open_minute)
+        minutes_before_close = (market_close_hour - et_hour) * 60 + (market_close_minute - et_minute)
+        
+        # 判断是否在交易时段 (美东时间9:30-16:00)，并避开开盘和收盘的30分钟
         is_trading_time = (9 < et_hour < 16) or (et_hour == 9 and et_minute >= 30) or (et_hour == 16 and et_minute == 0)
+        is_safe_trading_time = is_trading_time and minutes_since_open >= self.p.avoid_open_minutes and minutes_before_close >= self.p.avoid_close_minutes
         
         # 判断是否接近美股收盘时间 (美东时间15:45-16:00)
         is_near_close = (et_hour == 15 and et_minute >= 45) or et_hour == 16
@@ -153,7 +154,9 @@ class MagicNineStrategy(bt.Strategy):
         if len(self) % 100 == 0 or is_near_close:  # 每100个bar记录一次或接近收盘时记录
             time_format = "UTC" if is_utc_time else "ET"
             logger.info(f"时间检查: 原始时间={current_time.isoformat()}, 计算为美东时间:{et_hour}:{et_minute:02d}, "
-                       f"时间格式:{time_format}, 交易时段:{is_trading_time}, 接近收盘:{is_near_close}, 夏令时:{is_dst}")
+                       f"时间格式:{time_format}, 交易时段:{is_trading_time}, 安全交易时段:{is_safe_trading_time}, "
+                       f"开盘后分钟数:{minutes_since_open}, 收盘前分钟数:{minutes_before_close}, "
+                       f"接近收盘:{is_near_close}, 夏令时:{is_dst}")
         
         # 如果接近收盘且有持仓，强制平仓
         if is_near_close and self.position:
@@ -186,8 +189,8 @@ class MagicNineStrategy(bt.Strategy):
                 # RSI不在超买区域 (避免在高点买入)
                 rsi_ok = self.rsi[0] < self.p.rsi_overbought
                 
-                # 同时满足条件时买入，但不在收盘前建立新仓位
-                if trend_up and rsi_ok and not is_near_close:
+                # 同时满足条件时买入，但不在收盘前建立新仓位，同时避开开盘和收盘的30分钟
+                if trend_up and rsi_ok and is_safe_trading_time and not is_near_close:
                     # 计算仓位大小
                     value = self.broker.get_value()
                     size = int(value * self.p.position_size / current_price)
@@ -209,8 +212,8 @@ class MagicNineStrategy(bt.Strategy):
                 # RSI不在超卖区域 (避免在低点卖空)
                 rsi_ok = self.rsi[0] > self.p.rsi_oversold
                 
-                # 同时满足条件时卖空，但不在收盘前建立新仓位
-                if trend_down and rsi_ok and not is_near_close:
+                # 同时满足条件时卖空，但不在收盘前建立新仓位，同时避开开盘和收盘的30分钟
+                if trend_down and rsi_ok and is_safe_trading_time and not is_near_close:
                     # 计算仓位大小
                     value = self.broker.get_value()
                     size = int(value * self.p.position_size / current_price)
@@ -223,121 +226,114 @@ class MagicNineStrategy(bt.Strategy):
                         self.order = self.sell(size=size)
                         self.position_size = size
                         self.is_short = True
+                        
+                        # 记录卖空价格用于计算止损
+                        self.stop_loss = current_price * (1 + self.p.stop_loss_pct / 100)
         
         else:
-            # 已有仓位，检查平仓条件
+            # 已有仓位，检查止损或平仓条件
             
-            # 1. 检查止损
-            if self.stop_loss is not None:
-                # 多头止损
-                if not self.is_short and current_price <= self.stop_loss:
-                    logger.info(f'{self.data.datetime.datetime(0).isoformat()} 多头止损触发! 价格: {current_price:.2f}, '
-                             f'止损价: {self.stop_loss:.2f}, 亏损: {(current_price/self.buy_price-1)*100:.2f}%, ET时间: {et_hour}:{et_minute:02d}')
+            # 检查多头仓位
+            if self.position.size > 0:
+                # 计算移动止损价格
+                if self.trailing_activated:
+                    # 已激活移动止损
+                    trail_price = current_price * (1 - self.p.trailing_pct / 100)
+                    if trail_price > self.stop_loss:
+                        old_stop = self.stop_loss
+                        self.stop_loss = trail_price
+                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 更新移动止损: {old_stop:.2f} -> {trail_price:.2f}')
+                else:
+                    # 判断是否达到移动止损激活条件
+                    profit_pct = (current_price / self.buy_price - 1) * 100
+                    if profit_pct >= self.p.trailing_pct:
+                        self.trailing_activated = True
+                        trail_price = current_price * (1 - self.p.trailing_pct / 100)
+                        if self.stop_loss is None or trail_price > self.stop_loss:
+                            old_stop = self.stop_loss if self.stop_loss is not None else 0
+                            self.stop_loss = trail_price
+                            logger.info(f'{self.data.datetime.datetime(0).isoformat()} 激活移动止损: {old_stop:.2f} -> {trail_price:.2f}')
+                
+                # 1. 多头止损检查
+                if self.stop_loss is not None and current_price <= self.stop_loss:
+                    logger.info(f'{self.data.datetime.datetime(0).isoformat()} 多头止损触发! 价格: {current_price:.2f}, 止损价: {self.stop_loss:.2f}')
                     self.order = self.sell(size=self.position_size)
                     self.position_size = 0
                     self.stop_loss = None
+                    self.trailing_activated = False
                     return
                 
-                # 空头止损
-                elif self.is_short and current_price >= self.stop_loss:
-                    logger.info(f'{self.data.datetime.datetime(0).isoformat()} 空头止损触发! 价格: {current_price:.2f}, '
-                             f'止损价: {self.stop_loss:.2f}, 亏损: {(self.buy_price/current_price-1)*100:.2f}%, ET时间: {et_hour}:{et_minute:02d}')
+                # 2. 获利目标检查
+                profit_pct = (current_price / self.buy_price - 1) * 100
+                if profit_pct >= self.p.profit_target_pct:
+                    logger.info(f'{self.data.datetime.datetime(0).isoformat()} 达到多头利润目标! 价格: {current_price:.2f}, '
+                             f'买入价: {self.buy_price:.2f}, 利润: {profit_pct:.2f}%')
+                    self.order = self.sell(size=self.position_size)
+                    self.position_size = 0
+                    self.stop_loss = None
+                    self.trailing_activated = False
+                    return
+                
+                # 3. 检查卖出信号作为多头平仓条件
+                if self.magic_nine.lines.sell_setup[0] >= self.p.magic_count:
+                    logger.info(f'{self.data.datetime.datetime(0).isoformat()} 卖出信号! 计数: {self.magic_nine.sell_count}, '
+                             f'价格: {current_price:.2f}, 数量: {self.position_size}')
+                    
+                    # 下卖出订单
+                    self.order = self.sell(size=self.position_size)
+                    self.position_size = 0
+                    self.stop_loss = None
+                    self.trailing_activated = False
+            
+            # 检查空头仓位
+            elif self.position.size < 0:
+                # 1. 空头止损检查
+                if self.stop_loss is not None and current_price >= self.stop_loss:
+                    logger.info(f'{self.data.datetime.datetime(0).isoformat()} 空头止损触发! 价格: {current_price:.2f}, 止损价: {self.stop_loss:.2f}')
                     self.order = self.buy(size=self.position_size)
                     self.position_size = 0
                     self.stop_loss = None
                     self.is_short = False
                     return
-            
-            # 2. 移动止损逻辑
-            if self.buy_price is not None:
-                if not self.is_short:
-                    # 多头移动止损逻辑
-                    
-                    # 计算当前利润百分比
-                    profit_pct = (current_price / self.buy_price - 1) * 100
-                    
-                    # 如果利润超过激活阈值且尚未激活移动止损
-                    if profit_pct >= self.p.trailing_pct and not self.trailing_activated:
-                        # 激活移动止损
-                        self.trailing_activated = True
-                        # 设置移动止损价格为盈亏平衡点或更高
-                        new_stop = max(self.buy_price, current_price * 0.98)  # 保留2%回撤空间
-                        self.stop_loss = new_stop
-                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 多头激活移动止损! 新止损价: {self.stop_loss:.2f}')
-                    
-                    # 如果移动止损已激活，继续抬高止损价
-                    elif self.trailing_activated:
-                        # 不断抬高止损价，但保留一定回撤空间
-                        potential_stop = current_price * 0.98  # 保留2%回撤空间
-                        if potential_stop > self.stop_loss:
-                            old_stop = self.stop_loss
-                            self.stop_loss = potential_stop
-                            logger.info(f'{self.data.datetime.datetime(0).isoformat()} 更新多头移动止损! 旧止损: {old_stop:.2f}, '
-                                      f'新止损: {self.stop_loss:.2f}')
-                    
-                    # 3. 检查多头利润目标
-                    if profit_pct >= self.p.profit_target_pct:
-                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 达到多头利润目标! 价格: {current_price:.2f}, '
-                                 f'买入价: {self.buy_price:.2f}, 利润: {profit_pct:.2f}%')
-                        self.order = self.sell(size=self.position_size)
-                        self.position_size = 0
-                        self.stop_loss = None
-                        return
-                    
-                    # 4. 检查卖出信号作为多头平仓条件
-                    if self.magic_nine.lines.sell_setup[0] >= self.p.magic_count:
-                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 卖出信号! 计数: {self.magic_nine.sell_count}, '
-                                 f'价格: {current_price:.2f}, 数量: {self.position_size}')
-                        
-                        # 下卖出订单
-                        self.order = self.sell(size=self.position_size)
-                        self.position_size = 0
-                        self.stop_loss = None
-                        self.trailing_activated = False
                 
+                # 2. 移动止损更新
+                if self.trailing_activated:
+                    # 已激活移动止损
+                    trail_price = current_price * (1 + self.p.trailing_pct / 100)
+                    if trail_price < self.stop_loss:
+                        old_stop = self.stop_loss
+                        self.stop_loss = trail_price
+                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 更新空头移动止损: {old_stop:.2f} -> {trail_price:.2f}')
                 else:
-                    # 空头移动止损逻辑
-                    
-                    # 计算当前利润百分比 (空头是反向的)
+                    # 判断是否达到移动止损激活条件
                     profit_pct = (self.buy_price / current_price - 1) * 100
-                    
-                    # 如果利润超过激活阈值且尚未激活移动止损
-                    if profit_pct >= self.p.trailing_pct and not self.trailing_activated:
-                        # 激活移动止损
+                    if profit_pct >= self.p.trailing_pct:
                         self.trailing_activated = True
-                        # 设置移动止损价格为盈亏平衡点或更低
-                        new_stop = min(self.buy_price, current_price * 1.02)  # 保留2%回撤空间
-                        self.stop_loss = new_stop
-                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 空头激活移动止损! 新止损价: {self.stop_loss:.2f}')
-                    
-                    # 如果移动止损已激活，继续降低止损价
-                    elif self.trailing_activated:
-                        # 不断降低止损价，但保留一定回撤空间
-                        potential_stop = current_price * 1.02  # 保留2%回撤空间
-                        if potential_stop < self.stop_loss:
+                        trail_price = current_price * (1 + self.p.trailing_pct / 100)
+                        if trail_price < self.stop_loss:
                             old_stop = self.stop_loss
-                            self.stop_loss = potential_stop
-                            logger.info(f'{self.data.datetime.datetime(0).isoformat()} 更新空头移动止损! 旧止损: {old_stop:.2f}, '
-                                      f'新止损: {self.stop_loss:.2f}')
+                            self.stop_loss = trail_price
+                            logger.info(f'{self.data.datetime.datetime(0).isoformat()} 激活空头移动止损: {old_stop:.2f} -> {trail_price:.2f}')
+                
+                # 3. 检查空头利润目标
+                profit_pct = (self.buy_price / current_price - 1) * 100
+                if profit_pct >= self.p.profit_target_pct:
+                    logger.info(f'{self.data.datetime.datetime(0).isoformat()} 达到空头利润目标! 价格: {current_price:.2f}, '
+                             f'卖出价: {self.buy_price:.2f}, 利润: {profit_pct:.2f}%')
+                    self.order = self.buy(size=self.position_size)
+                    self.position_size = 0
+                    self.stop_loss = None
+                    self.is_short = False
+                    return
+                
+                # 4. 检查买入信号作为空头平仓条件
+                if self.magic_nine.lines.buy_setup[0] >= self.p.magic_count:
+                    logger.info(f'{self.data.datetime.datetime(0).isoformat()} 买入信号! 计数: {self.magic_nine.buy_count}, '
+                             f'价格: {current_price:.2f}, 数量: {self.position_size}')
                     
-                    # 3. 检查空头利润目标
-                    if profit_pct >= self.p.profit_target_pct:
-                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 达到空头利润目标! 价格: {current_price:.2f}, '
-                                 f'卖出价: {self.buy_price:.2f}, 利润: {profit_pct:.2f}%')
-                        self.order = self.buy(size=self.position_size)
-                        self.position_size = 0
-                        self.stop_loss = None
-                        self.is_short = False
-                        return
-                    
-                    # 4. 检查买入信号作为空头平仓条件
-                    if self.magic_nine.lines.buy_setup[0] >= self.p.magic_count:
-                        logger.info(f'{self.data.datetime.datetime(0).isoformat()} 买入信号! 计数: {self.magic_nine.buy_count}, '
-                                 f'价格: {current_price:.2f}, 数量: {self.position_size}')
-                        
-                        # 下买入订单平空头仓位
-                        self.order = self.buy(size=self.position_size)
-                        self.position_size = 0
-                        self.stop_loss = None
-                        self.trailing_activated = False
-                        self.is_short = False 
+                    # 下买入订单平空头仓位
+                    self.order = self.buy(size=self.position_size)
+                    self.position_size = 0
+                    self.stop_loss = None
+                    self.trailing_activated = False
+                    self.is_short = False 
