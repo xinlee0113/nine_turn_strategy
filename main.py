@@ -22,6 +22,8 @@ from src.trading_fee_util import TradingFeeUtil
 # 导入配置系统和参数优化器
 from src.config_system import SymbolConfig, StrategyFactory
 from src.parameter_optimizer import ParameterOptimizer
+# 导入自定义分析器
+from src.analyzers.sortino_ratio import SortinoRatio
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -511,10 +513,10 @@ def main():
                         annualize=True, 
                         timeframe=bt.TimeFrame.Days,
                         compression=1440)
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name='sortino_ratio',
+    cerebro.addanalyzer(SortinoRatio, _name='sortino_ratio',
                         riskfreerate=0.0,
                         annualize=True,
-                        timeframe=bt.TimeFrame.Days)  # 索提诺比率
+                        timeframe=bt.TimeFrame.Days)  # 使用自定义索提诺比率分析器
     cerebro.addanalyzer(bt.analyzers.Calmar, _name='calmar',
                         timeframe=bt.TimeFrame.Days)  # 卡尔玛比率
     cerebro.addanalyzer(CustomDrawDown, _name='drawdown')
@@ -549,7 +551,7 @@ def main():
     # 添加索提诺比率
     sortino = strategy.analyzers.sortino_ratio.get_analysis()
     if sortino:
-        sortino_ratio = sortino.get('sharperatio', 0.0)
+        sortino_ratio = sortino.get('sortinoratio', 0.0)  # 使用正确的键名'sortinoratio'
         if sortino_ratio is not None and np.isfinite(sortino_ratio):
             logger.info(f"索提诺比率: {sortino_ratio:.4f}")
         else:

@@ -12,6 +12,7 @@ from src.magic_nine_strategy import MagicNineStrategy
 from src.magic_nine_strategy_with_advanced_stoploss import MagicNineStrategyWithAdvancedStopLoss
 from src.magic_nine_strategy_with_smart_stoploss import MagicNineStrategyWithSmartStopLoss
 from src.data_fetcher import DataFetcher
+from src.analyzers.sortino_ratio import SortinoRatio
 
 # 自定义回撤分析器
 class CustomDrawDown(bt.Analyzer):
@@ -152,12 +153,14 @@ class ParameterOptimizer:
         cerebro.broker.setcommission(commission=self.commission)
         
         # 添加分析器
-        cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
+        cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.0, annualize=True,
+                           timeframe=bt.TimeFrame.Days, compression=1440)
         cerebro.addanalyzer(CustomDrawDown, _name='drawdown')  # 使用自定义回撤分析器
         cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
         cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
-        cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name='sortino')
+        cerebro.addanalyzer(SortinoRatio, _name='sortino', riskfreerate=0.0, annualize=True,
+                          timeframe=bt.TimeFrame.Days)
         
         # 创建参数组合
         param_combinations = self._generate_param_combinations(param_ranges)
@@ -175,12 +178,14 @@ class ParameterOptimizer:
             cerebro.broker.setcommission(commission=self.commission)
             
             # 添加分析器
-            cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
+            cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.0, annualize=True,
+                               timeframe=bt.TimeFrame.Days, compression=1440)
             cerebro.addanalyzer(CustomDrawDown, _name='drawdown')  # 使用自定义回撤分析器
             cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
             cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
             cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
-            cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name='sortino')
+            cerebro.addanalyzer(SortinoRatio, _name='sortino', riskfreerate=0.0, annualize=True,
+                              timeframe=bt.TimeFrame.Days)
             
             # 添加策略，设置参数
             cerebro.addstrategy(strategy_class, **params)
@@ -204,10 +209,10 @@ class ParameterOptimizer:
             if not sharpe_ratio or not np.isfinite(sharpe_ratio):
                 sharpe_ratio = 0.0
                 
-            sortino_ratio = sortino.get('sortino', 0.0)
+            sortino_ratio = sortino.get('sortinoratio', 0.0)
             if not sortino_ratio or not np.isfinite(sortino_ratio):
                 sortino_ratio = 0.0
-                
+            
             # 修复：确保drawdown值只乘以100一次
             max_drawdown = drawdown.get('max', {}).get('drawdown', 0.0) * 100.0
             # 添加安全检查，确保max_drawdown在合理范围内
@@ -444,12 +449,14 @@ class ParameterOptimizer:
         cerebro.broker.setcommission(commission=self.commission)
         
         # 添加分析器
-        cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
+        cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.0, annualize=True,
+                           timeframe=bt.TimeFrame.Days, compression=1440)
         cerebro.addanalyzer(CustomDrawDown, _name='drawdown')  # 使用自定义回撤分析器
         cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
         cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
-        cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name='sortino')
+        cerebro.addanalyzer(SortinoRatio, _name='sortino', riskfreerate=0.0, annualize=True,
+                          timeframe=bt.TimeFrame.Days)
         
         # 添加策略
         cerebro.addstrategy(strategy_class, **params)
@@ -472,10 +479,10 @@ class ParameterOptimizer:
         if not sharpe_ratio or not np.isfinite(sharpe_ratio):
             sharpe_ratio = 0.0
             
-        sortino_ratio = sortino.get('sortino', 0.0)
+        sortino_ratio = sortino.get('sortinoratio', 0.0)
         if not sortino_ratio or not np.isfinite(sortino_ratio):
             sortino_ratio = 0.0
-            
+        
         # 修复：确保drawdown值只乘以100一次
         max_drawdown = drawdown.get('max', {}).get('drawdown', 0.0) * 100.0
         # 添加安全检查，确保max_drawdown在合理范围内

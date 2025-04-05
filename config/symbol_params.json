@@ -125,16 +125,16 @@
             "enable_short": true
         },
         "QQQ": {
-            "magic_period": 4,
-            "magic_count": 4,
+            "magic_period": 3,
+            "magic_count": 7,
             "atr_multiplier": 2.5,
             "strategy_type": "original",
             "rsi_period": 14,
             "rsi_overbought": 70,
             "rsi_oversold": 30,
-            "stop_loss_pct": 1.5,
-            "profit_target_pct": 2.5,
-            "trailing_pct": 0.8,
+            "stop_loss_pct": 1.0,
+            "profit_target_pct": 2.0,
+            "trailing_pct": 1.0,
             "position_size": 0.95,
             "enable_short": true
         },
