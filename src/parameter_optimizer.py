@@ -13,6 +13,38 @@ from src.magic_nine_strategy_with_advanced_stoploss import MagicNineStrategyWith
 from src.magic_nine_strategy_with_smart_stoploss import MagicNineStrategyWithSmartStopLoss
 from src.data_fetcher import DataFetcher
 
+# 自定义回撤分析器
+class CustomDrawDown(bt.Analyzer):
+    """自定义回撤分析器，确保计算正确的回撤值"""
+    
+    def __init__(self):
+        self.peak = 0.0
+        self.valley = float('inf')
+        self.max_dd = 0.0
+        self.max_dd_len = 0
+        self.dd_len = 0
+        
+    def next(self):
+        # 获取当前资金曲线值
+        value = self.strategy.broker.getvalue()
+        
+        # 更新峰值
+        if value > self.peak:
+            self.peak = value
+            self.dd_len = 0
+        else:
+            self.dd_len += 1
+            
+        # 计算回撤
+        if self.peak > 0:
+            dd = (self.peak - value) / self.peak
+            if dd > self.max_dd:
+                self.max_dd = dd
+                self.max_dd_len = self.dd_len
+        
+    def get_analysis(self):
+        return {'max': {'drawdown': self.max_dd, 'len': self.max_dd_len}}
+
 logger = logging.getLogger(__name__)
 
 class ParameterOptimizer:
@@ -121,7 +153,7 @@ class ParameterOptimizer:
         
         # 添加分析器
         cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
-        cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+        cerebro.addanalyzer(CustomDrawDown, _name='drawdown')  # 使用自定义回撤分析器
         cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
         cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
@@ -144,7 +176,7 @@ class ParameterOptimizer:
             
             # 添加分析器
             cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
-            cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+            cerebro.addanalyzer(CustomDrawDown, _name='drawdown')  # 使用自定义回撤分析器
             cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
             cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
             cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
@@ -176,7 +208,16 @@ class ParameterOptimizer:
             if not sortino_ratio or not np.isfinite(sortino_ratio):
                 sortino_ratio = 0.0
                 
+            # 修复：确保drawdown值只乘以100一次
             max_drawdown = drawdown.get('max', {}).get('drawdown', 0.0) * 100.0
+            # 添加安全检查，确保max_drawdown在合理范围内
+            if max_drawdown > 100.0:
+                logger.warning(f"检测到异常大的回撤值: {max_drawdown}%，可能是计算错误")
+                # 如果值异常大，尝试修正
+                if max_drawdown > 100.0 and max_drawdown <= 10000.0:
+                    # 可能是被错误地乘以了100，将其除以100
+                    max_drawdown = max_drawdown / 100.0
+                    logger.info(f"已修正回撤值为: {max_drawdown}%")
             
             trade_count = trades.get('total', {}).get('total', 0)
             win_rate = 0.0
@@ -404,7 +445,7 @@ class ParameterOptimizer:
         
         # 添加分析器
         cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
-        cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+        cerebro.addanalyzer(CustomDrawDown, _name='drawdown')  # 使用自定义回撤分析器
         cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
         cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
@@ -435,7 +476,16 @@ class ParameterOptimizer:
         if not sortino_ratio or not np.isfinite(sortino_ratio):
             sortino_ratio = 0.0
             
+        # 修复：确保drawdown值只乘以100一次
         max_drawdown = drawdown.get('max', {}).get('drawdown', 0.0) * 100.0
+        # 添加安全检查，确保max_drawdown在合理范围内
+        if max_drawdown > 100.0:
+            logger.warning(f"检测到异常大的回撤值: {max_drawdown}%，可能是计算错误")
+            # 如果值异常大，尝试修正
+            if max_drawdown > 100.0 and max_drawdown <= 10000.0:
+                # 可能是被错误地乘以了100，将其除以100
+                max_drawdown = max_drawdown / 100.0
+                logger.info(f"已修正回撤值为: {max_drawdown}%")
         
         trade_count = trades.get('total', {}).get('total', 0)
         win_rate = 0.0

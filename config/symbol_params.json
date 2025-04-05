@@ -133,7 +133,7 @@
             "rsi_overbought": 70,
             "rsi_oversold": 30,
             "stop_loss_pct": 1.5,
-            "profit_target_pct": 2.0,
+            "profit_target_pct": 2.5,
             "trailing_pct": 0.8,
             "position_size": 0.95,
             "enable_short": true

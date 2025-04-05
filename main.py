@@ -509,13 +509,18 @@ def main():
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe_ratio', 
                         riskfreerate=0.0, 
                         annualize=True, 
-                        timeframe=bt.TimeFrame.Days)
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name='sortino_ratio')  # 索提诺比率
+                        timeframe=bt.TimeFrame.Days,
+                        compression=1440)
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name='sortino_ratio',
+                        riskfreerate=0.0,
+                        annualize=True,
+                        timeframe=bt.TimeFrame.Days)  # 索提诺比率
+    cerebro.addanalyzer(bt.analyzers.Calmar, _name='calmar',
+                        timeframe=bt.TimeFrame.Days)  # 卡尔玛比率
     cerebro.addanalyzer(CustomDrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trade_analyzer')
     cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')  # 用于计算各种收益率指标
-    cerebro.addanalyzer(bt.analyzers.Calmar, _name='calmar')  # 卡尔玛比率
     cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annual')  # 年化收益率
     cerebro.addanalyzer(bt.analyzers.PeriodStats, _name='period_stats')  # 周期统计
     cerebro.addobserver(BuySell)
@@ -544,7 +549,7 @@ def main():
     # 添加索提诺比率
     sortino = strategy.analyzers.sortino_ratio.get_analysis()
     if sortino:
-        sortino_ratio = sortino.get('sortino', 0.0)
+        sortino_ratio = sortino.get('sharperatio', 0.0)
         if sortino_ratio is not None and np.isfinite(sortino_ratio):
             logger.info(f"索提诺比率: {sortino_ratio:.4f}")
         else:
