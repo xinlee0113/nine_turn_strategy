@@ -65,28 +65,36 @@ nine_turn_strategy/
 │   │   │   └── risk_analyzer.py
 │   │   └── engines/
 │   │       ├── __init__.py
+│   │       ├── base_engine.py
 │   │       ├── backtest_engine.py
 │   │       ├── optimize_engine.py
 │   │       └── live_engine.py
 │   ├── interface/
 │   │   ├── __init__.py
-│   │   ├── broker/
+│   │   ├── data/
 │   │   │   ├── __init__.py
-│   │   │   ├── base_broker.py
-│   │   │   ├── backtest_broker.py
-│   │   │   ├── tiger_broker.py
-│   │   │   └── ib_broker.py
-│   │   └── data/
+│   │   │   ├── base_data.py
+│   │   │   ├── pandas_data.py
+│   │   │   ├── csv_data.py
+│   │   │   └── realtime_data.py
+│   │   ├── store/
+│   │   │   ├── __init__.py
+│   │   │   ├── base_store.py
+│   │   │   ├── tiger_store.py
+│   │   │   └── ib_store.py
+│   │   └── broker/
 │   │       ├── __init__.py
-│   │       ├── base_data.py
-│   │       ├── pandas_data.py
-│   │       ├── csv_data.py
-│   │       └── realtime_data.py
+│   │       ├── base_broker.py
+│   │       ├── backtest_broker.py
+│   │       ├── tiger_broker.py
+│   │       └── ib_broker.py
 │   └── infrastructure/
 │       ├── __init__.py
 │       ├── config/
 │       │   ├── __init__.py
-│       │   └── config.py
+│       │   ├── base_config.py
+│       │   ├── strategy_config.py
+│       │   └── data_config.py
 │       ├── logging/
 │       │   ├── __init__.py
 │       │   └── logger.py
@@ -94,41 +102,54 @@ nine_turn_strategy/
 │           ├── __init__.py
 │           └── event_manager.py
 ├── configs/
-│   ├── tiger/
-│   │   ├── private_key.pem
-│   │   └── tiger_openapi_config.properties
-│   └── ib/
-│       ├── ib_config.yaml
-│       └── ib_credentials.yaml
+│   ├── strategy/
+│   │   ├── magic_nine.yaml
+│   │   └── risk_control.yaml
+│   └── data/
+│       ├── tiger_config.yaml
+│       └── ib_config.yaml
 ├── research/
 │   ├── data/
+│   │   ├── raw/
+│   │   └── processed/
 │   ├── notebooks/
+│   │   ├── strategy_development/
+│   │   └── backtest_analysis/
 │   └── reports/
+│       ├── strategy/
+│       └── backtest/
 ├── logs/
 │   ├── backtest/
-│   ├── live/
-│   └── optimization/
+│   └── live/
 ├── outputs/
 │   ├── backtest/
-│   ├── live/
-│   └── optimization/
+│   │   ├── results/
+│   │   └── charts/
+│   └── live/
+│       ├── trades/
+│       └── positions/
 └── tests/
     ├── __init__.py
-    ├── test_strategy.py
-    ├── test_backtest.py
-    ├── test_optimization.py
-    └── test_live.py
+    ├── unit/
+    │   ├── __init__.py
+    │   ├── test_strategy.py
+    │   ├── test_indicators.py
+    │   └── test_analyzers.py
+    └── integration/
+        ├── __init__.py
+        ├── test_backtest.py
+        └── test_live.py
 ```
 
 ## 目录结构说明
 
 ### 1. 配置文件目录 (configs/)
-- **tiger/**: 老虎证券配置
-  - private_key.pem: 私钥文件
-  - tiger_openapi_config.properties: API配置
-- **ib/**: Interactive Brokers配置
-  - ib_config.yaml: API配置
-  - ib_credentials.yaml: 认证信息
+- **strategy/**: 策略配置
+  - magic_nine.yaml: 策略配置文件
+  - risk_control.yaml: 风险控制配置文件
+- **data/**: 数据源配置
+  - tiger_config.yaml: 老虎证券配置文件
+  - ib_config.yaml: Interactive Brokers配置文件
 
 ### 2. 源代码目录 (src/)
 - **application/**: 应用程序模块
@@ -140,7 +161,6 @@ nine_turn_strategy/
   - analyzers/: 分析器模块
   - engines/: 引擎模块
 - **interface/**: 接口模块
-  - broker/: 券商接口
   - data/: 数据接口
 - **infrastructure/**: 基础设施模块
   - config/: 配置管理
@@ -155,12 +175,10 @@ nine_turn_strategy/
 ### 4. 日志目录 (logs/)
 - **backtest/**: 回测日志
 - **live/**: 实盘日志
-- **optimization/**: 优化日志
 
 ### 5. 输出目录 (outputs/)
 - **backtest/**: 回测结果
 - **live/**: 实盘结果
-- **optimization/**: 优化结果
 
 ### 6. 测试目录 (tests/)
 - 单元测试和集成测试文件
@@ -194,13 +212,12 @@ graph TD
     
     %% 接口层
     subgraph 接口层
-    C1[BrokerFactory]
-    C2[DataProviderFactory]
-    C3[TigerStore]
-    C4[IBStore]
-    C5[PandasData]
-    C6[GenericCSVData]
-    C7[TigerRealtimeData]
+    C1[DataStoreBase]
+    C2[TigerStore]
+    C3[IBStore]
+    C4[BTBroker]
+    C5[TigerBroker]
+    C6[IBBroker]
     end
     
     %% 基础设施层
@@ -208,6 +225,10 @@ graph TD
     D1[Config]
     D2[Logger]
     D3[EventManager]
+    D4[EventHandler]
+    D5[TradeEventHandler]
+    D6[RiskEventHandler]
+    D7[DataEventHandler]
     end
     
     %% 依赖关系
@@ -228,21 +249,21 @@ graph TD
     B1 --> B4
     B1 --> B5
     B1 --> B6
-    B1 --> B7
-    B1 --> B8
-    B1 --> B9
+    B7 --> B1
+    B8 --> B1
+    B9 --> B1
     
     %% 接口层内部关系
+    C1 --> C2
     C1 --> C3
-    C1 --> C4
-    C2 --> C5
-    C2 --> C6
-    C2 --> C7
-    C7 --> C3
-    C5 --> C3
-    C6 --> C3
+    C4 --> C5
+    C4 --> C6
     
     %% 基础设施层内部关系
+    D3 --> D4
+    D4 --> D5
+    D4 --> D6
+    D4 --> D7
     D1 --> D3
     D2 --> D3
 ```
@@ -881,53 +902,99 @@ classDiagram
 ## 类关系说明
 
 ### 1. 数据源体系
+- **DataStoreBase**: 数据存储基类，定义标准接口
+  - **TigerStore**: 老虎证券数据存储实现
+  - **IBStore**: Interactive Brokers数据存储实现
 - **BTDataBase**: backtrader框架的抽象数据源基类
   - **PandasData**: 用于回测的DataFrame数据源
   - **GenericCSVData**: 用于回测的CSV文件数据源
   - **TigerRealtimeData**: 用于实盘的Tiger实时数据源
 
-### 2. 数据源特点
-1. **回测数据源**（PandasData/GenericCSVData）
-   - 使用静态历史数据
-   - 一次性加载所有数据
-   - 不需要处理市场状态
-   - 支持快速遍历数据
+### 2. 引擎体系
+- **BacktestEngine**: 回测引擎
+  - 管理回测流程
+  - 控制数据回放
+  - 处理交易执行
+  - 收集回测结果
+- **OptimizeEngine**: 优化引擎
+  - 管理参数优化流程
+  - 控制参数组合生成
+  - 评估策略性能
+  - 选择最优参数
+- **LiveEngine**: 实盘引擎
+  - 管理实时交易流程
+  - 控制数据订阅
+  - 处理实时交易
+  - 监控系统状态
 
-2. **实盘数据源**（TigerRealtimeData）
-   - 实时从Tiger API获取数据
-   - 动态更新数据
-   - 需要处理市场开闭市状态
-   - 需要控制数据获取频率
+### 3. 事件处理体系
+- **EventManager**: 事件管理器
+  - 注册事件处理器
+  - 分发事件
+  - 管理事件优先级
+  - 处理异常事件
+- **EventHandler**: 事件处理器基类
+  - **TradeEventHandler**: 处理交易相关事件
+  - **RiskEventHandler**: 处理风险相关事件
+  - **DataEventHandler**: 处理数据相关事件
 
-### 3. 数据源交互
-1. **回测场景**
-   - BacktestScript通过PandasData或GenericCSVData加载历史数据
-   - 数据源从TigerStore获取历史数据
-   - 支持离线数据和在线数据
+### 4. 配置管理体系
+- **Config**: 配置管理器
+  - 加载配置文件
+  - 管理配置项
+  - 验证配置有效性
+  - 支持配置热更新
+- 配置分类：
+  - 系统配置
+  - 策略配置
+  - 数据源配置
+  - 交易配置
+  - 风险配置
 
-2. **实盘场景**
-   - TradeScript使用TigerRealtimeData获取实时数据
-   - 数据源实时从TigerStore获取市场数据
-   - 支持市场状态管理和数据更新控制
+### 5. 日志管理体系
+- **Logger**: 日志管理器
+  - 日志级别管理
+  - 日志格式控制
+  - 日志文件管理
+  - 日志轮转策略
+- 日志分类：
+  - 系统日志
+  - 交易日志
+  - 错误日志
+  - 性能日志
 
-### 4. 应用层类关系
-- `Main` 类作为程序入口，管理所有核心模块
-- `ScriptManager` 管理各种运行脚本
-- 脚本类继承自抽象基类 `Script`，实现具体的运行逻辑
+### 6. 错误处理机制
+- 错误分类：
+  - 系统错误
+  - 交易错误
+  - 数据错误
+  - 网络错误
+- 错误处理策略：
+  - 自动重试
+  - 降级处理
+  - 告警通知
+  - 错误恢复
 
-### 5. 业务层类关系
-- `Strategy` 作为策略基类，定义策略接口
-- `MagicNineStrategy` 实现具体的交易策略
-- `BacktestEngine` 和 `TradeEngine` 分别处理回测和实盘交易
-- `Optimizer` 提供参数优化功能，支持多种优化算法
+### 7. 性能监控体系
+- 监控指标：
+  - 系统资源使用
+  - 交易执行性能
+  - 数据处理性能
+  - 网络延迟
+- 告警机制：
+  - 阈值告警
+  - 趋势告警
+  - 异常检测
+  - 告警通知
 
-### 6. 接口层类关系
-- `Broker` 和 `DataSource` 作为接口，定义标准方法
-- 具体实现类（如 `TigerBroker`、`IBBroker`）实现接口方法
-- 支持多种数据源和券商接口
-
-### 7. 基础设施层类关系
-- 提供基础服务类，如配置、日志、仓位管理等
-- 各个管理器类负责具体的功能实现
-- 分析器和可视化器提供结果处理功能
-- 测试器提供完整的测试支持 
+### 8. 测试支持体系
+- 测试类型：
+  - 单元测试
+  - 集成测试
+  - 回测验证
+  - 实盘模拟
+- 测试工具：
+  - 测试框架
+  - 数据生成器
+  - 性能分析器
+  - 覆盖率工具 
