@@ -306,7 +306,7 @@ sequenceDiagram
     participant Main
     participant ScriptManager
     participant BacktestScript
-    participant Cerebro
+    participant BacktestEngine
     participant Strategy
     participant SignalGenerator
     participant PositionSizer
@@ -322,21 +322,21 @@ sequenceDiagram
     Main->>ScriptManager: 创建回测脚本
     ScriptManager->>BacktestScript: 初始化回测脚本
     BacktestScript->>Config: 加载回测配置
-    BacktestScript->>Cerebro: 创建回测引擎
+    BacktestScript->>BacktestEngine: 创建回测引擎
     BacktestScript->>Strategy: 创建策略实例
     Strategy->>SignalGenerator: 初始化信号生成器
     Strategy->>PositionSizer: 初始化仓位管理器
     Strategy->>RiskManager: 初始化风险管理器
     Strategy->>Indicator: 初始化技术指标
-    Cerebro->>Strategy: 添加策略
+    BacktestEngine->>Strategy: 添加策略
     BacktestScript->>PandasData: 创建数据源
     PandasData->>TigerStore: 获取历史数据
     TigerStore-->>PandasData: 返回历史数据
-    Cerebro->>PandasData: 添加数据源
+    BacktestEngine->>PandasData: 添加数据源
     BacktestScript->>Analyzer: 添加分析器
-    Cerebro->>Analyzer: 注册分析器
-    Cerebro->>EventManager: 注册事件监听
-    Cerebro->>Logger: 开始回测
+    BacktestEngine->>Analyzer: 注册分析器
+    BacktestEngine->>EventManager: 注册事件监听
+    BacktestEngine->>Logger: 开始回测
 
     loop 每个交易日
         PandasData->>Strategy: next()
@@ -348,13 +348,13 @@ sequenceDiagram
         RiskManager-->>Strategy: 返回风险评估
         Strategy->>PositionSizer: 计算目标仓位
         PositionSizer-->>Strategy: 返回仓位大小
-        Strategy->>Cerebro: 发出交易指令
-        Cerebro->>EventManager: 触发交易事件
+        Strategy->>BacktestEngine: 发出交易指令
+        BacktestEngine->>EventManager: 触发交易事件
         EventManager->>Logger: 记录交易日志
         Strategy->>Analyzer: 更新分析数据
     end
 
-    Cerebro->>Analyzer: 分析回测结果
+    BacktestEngine->>Analyzer: 分析回测结果
     Analyzer-->>BacktestScript: 返回分析报告
     BacktestScript->>Logger: 记录回测报告
     BacktestScript-->>ScriptManager: 返回回测结果
@@ -368,7 +368,7 @@ sequenceDiagram
     participant Main
     participant ScriptManager
     participant OptimizeScript
-    participant Cerebro
+    participant OptimizeEngine
     participant Strategy
     participant SignalGenerator
     participant PositionSizer
@@ -385,26 +385,26 @@ sequenceDiagram
     Main->>ScriptManager: 创建优化脚本
     ScriptManager->>OptimizeScript: 初始化优化脚本
     OptimizeScript->>Config: 加载优化配置
-    OptimizeScript->>Cerebro: 创建优化引擎
+    OptimizeScript->>OptimizeEngine: 创建优化引擎
     OptimizeScript->>Strategy: 设置参数范围
     Strategy->>SignalGenerator: 配置信号参数
     Strategy->>PositionSizer: 配置仓位参数
     Strategy->>RiskManager: 配置风险参数
     Strategy->>Indicator: 配置指标参数
-    Cerebro->>Strategy: 添加策略
+    OptimizeEngine->>Strategy: 添加策略
     OptimizeScript->>PandasData: 创建数据源
     PandasData->>TigerStore: 获取历史数据
     TigerStore-->>PandasData: 返回历史数据
-    Cerebro->>PandasData: 添加数据源
+    OptimizeEngine->>PandasData: 添加数据源
     OptimizeScript->>BacktestBroker: 创建回测Broker
-    Cerebro->>BacktestBroker: 设置Broker
+    OptimizeEngine->>BacktestBroker: 设置Broker
     OptimizeScript->>Analyzer: 添加分析器
-    Cerebro->>Analyzer: 注册分析器
-    Cerebro->>EventManager: 注册事件监听
-    Cerebro->>Logger: 开始优化
+    OptimizeEngine->>Analyzer: 注册分析器
+    OptimizeEngine->>EventManager: 注册事件监听
+    OptimizeEngine->>Logger: 开始优化
 
     loop 每组参数
-        Cerebro->>Strategy: 设置当前参数组合
+        OptimizeEngine->>Strategy: 设置当前参数组合
         Strategy->>SignalGenerator: 更新信号参数
         Strategy->>PositionSizer: 更新仓位参数
         Strategy->>RiskManager: 更新风险参数
@@ -426,12 +426,12 @@ sequenceDiagram
             EventManager->>Logger: 记录交易日志
         end
 
-        Cerebro->>Analyzer: 分析当前参数结果
-        Analyzer-->>Cerebro: 返回性能指标
-        Cerebro->>Logger: 记录参数组合结果
+        OptimizeEngine->>Analyzer: 分析当前参数结果
+        Analyzer-->>OptimizeEngine: 返回性能指标
+        OptimizeEngine->>Logger: 记录参数组合结果
     end
 
-    Cerebro->>OptimizeScript: 返回最优参数
+    OptimizeEngine->>OptimizeScript: 返回最优参数
     OptimizeScript->>Logger: 记录优化结果
     OptimizeScript-->>ScriptManager: 返回优化结果
     ScriptManager-->>Main: 展示优化结果
@@ -443,8 +443,8 @@ sequenceDiagram
 sequenceDiagram
     participant Main
     participant ScriptManager
-    participant TradingScript
-    participant Cerebro
+    participant TradeScript
+    participant LiveEngine
     participant Strategy
     participant SignalGenerator
     participant PositionSizer
@@ -459,29 +459,29 @@ sequenceDiagram
     participant Config
 
     Main->>ScriptManager: 创建交易脚本
-    ScriptManager->>TradingScript: 初始化交易脚本
-    TradingScript->>Config: 加载交易配置
-    TradingScript->>Cerebro: 创建交易引擎
-    TradingScript->>Strategy: 初始化策略
+    ScriptManager->>TradeScript: 初始化交易脚本
+    TradeScript->>Config: 加载交易配置
+    TradeScript->>LiveEngine: 创建交易引擎
+    TradeScript->>Strategy: 初始化策略
     Strategy->>SignalGenerator: 配置信号生成器
     Strategy->>PositionSizer: 配置仓位管理器
     Strategy->>RiskManager: 配置风险管理器
     Strategy->>Indicator: 配置技术指标
-    Cerebro->>Strategy: 添加策略
-    TradingScript->>TigerStore: 连接Tiger服务器
-    TigerStore-->>TradingScript: 返回连接状态
-    TradingScript->>TigerRealtimeData: 创建实时数据源
+    LiveEngine->>Strategy: 添加策略
+    TradeScript->>TigerStore: 连接Tiger服务器
+    TigerStore-->>TradeScript: 返回连接状态
+    TradeScript->>TigerRealtimeData: 创建实时数据源
     TigerRealtimeData->>TigerStore: 订阅实时数据
     TigerStore-->>TigerRealtimeData: 确认订阅
-    Cerebro->>TigerRealtimeData: 添加数据源
-    TradingScript->>TigerBroker: 创建Tiger交易接口
+    LiveEngine->>TigerRealtimeData: 添加数据源
+    TradeScript->>TigerBroker: 创建Tiger交易接口
     TigerBroker->>TigerStore: 初始化交易连接
     TigerStore-->>TigerBroker: 返回账户信息
-    Cerebro->>TigerBroker: 设置Broker
-    TradingScript->>Analyzer: 添加分析器
-    Cerebro->>Analyzer: 注册分析器
-    Cerebro->>EventManager: 注册事件监听
-    Cerebro->>Logger: 开始交易
+    LiveEngine->>TigerBroker: 设置Broker
+    TradeScript->>Analyzer: 添加分析器
+    LiveEngine->>Analyzer: 注册分析器
+    LiveEngine->>EventManager: 注册事件监听
+    LiveEngine->>Logger: 开始交易
 
     loop 实时交易循环
         TigerStore->>TigerRealtimeData: 推送实时数据
@@ -505,9 +505,9 @@ sequenceDiagram
         end
 
         opt 定期分析
-            Cerebro->>Analyzer: 执行分析
-            Analyzer-->>Cerebro: 返回分析结果
-            Cerebro->>Logger: 记录分析结果
+            LiveEngine->>Analyzer: 执行分析
+            Analyzer-->>LiveEngine: 返回分析结果
+            LiveEngine->>Logger: 记录分析结果
         end
 
         opt 错误处理
@@ -518,10 +518,10 @@ sequenceDiagram
         end
     end
 
-    TradingScript->>TigerBroker: 关闭连接
+    TradeScript->>TigerBroker: 关闭连接
     TigerBroker->>TigerStore: 断开连接
-    TradingScript->>Logger: 记录交易结果
-    TradingScript-->>ScriptManager: 返回执行结果
+    TradeScript->>Logger: 记录交易结果
+    TradeScript-->>ScriptManager: 返回执行结果
     ScriptManager-->>Main: 展示交易结果
 ```
 
