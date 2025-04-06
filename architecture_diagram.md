@@ -574,6 +574,16 @@ sequenceDiagram
 
 ```mermaid
 classDiagram
+    %% 数据源基类
+    class DataStoreBase {
+        <<abstract>>
+        +start()
+        +stop()
+        +get_data()
+        +get_realtime_quotes()
+        +get_historical_data()
+    }
+
     %% Backtrader核心类
     class BTBroker {
         <<abstract>>
@@ -636,6 +646,26 @@ classDiagram
         -contract
     }
 
+    %% 数据存储类
+    class TigerStore {
+        +start()
+        +stop()
+        +get_data()
+        +get_realtime_quotes()
+        +get_historical_data()
+        -_connect_api()
+        -_handle_response()
+    }
+    class IBStore {
+        +start()
+        +stop()
+        +get_data()
+        +get_realtime_quotes()
+        +get_historical_data()
+        -_connect_api()
+        -_handle_response()
+    }
+
     %% Broker类
     class BacktestBroker {
         +__init__()
@@ -666,6 +696,28 @@ classDiagram
         +get_position()
         -_connect_api()
         -_handle_response()
+    }
+
+    %% 事件处理类
+    class EventHandler {
+        <<abstract>>
+        +handle_event()
+        +process_event()
+    }
+    class TradeEventHandler {
+        +handle_event()
+        +process_event()
+        -_process_trade()
+    }
+    class RiskEventHandler {
+        +handle_event()
+        +process_event()
+        -_process_risk()
+    }
+    class DataEventHandler {
+        +handle_event()
+        +process_event()
+        -_process_data()
     }
 
     %% 应用层
@@ -751,32 +803,6 @@ classDiagram
         +trade()
     }
 
-    %% 接口层
-    class BrokerFactory {
-        +create_broker()
-        +get_broker()
-        +remove_broker()
-    }
-    class DataProviderFactory {
-        +create_provider()
-        +get_provider()
-        +remove_provider()
-    }
-    class TigerStore {
-        +start()
-        +stop()
-        +get_data()
-        +get_realtime_quotes()
-        +get_historical_data()
-    }
-    class IBStore {
-        +start()
-        +stop()
-        +get_data()
-        +get_realtime_quotes()
-        +get_historical_data()
-    }
-
     %% 基础设施层
     class Logger {
         +log_info()
@@ -792,9 +818,12 @@ classDiagram
         +register_event()
         +unregister_event()
         +trigger_event()
+        -_process_event()
     }
 
     %% 继承关系
+    DataStoreBase <|-- TigerStore
+    DataStoreBase <|-- IBStore
     BTBroker <|-- BacktestBroker
     BTBroker <|-- TigerBroker
     BTBroker <|-- IBBroker
@@ -806,6 +835,9 @@ classDiagram
     BTDataBase <|-- PandasData
     BTDataBase <|-- GenericCSVData
     BTDataBase <|-- TigerRealtimeData
+    EventHandler <|-- TradeEventHandler
+    EventHandler <|-- RiskEventHandler
+    EventHandler <|-- DataEventHandler
 
     %% 应用层关系
     Main --> ScriptManager
@@ -824,35 +856,26 @@ classDiagram
     OptimizeScript --> OptimizeEngine
     TradeScript --> LiveEngine
 
-    %% 接口层关系
-    BrokerFactory --> TigerBroker
-    BrokerFactory --> IBBroker
-    BrokerFactory --> BacktestBroker
-    DataProviderFactory --> TigerStore
-    DataProviderFactory --> IBStore
-
-    %% 基础设施层关系
-    Logger --> EventManager
-    Config --> EventManager
-
-    %% 数据源依赖关系
+    %% 数据流关系
     BacktestScript ..> PandasData
     BacktestScript ..> GenericCSVData
-    BacktestScript ..> BacktestBroker
+    BacktestScript ..> MagicNineStrategy
     TradeScript ..> TigerRealtimeData
-    TradeScript ..> TigerBroker
+    TradeScript ..> MagicNineStrategy
     TigerRealtimeData ..> TigerStore
     PandasData ..> TigerStore
     GenericCSVData ..> TigerStore
 
-    %% 层间依赖
-    BacktestScript ..> MagicNineStrategy
-    OptimizeScript ..> MagicNineStrategy
-    TradeScript ..> MagicNineStrategy
-    MagicNineStrategy ..> TigerStore
-    MagicNineStrategy ..> IBStore
-    TigerStore ..> Logger
-    IBStore ..> Logger
+    %% 事件处理关系
+    EventManager --> EventHandler
+    EventManager --> Logger
+    EventManager --> MagicNineStrategy
+    EventManager --> TigerBroker
+    EventManager --> TigerRealtimeData
+
+    %% 基础设施层关系
+    Logger --> EventManager
+    Config --> EventManager
 ```
 
 ## 类关系说明
