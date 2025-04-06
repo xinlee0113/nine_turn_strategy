@@ -194,3 +194,4 @@ if is_after_open_period and is_before_close_period:
 
 
 
+请继续自主的调整工程结构，确保和architecture_diagram.md一致，但是不要删除代码。可以移动代码或重命名，可以使用tree命令查看工程结构
