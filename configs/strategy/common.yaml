@@ -1,0 +1,18 @@
+# 通用策略配置
+
+# 数据参数
+data_source: "local"   # 数据源
+symbol: "000001.SZ"    # 交易标的
+timeframe: "1d"        # 时间周期
+
+# 交易参数
+commission: 0.0003     # 手续费率
+slippage: 0.0001       # 滑点率
+
+# 风险参数
+max_position: 1.0      # 最大仓位
+max_drawdown: 0.20     # 最大回撤限制
+
+# 日志参数
+log_level: "INFO"      # 日志级别
+log_dir: "logs"        # 日志目录 

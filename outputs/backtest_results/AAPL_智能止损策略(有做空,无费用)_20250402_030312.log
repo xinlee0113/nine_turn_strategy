@@ -1,0 +1,522 @@
+=== STDOUT ===
+
+
+=== STDERR ===
+2025-04-02 03:03:13,330 - src.data_fetcher - INFO - 成功导入老虎证券API
+2025-04-02 03:03:13,873 - __main__ - INFO - 日志将保存到: logs/backtest_20250402_030313.log
+2025-04-02 03:03:14,164 - tiger_openapi - INFO - sdk version: 3.3.3
+2025-04-02 03:03:14,335 - tiger_openapi - INFO - Grab quote permission. Permissions:[{'name': 'hkStockQuoteLv2', 'expire_at': -1}, {'name': 'aStockQuoteLv1', 'expire_at': -1}, {'name': 'usQuoteBasic', 'expire_at': 1764739059000}, {'name': 'usOptionQuote', 'expire_at': 1770189404000}]
+2025-04-02 03:03:14,379 - src.data_fetcher - INFO - 老虎证券API客户端初始化完成
+2025-04-02 03:03:14,379 - __main__ - INFO - 初始资金: 10000.00
+2025-04-02 03:03:14,389 - src.config_system - INFO - 已从 config/symbol_params.json 加载配置
+2025-04-02 03:03:14,389 - __main__ - INFO - 使用缓存模式获取数据: AAPL
+2025-04-02 03:03:14,389 - src.data_fetcher - INFO - 找到backtrader数据文件: data/cache/AAPL_1m_bt.csv
+2025-04-02 03:03:14,389 - src.data_fetcher - INFO - 使用缓存数据，无需API调用: data/cache/AAPL_1m_bt.csv
+2025-04-02 03:03:14,414 - src.data_fetcher - INFO - 已准备Backtrader数据文件: data/cache/AAPL_1m_bt.csv
+2025-04-02 03:03:14,414 - __main__ - INFO - 使用智能止损的神奇九转策略 [ATR周期: 14, ATR乘数: 2.5, 最大止损: 3.0%%, 追踪止损: True, 风险规避系数: 1.0, 波动性自适应: True, 市场感知: True, 时间衰减: True, 做空交易: True]
+2025-04-02 03:03:14,414 - __main__ - INFO - 初始资金: 10000.00
+2025-04-02 03:03:14,443 - src.magic_nine_strategy_with_smart_stoploss - INFO - 策略初始化完成 - 智能止损的神奇九转模式 (比较周期:3, 信号触发计数:5, ATR周期:14, 多头ATR乘数:2.5, 空头ATR乘数:2.8, 追踪止损:True, 做空交易:True)
+2025-04-02 03:03:14,525 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:14:00 卖空信号! 神奇九转计数: 5.0, 价格: 222.88, 数量: 42
+2025-04-02 03:03:14,526 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:15:00 卖空执行: 价格: 222.88, 成本: -9360.96, 手续费: 0.00, 交易#: 1
+2025-04-02 03:03:14,527 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:31:00 买入信号! 神奇九转计数: 5.0, 价格: 222.81, 数量: 42
+2025-04-02 03:03:14,527 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:32:00 平空买入执行: 价格: 222.81, 成本: -9360.96, 手续费: 0.00, 交易#: 2
+2025-04-02 03:03:14,527 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-27T15:32:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,527 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:32:00 交易利润, 毛利润: 2.73, 净利润: 2.73
+2025-04-02 03:03:14,527 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:32:00 交易统计 - 胜率: 0.00%, 交易数: 2, 多/空比: 0/0
+2025-04-02 03:03:14,528 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:36:00 卖空信号! 神奇九转计数: 5.0, 价格: 223.10, 数量: 42
+2025-04-02 03:03:14,528 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:37:00 卖空执行: 价格: 223.10, 成本: -9370.20, 手续费: 0.00, 交易#: 3
+2025-04-02 03:03:14,529 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:57:00 买入信号! 神奇九转计数: 5.0, 价格: 223.14, 数量: 42
+2025-04-02 03:03:14,530 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:58:00 平空买入执行: 价格: 223.14, 成本: -9370.20, 手续费: 0.00, 交易#: 4
+2025-04-02 03:03:14,530 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-27T15:58:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,530 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:58:00 交易利润, 毛利润: -1.58, 净利润: -1.58
+2025-04-02 03:03:14,530 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:58:00 交易统计 - 胜率: 0.00%, 交易数: 4, 多/空比: 0/0
+2025-04-02 03:03:14,530 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:58:00 买入信号! 神奇九转计数: 6.0, 价格: 223.09, 数量: 42
+2025-04-02 03:03:14,530 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:59:00 买入执行: 价格: 223.09, 成本: 9369.78, 手续费: 0.00, 交易#: 5
+2025-04-02 03:03:14,531 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:59:00 波动率调整: 当前:0.0006, 平均:0.0006, 比率:0.98, 调整因子:0.98
+2025-04-02 03:03:14,531 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:59:00 趋势调整: 趋势值:0.2217, 调整因子:0.90
+2025-04-02 03:03:14,531 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T15:59:00 设置多头智能初始止损: 222.71 (ATR: 0.17, 调整后乘数: 2.20, 距离: 0.38)
+2025-04-02 03:03:14,531 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:06:00 卖出信号! 神奇九转计数: 5.0, 价格: 223.39, 数量: 42
+2025-04-02 03:03:14,531 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:07:00 卖出执行: 价格: 223.39, 成本: 9369.78, 手续费: 0.00, 交易#: 6
+2025-04-02 03:03:14,531 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:07:00 多头交易亏损: -12.60 (0.13%)
+2025-04-02 03:03:14,531 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:07:00 交易利润, 毛利润: 12.60, 净利润: 12.60
+2025-04-02 03:03:14,531 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:07:00 交易统计 - 胜率: 0.00%, 交易数: 6, 多/空比: 1/0
+2025-04-02 03:03:14,532 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:07:00 卖空信号! 神奇九转计数: 6.0, 价格: 223.20, 数量: 42
+2025-04-02 03:03:14,532 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:08:00 卖空执行: 价格: 223.21, 成本: -9374.82, 手续费: 0.00, 交易#: 7
+2025-04-02 03:03:14,533 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:27:00 买入信号! 神奇九转计数: 5.0, 价格: 223.28, 数量: 42
+2025-04-02 03:03:14,533 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:28:00 平空买入执行: 价格: 223.28, 成本: -9374.82, 手续费: 0.00, 交易#: 8
+2025-04-02 03:03:14,533 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-27T16:28:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,533 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:28:00 交易利润, 毛利润: -2.94, 净利润: -2.94
+2025-04-02 03:03:14,533 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:28:00 交易统计 - 胜率: 0.00%, 交易数: 8, 多/空比: 1/0
+2025-04-02 03:03:14,534 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:28:00 买入信号! 神奇九转计数: 6.0, 价格: 223.21, 数量: 42
+2025-04-02 03:03:14,534 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:29:00 买入执行: 价格: 223.21, 成本: 9374.82, 手续费: 0.00, 交易#: 9
+2025-04-02 03:03:14,534 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:29:00 波动率调整: 当前:0.0005, 平均:0.0006, 比率:0.90, 调整因子:0.90
+2025-04-02 03:03:14,534 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:29:00 趋势调整: 趋势值:0.1184, 调整因子:0.90
+2025-04-02 03:03:14,534 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:29:00 设置多头智能初始止损: 222.88 (ATR: 0.16, 调整后乘数: 2.03, 距离: 0.33)
+2025-04-02 03:03:14,534 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:34:00 卖出信号! 神奇九转计数: 5.0, 价格: 223.47, 数量: 42
+2025-04-02 03:03:14,535 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:35:00 卖出执行: 价格: 223.47, 成本: 9374.82, 手续费: 0.00, 交易#: 10
+2025-04-02 03:03:14,535 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:35:00 多头交易亏损: -10.92 (0.12%)
+2025-04-02 03:03:14,535 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:35:00 交易利润, 毛利润: 10.92, 净利润: 10.92
+2025-04-02 03:03:14,535 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:35:00 交易统计 - 胜率: 0.00%, 交易数: 10, 多/空比: 2/0
+2025-04-02 03:03:14,535 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:40:00 卖空信号! 神奇九转计数: 5.0, 价格: 223.76, 数量: 42
+2025-04-02 03:03:14,535 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:41:00 卖空执行: 价格: 223.76, 成本: -9398.01, 手续费: 0.00, 交易#: 11
+2025-04-02 03:03:14,536 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:48:00 买入信号! 神奇九转计数: 5.0, 价格: 223.31, 数量: 42
+2025-04-02 03:03:14,536 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:49:00 平空买入执行: 价格: 223.31, 成本: -9398.01, 手续费: 0.00, 交易#: 12
+2025-04-02 03:03:14,536 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-27T16:49:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,536 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:49:00 交易利润, 毛利润: 18.99, 净利润: 18.99
+2025-04-02 03:03:14,536 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:49:00 交易统计 - 胜率: 0.00%, 交易数: 12, 多/空比: 2/0
+2025-04-02 03:03:14,536 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:49:00 买入信号! 神奇九转计数: 6.0, 价格: 223.22, 数量: 42
+2025-04-02 03:03:14,538 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:50:00 买入执行: 价格: 223.20, 成本: 9374.40, 手续费: 0.00, 交易#: 13
+2025-04-02 03:03:14,538 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:50:00 波动率调整: 当前:0.0005, 平均:0.0006, 比率:0.95, 调整因子:0.95
+2025-04-02 03:03:14,538 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:50:00 趋势调整: 趋势值:0.0934, 调整因子:0.90
+2025-04-02 03:03:14,538 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T16:50:00 设置多头智能初始止损: 222.81 (ATR: 0.18, 调整后乘数: 2.13, 距离: 0.39)
+2025-04-02 03:03:14,539 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:01:00 多头智能止损触发! 盈亏: -0.18%, 价格: 222.80, 止损价: 222.81, 数量: 42, 持仓K线数: 24
+2025-04-02 03:03:14,539 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:02:00 卖出执行: 价格: 222.80, 成本: 9374.40, 手续费: 0.00, 交易#: 14
+2025-04-02 03:03:14,539 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:02:00 多头交易盈利: 16.80 (-0.18%)
+2025-04-02 03:03:14,539 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:02:00 交易利润, 毛利润: -16.80, 净利润: -16.80
+2025-04-02 03:03:14,539 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:02:00 交易统计 - 胜率: 7.14%, 交易数: 14, 多/空比: 3/0
+2025-04-02 03:03:14,540 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:07:00 卖空信号! 神奇九转计数: 5.0, 价格: 223.25, 数量: 42
+2025-04-02 03:03:14,540 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:08:00 卖空执行: 价格: 223.25, 成本: -9376.71, 手续费: 0.00, 交易#: 15
+2025-04-02 03:03:14,542 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:38:00 买入信号! 神奇九转计数: 5.0, 价格: 223.13, 数量: 42
+2025-04-02 03:03:14,542 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:39:00 平空买入执行: 价格: 223.13, 成本: -9376.71, 手续费: 0.00, 交易#: 16
+2025-04-02 03:03:14,542 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-27T17:39:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,542 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:39:00 交易利润, 毛利润: 5.25, 净利润: 5.25
+2025-04-02 03:03:14,542 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:39:00 交易统计 - 胜率: 6.25%, 交易数: 16, 多/空比: 3/0
+2025-04-02 03:03:14,542 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:43:00 卖空信号! 神奇九转计数: 5.0, 价格: 223.23, 数量: 42
+2025-04-02 03:03:14,543 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:44:00 卖空执行: 价格: 223.23, 成本: -9375.66, 手续费: 0.00, 交易#: 17
+2025-04-02 03:03:14,544 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:57:00 买入信号! 神奇九转计数: 5.0, 价格: 223.32, 数量: 42
+2025-04-02 03:03:14,544 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:58:00 平空买入执行: 价格: 223.32, 成本: -9375.66, 手续费: 0.00, 交易#: 18
+2025-04-02 03:03:14,544 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-27T17:58:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,544 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:58:00 交易利润, 毛利润: -3.78, 净利润: -3.78
+2025-04-02 03:03:14,544 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:58:00 交易统计 - 胜率: 5.56%, 交易数: 18, 多/空比: 3/0
+2025-04-02 03:03:14,544 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:58:00 买入信号! 神奇九转计数: 6.0, 价格: 223.31, 数量: 42
+2025-04-02 03:03:14,544 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:59:00 买入执行: 价格: 223.31, 成本: 9379.23, 手续费: 0.00, 交易#: 19
+2025-04-02 03:03:14,544 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:59:00 波动率调整: 当前:0.0005, 平均:0.0005, 比率:0.96, 调整因子:0.96
+2025-04-02 03:03:14,544 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:59:00 趋势调整: 趋势值:0.0195, 调整因子:0.90
+2025-04-02 03:03:14,544 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T17:59:00 设置多头智能初始止损: 223.01 (ATR: 0.14, 调整后乘数: 2.17, 距离: 0.31)
+2025-04-02 03:03:14,544 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T18:03:00 卖出信号! 神奇九转计数: 5.0, 价格: 223.71, 数量: 42
+2025-04-02 03:03:14,545 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T18:04:00 卖出执行: 价格: 223.72, 成本: 9379.23, 手续费: 0.00, 交易#: 20
+2025-04-02 03:03:14,545 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T18:04:00 多头交易亏损: -17.01 (0.18%)
+2025-04-02 03:03:14,545 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T18:04:00 交易利润, 毛利润: 17.01, 净利润: 17.01
+2025-04-02 03:03:14,545 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T18:04:00 交易统计 - 胜率: 5.00%, 交易数: 20, 多/空比: 4/0
+2025-04-02 03:03:14,545 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T18:04:00 卖空信号! 神奇九转计数: 6.0, 价格: 223.80, 数量: 42
+2025-04-02 03:03:14,545 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T18:05:00 卖空执行: 价格: 223.80, 成本: -9399.60, 手续费: 0.00, 交易#: 21
+2025-04-02 03:03:14,548 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T18:55:00 买入信号! 神奇九转计数: 5.0, 价格: 224.46, 数量: 42
+2025-04-02 03:03:14,549 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T18:56:00 平空买入执行: 价格: 224.46, 成本: -9399.60, 手续费: 0.00, 交易#: 22
+2025-04-02 03:03:14,549 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-27T18:56:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,549 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T18:56:00 交易利润, 毛利润: -27.51, 净利润: -27.51
+2025-04-02 03:03:14,549 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T18:56:00 交易统计 - 胜率: 4.55%, 交易数: 22, 多/空比: 4/0
+2025-04-02 03:03:14,549 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T18:56:00 买入信号! 神奇九转计数: 6.0, 价格: 224.40, 数量: 42
+2025-04-02 03:03:14,549 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T18:57:00 买入执行: 价格: 224.40, 成本: 9424.80, 手续费: 0.00, 交易#: 23
+2025-04-02 03:03:14,549 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T18:57:00 波动率调整: 当前:0.0005, 平均:0.0005, 比率:0.91, 调整因子:0.91
+2025-04-02 03:03:14,549 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T18:57:00 趋势调整: 趋势值:0.1697, 调整因子:0.90
+2025-04-02 03:03:14,549 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T18:57:00 设置多头智能初始止损: 224.10 (ATR: 0.15, 调整后乘数: 2.04, 距离: 0.30)
+2025-04-02 03:03:14,550 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:10:00 卖出信号! 神奇九转计数: 5.0, 价格: 224.51, 数量: 42
+2025-04-02 03:03:14,550 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:11:00 卖出执行: 价格: 224.51, 成本: 9424.80, 手续费: 0.00, 交易#: 24
+2025-04-02 03:03:14,551 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:11:00 多头交易亏损: -4.62 (0.05%)
+2025-04-02 03:03:14,551 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:11:00 交易利润, 毛利润: 4.62, 净利润: 4.62
+2025-04-02 03:03:14,551 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:11:00 交易统计 - 胜率: 4.17%, 交易数: 24, 多/空比: 5/0
+2025-04-02 03:03:14,551 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:11:00 卖空信号! 神奇九转计数: 6.0, 价格: 224.52, 数量: 42
+2025-04-02 03:03:14,551 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:12:00 卖空执行: 价格: 224.53, 成本: -9430.05, 手续费: 0.00, 交易#: 25
+2025-04-02 03:03:14,552 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:28:00 买入信号! 神奇九转计数: 5.0, 价格: 224.80, 数量: 42
+2025-04-02 03:03:14,553 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:29:00 平空买入执行: 价格: 224.80, 成本: -9430.05, 手续费: 0.00, 交易#: 26
+2025-04-02 03:03:14,553 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-27T19:29:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,553 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:29:00 交易利润, 毛利润: -11.55, 净利润: -11.55
+2025-04-02 03:03:14,553 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:29:00 交易统计 - 胜率: 3.85%, 交易数: 26, 多/空比: 5/0
+2025-04-02 03:03:14,553 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:29:00 买入信号! 神奇九转计数: 6.0, 价格: 224.79, 数量: 42
+2025-04-02 03:03:14,553 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:30:00 买入执行: 价格: 224.79, 成本: 9441.18, 手续费: 0.00, 交易#: 27
+2025-04-02 03:03:14,553 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:30:00 波动率调整: 当前:0.0005, 平均:0.0005, 比率:0.98, 调整因子:0.98
+2025-04-02 03:03:14,553 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:30:00 趋势调整: 趋势值:0.1414, 调整因子:0.90
+2025-04-02 03:03:14,553 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:30:00 设置多头智能初始止损: 224.46 (ATR: 0.15, 调整后乘数: 2.20, 距离: 0.33)
+2025-04-02 03:03:14,554 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:38:00 多头智能止损触发! 盈亏: -0.16%, 价格: 224.44, 止损价: 224.46, 数量: 42, 持仓K线数: 18
+2025-04-02 03:03:14,554 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:39:00 卖出执行: 价格: 224.43, 成本: 9441.18, 手续费: 0.00, 交易#: 28
+2025-04-02 03:03:14,554 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:39:00 多头交易盈利: 15.12 (-0.16%)
+2025-04-02 03:03:14,554 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:39:00 交易利润, 毛利润: -15.12, 净利润: -15.12
+2025-04-02 03:03:14,554 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:39:00 交易统计 - 胜率: 7.14%, 交易数: 28, 多/空比: 6/0
+2025-04-02 03:03:14,555 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:44:00 卖空信号! 神奇九转计数: 5.0, 价格: 224.70, 数量: 42
+2025-04-02 03:03:14,555 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:45:00 卖空执行: 价格: 224.70, 成本: -9437.40, 手续费: 0.00, 交易#: 29
+2025-04-02 03:03:14,556 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:54:00 买入信号! 神奇九转计数: 5.0, 价格: 224.07, 数量: 42
+2025-04-02 03:03:14,556 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:55:00 平空买入执行: 价格: 224.05, 成本: -9437.40, 手续费: 0.00, 交易#: 30
+2025-04-02 03:03:14,556 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-27T19:55:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,556 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:55:00 交易利润, 毛利润: 27.30, 净利润: 27.30
+2025-04-02 03:03:14,556 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-27T19:55:00 交易统计 - 胜率: 6.67%, 交易数: 30, 多/空比: 6/0
+2025-04-02 03:03:14,557 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T13:32:00 买入信号! 神奇九转计数: 5.0, 价格: 222.12, 数量: 42
+2025-04-02 03:03:14,557 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T13:33:00 买入执行: 价格: 222.12, 成本: 9329.04, 手续费: 0.00, 交易#: 31
+2025-04-02 03:03:14,557 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T13:33:00 波动率调整: 当前:0.0019, 平均:0.0005, 比率:3.60, 调整因子:1.50
+2025-04-02 03:03:14,557 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T13:33:00 趋势调整: 趋势值:-0.5910, 调整因子:1.10
+2025-04-02 03:03:14,557 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T13:33:00 设置多头智能初始止损: 220.12 (ATR: 0.49, 调整后乘数: 4.12, 距离: 2.00)
+2025-04-02 03:03:14,558 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T13:42:00 卖出信号! 神奇九转计数: 5.0, 价格: 222.75, 数量: 42
+2025-04-02 03:03:14,558 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T13:43:00 卖出执行: 价格: 222.75, 成本: 9329.04, 手续费: 0.00, 交易#: 32
+2025-04-02 03:03:14,558 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T13:43:00 多头交易亏损: -26.46 (0.28%)
+2025-04-02 03:03:14,558 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T13:43:00 交易利润, 毛利润: 26.46, 净利润: 26.46
+2025-04-02 03:03:14,558 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T13:43:00 交易统计 - 胜率: 6.25%, 交易数: 32, 多/空比: 7/0
+2025-04-02 03:03:14,559 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T13:48:00 卖空信号! 神奇九转计数: 5.0, 价格: 223.38, 数量: 42
+2025-04-02 03:03:14,559 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T13:49:00 卖空执行: 价格: 223.40, 成本: -9382.80, 手续费: 0.00, 交易#: 33
+2025-04-02 03:03:14,559 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T13:56:00 买入信号! 神奇九转计数: 5.0, 价格: 222.88, 数量: 42
+2025-04-02 03:03:14,560 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T13:57:00 平空买入执行: 价格: 222.88, 成本: -9382.80, 手续费: 0.00, 交易#: 34
+2025-04-02 03:03:14,560 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-28T13:57:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,560 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T13:57:00 交易利润, 毛利润: 21.84, 净利润: 21.84
+2025-04-02 03:03:14,560 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T13:57:00 交易统计 - 胜率: 5.88%, 交易数: 34, 多/空比: 7/0
+2025-04-02 03:03:14,560 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:01:00 卖空信号! 神奇九转计数: 5.0, 价格: 223.43, 数量: 42
+2025-04-02 03:03:14,560 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:02:00 卖空执行: 价格: 223.43, 成本: -9383.85, 手续费: 0.00, 交易#: 35
+2025-04-02 03:03:14,561 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:06:00 买入信号! 神奇九转计数: 5.0, 价格: 223.06, 数量: 42
+2025-04-02 03:03:14,561 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:07:00 平空买入执行: 价格: 223.06, 成本: -9383.85, 手续费: 0.00, 交易#: 36
+2025-04-02 03:03:14,562 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-28T14:07:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,562 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:07:00 交易利润, 毛利润: 15.34, 净利润: 15.34
+2025-04-02 03:03:14,562 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:07:00 交易统计 - 胜率: 5.56%, 交易数: 36, 多/空比: 7/0
+2025-04-02 03:03:14,562 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:07:00 买入信号! 神奇九转计数: 6.0, 价格: 222.99, 数量: 42
+2025-04-02 03:03:14,562 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:08:00 买入执行: 价格: 223.01, 成本: 9366.42, 手续费: 0.00, 交易#: 37
+2025-04-02 03:03:14,562 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:08:00 波动率调整: 当前:0.0013, 平均:0.0014, 比率:0.93, 调整因子:0.93
+2025-04-02 03:03:14,562 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:08:00 趋势调整: 趋势值:-0.1931, 调整因子:1.10
+2025-04-02 03:03:14,562 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:08:00 设置多头智能初始止损: 222.12 (ATR: 0.35, 调整后乘数: 2.55, 距离: 0.89)
+2025-04-02 03:03:14,562 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:10:00 多头智能止损触发! 盈亏: -0.44%, 价格: 222.02, 止损价: 222.12, 数量: 42, 持仓K线数: 6
+2025-04-02 03:03:14,563 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:11:00 卖出执行: 价格: 222.03, 成本: 9366.42, 手续费: 0.00, 交易#: 38
+2025-04-02 03:03:14,563 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:11:00 多头交易盈利: 41.06 (-0.44%)
+2025-04-02 03:03:14,563 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:11:00 交易利润, 毛利润: -41.06, 净利润: -41.06
+2025-04-02 03:03:14,563 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:11:00 交易统计 - 胜率: 7.89%, 交易数: 38, 多/空比: 8/0
+2025-04-02 03:03:14,563 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:11:00 买入信号! 神奇九转计数: 10.0, 价格: 222.20, 数量: 42
+2025-04-02 03:03:14,563 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:12:00 买入执行: 价格: 222.20, 成本: 9332.40, 手续费: 0.00, 交易#: 39
+2025-04-02 03:03:14,563 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:12:00 波动率调整: 当前:0.0013, 平均:0.0015, 比率:0.86, 调整因子:0.86
+2025-04-02 03:03:14,563 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:12:00 趋势调整: 趋势值:-0.3502, 调整因子:1.10
+2025-04-02 03:03:14,563 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:12:00 设置多头智能初始止损: 221.37 (ATR: 0.35, 调整后乘数: 2.37, 距离: 0.83)
+2025-04-02 03:03:14,564 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:15:00 多头智能止损触发! 盈亏: -0.45%, 价格: 221.19, 止损价: 221.37, 数量: 42, 持仓K线数: 8
+2025-04-02 03:03:14,564 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:16:00 卖出执行: 价格: 221.19, 成本: 9332.40, 手续费: 0.00, 交易#: 40
+2025-04-02 03:03:14,564 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:16:00 多头交易盈利: 42.42 (-0.45%)
+2025-04-02 03:03:14,564 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:16:00 交易利润, 毛利润: -42.42, 净利润: -42.42
+2025-04-02 03:03:14,564 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:16:00 交易统计 - 胜率: 10.00%, 交易数: 40, 多/空比: 9/0
+2025-04-02 03:03:14,564 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:16:00 买入信号! 神奇九转计数: 15.0, 价格: 220.94, 数量: 42
+2025-04-02 03:03:14,565 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:17:00 买入执行: 价格: 220.94, 成本: 9279.48, 手续费: 0.00, 交易#: 41
+2025-04-02 03:03:14,565 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:17:00 波动率调整: 当前:0.0013, 平均:0.0016, 比率:0.82, 调整因子:0.82
+2025-04-02 03:03:14,565 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:17:00 趋势调整: 趋势值:-0.5996, 调整因子:1.10
+2025-04-02 03:03:14,565 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:17:00 设置多头智能初始止损: 220.12 (ATR: 0.36, 调整后乘数: 2.27, 距离: 0.82)
+2025-04-02 03:03:14,566 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:26:00 多头智能止损触发! 盈亏: -0.46%, 价格: 219.92, 止损价: 220.12, 数量: 42, 持仓K线数: 20
+2025-04-02 03:03:14,566 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:27:00 卖出执行: 价格: 219.92, 成本: 9279.48, 手续费: 0.00, 交易#: 42
+2025-04-02 03:03:14,566 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:27:00 多头交易盈利: 42.84 (-0.46%)
+2025-04-02 03:03:14,566 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:27:00 交易利润, 毛利润: -42.84, 净利润: -42.84
+2025-04-02 03:03:14,566 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:27:00 交易统计 - 胜率: 11.90%, 交易数: 42, 多/空比: 10/0
+2025-04-02 03:03:14,566 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:29:00 买入信号! 神奇九转计数: 5.0, 价格: 219.91, 数量: 43
+2025-04-02 03:03:14,567 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:30:00 买入执行: 价格: 219.91, 成本: 9456.13, 手续费: 0.00, 交易#: 43
+2025-04-02 03:03:14,567 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:30:00 波动率调整: 当前:0.0012, 平均:0.0014, 比率:0.81, 调整因子:0.81
+2025-04-02 03:03:14,567 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:30:00 趋势调整: 趋势值:-1.0257, 调整因子:1.10
+2025-04-02 03:03:14,567 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T14:30:00 设置多头智能初始止损: 219.16 (ATR: 0.33, 调整后乘数: 2.24, 距离: 0.75)
+2025-04-02 03:03:14,572 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:29:00 卖出信号! 神奇九转计数: 5.0, 价格: 219.98, 数量: 43
+2025-04-02 03:03:14,572 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:30:00 卖出执行: 价格: 219.98, 成本: 9456.13, 手续费: 0.00, 交易#: 44
+2025-04-02 03:03:14,572 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:30:00 多头交易亏损: -3.01 (0.03%)
+2025-04-02 03:03:14,572 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:30:00 交易利润, 毛利润: 3.01, 净利润: 3.01
+2025-04-02 03:03:14,572 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:30:00 交易统计 - 胜率: 11.36%, 交易数: 44, 多/空比: 11/0
+2025-04-02 03:03:14,572 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:30:00 卖空信号! 神奇九转计数: 6.0, 价格: 219.88, 数量: 43
+2025-04-02 03:03:14,573 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:31:00 卖空执行: 价格: 219.87, 成本: -9454.41, 手续费: 0.00, 交易#: 45
+2025-04-02 03:03:14,574 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:41:00 买入信号! 神奇九转计数: 5.0, 价格: 219.57, 数量: 43
+2025-04-02 03:03:14,574 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:42:00 平空买入执行: 价格: 219.57, 成本: -9454.41, 手续费: 0.00, 交易#: 46
+2025-04-02 03:03:14,574 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-28T15:42:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,574 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:42:00 交易利润, 毛利润: 12.90, 净利润: 12.90
+2025-04-02 03:03:14,574 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:42:00 交易统计 - 胜率: 10.87%, 交易数: 46, 多/空比: 11/0
+2025-04-02 03:03:14,574 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:42:00 买入信号! 神奇九转计数: 6.0, 价格: 219.42, 数量: 43
+2025-04-02 03:03:14,574 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:43:00 买入执行: 价格: 219.42, 成本: 9435.06, 手续费: 0.00, 交易#: 47
+2025-04-02 03:03:14,574 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:43:00 波动率调整: 当前:0.0007, 平均:0.0008, 比率:0.81, 调整因子:0.81
+2025-04-02 03:03:14,574 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:43:00 趋势调整: 趋势值:-0.1951, 调整因子:1.10
+2025-04-02 03:03:14,574 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:43:00 设置多头智能初始止损: 219.01 (ATR: 0.18, 调整后乘数: 2.23, 距离: 0.41)
+2025-04-02 03:03:14,575 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T15:59:00 卖出信号! 神奇九转计数: 5.0, 价格: 219.53, 数量: 43
+2025-04-02 03:03:14,576 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:00:00 卖出执行: 价格: 219.53, 成本: 9435.06, 手续费: 0.00, 交易#: 48
+2025-04-02 03:03:14,576 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:00:00 多头交易亏损: -4.73 (0.05%)
+2025-04-02 03:03:14,576 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:00:00 交易利润, 毛利润: 4.73, 净利润: 4.73
+2025-04-02 03:03:14,576 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:00:00 交易统计 - 胜率: 10.42%, 交易数: 48, 多/空比: 12/0
+2025-04-02 03:03:14,576 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:00:00 卖空信号! 神奇九转计数: 6.0, 价格: 219.75, 数量: 43
+2025-04-02 03:03:14,577 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:01:00 卖空执行: 价格: 219.75, 成本: -9449.25, 手续费: 0.00, 交易#: 49
+2025-04-02 03:03:14,578 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:18:00 买入信号! 神奇九转计数: 5.0, 价格: 218.74, 数量: 43
+2025-04-02 03:03:14,579 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:19:00 平空买入执行: 价格: 218.75, 成本: -9449.25, 手续费: 0.00, 交易#: 50
+2025-04-02 03:03:14,579 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-28T16:19:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,579 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:19:00 交易利润, 毛利润: 43.00, 净利润: 43.00
+2025-04-02 03:03:14,579 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:19:00 交易统计 - 胜率: 10.00%, 交易数: 50, 多/空比: 12/0
+2025-04-02 03:03:14,579 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:19:00 买入信号! 神奇九转计数: 6.0, 价格: 218.74, 数量: 43
+2025-04-02 03:03:14,580 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:20:00 买入执行: 价格: 218.74, 成本: 9405.82, 手续费: 0.00, 交易#: 51
+2025-04-02 03:03:14,580 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:20:00 波动率调整: 当前:0.0006, 平均:0.0006, 比率:0.95, 调整因子:0.95
+2025-04-02 03:03:14,580 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:20:00 趋势调整: 趋势值:-0.2851, 调整因子:1.10
+2025-04-02 03:03:14,580 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:20:00 设置多头智能初始止损: 218.27 (ATR: 0.18, 调整后乘数: 2.61, 距离: 0.47)
+2025-04-02 03:03:14,582 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:34:00 卖出信号! 神奇九转计数: 5.0, 价格: 218.88, 数量: 43
+2025-04-02 03:03:14,582 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:35:00 卖出执行: 价格: 218.88, 成本: 9405.82, 手续费: 0.00, 交易#: 52
+2025-04-02 03:03:14,582 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:35:00 多头交易亏损: -6.02 (0.06%)
+2025-04-02 03:03:14,582 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:35:00 交易利润, 毛利润: 6.02, 净利润: 6.02
+2025-04-02 03:03:14,582 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:35:00 交易统计 - 胜率: 9.62%, 交易数: 52, 多/空比: 13/0
+2025-04-02 03:03:14,582 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:35:00 卖空信号! 神奇九转计数: 6.0, 价格: 218.88, 数量: 43
+2025-04-02 03:03:14,582 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:36:00 卖空执行: 价格: 218.88, 成本: -9411.84, 手续费: 0.00, 交易#: 53
+2025-04-02 03:03:14,583 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:43:00 买入信号! 神奇九转计数: 5.0, 价格: 218.88, 数量: 43
+2025-04-02 03:03:14,583 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:44:00 平空买入执行: 价格: 218.89, 成本: -9411.84, 手续费: 0.00, 交易#: 54
+2025-04-02 03:03:14,583 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-28T16:44:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,583 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:44:00 交易利润, 毛利润: -0.43, 净利润: -0.43
+2025-04-02 03:03:14,584 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:44:00 交易统计 - 胜率: 9.26%, 交易数: 54, 多/空比: 13/0
+2025-04-02 03:03:14,584 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:44:00 买入信号! 神奇九转计数: 6.0, 价格: 218.76, 数量: 43
+2025-04-02 03:03:14,584 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:45:00 买入执行: 价格: 218.76, 成本: 9406.68, 手续费: 0.00, 交易#: 55
+2025-04-02 03:03:14,584 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:45:00 波动率调整: 当前:0.0005, 平均:0.0006, 比率:0.86, 调整因子:0.86
+2025-04-02 03:03:14,584 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:45:00 趋势调整: 趋势值:-0.1894, 调整因子:1.10
+2025-04-02 03:03:14,584 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T16:45:00 设置多头智能初始止损: 218.42 (ATR: 0.14, 调整后乘数: 2.37, 距离: 0.34)
+2025-04-02 03:03:14,586 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:26:00 多头智能止损触发! 盈亏: -0.19%, 价格: 218.34, 止损价: 218.42, 数量: 43, 持仓K线数: 84
+2025-04-02 03:03:14,586 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:27:00 卖出执行: 价格: 218.34, 成本: 9406.68, 手续费: 0.00, 交易#: 56
+2025-04-02 03:03:14,586 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:27:00 多头交易盈利: 18.06 (-0.19%)
+2025-04-02 03:03:14,586 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:27:00 交易利润, 毛利润: -18.06, 净利润: -18.06
+2025-04-02 03:03:14,586 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:27:00 交易统计 - 胜率: 10.71%, 交易数: 56, 多/空比: 14/0
+2025-04-02 03:03:14,586 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:27:00 买入信号! 神奇九转计数: 8.0, 价格: 218.32, 数量: 43
+2025-04-02 03:03:14,586 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:28:00 买入执行: 价格: 218.32, 成本: 9387.76, 手续费: 0.00, 交易#: 57
+2025-04-02 03:03:14,586 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:28:00 波动率调整: 当前:0.0005, 平均:0.0005, 比率:1.00, 调整因子:1.00
+2025-04-02 03:03:14,586 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:28:00 趋势调整: 趋势值:-0.1164, 调整因子:1.10
+2025-04-02 03:03:14,586 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:28:00 设置多头智能初始止损: 217.89 (ATR: 0.16, 调整后乘数: 2.74, 距离: 0.43)
+2025-04-02 03:03:14,589 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:33:00 卖出信号! 神奇九转计数: 5.0, 价格: 218.59, 数量: 43
+2025-04-02 03:03:14,589 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:34:00 卖出执行: 价格: 218.59, 成本: 9387.76, 手续费: 0.00, 交易#: 58
+2025-04-02 03:03:14,589 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:34:00 多头交易亏损: -11.82 (0.13%)
+2025-04-02 03:03:14,589 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:34:00 交易利润, 毛利润: 11.83, 净利润: 11.83
+2025-04-02 03:03:14,589 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:34:00 交易统计 - 胜率: 10.34%, 交易数: 58, 多/空比: 15/0
+2025-04-02 03:03:14,589 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:38:00 买入信号! 神奇九转计数: 5.0, 价格: 218.42, 数量: 43
+2025-04-02 03:03:14,589 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:39:00 买入执行: 价格: 218.42, 成本: 9392.06, 手续费: 0.00, 交易#: 59
+2025-04-02 03:03:14,589 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:39:00 波动率调整: 当前:0.0005, 平均:0.0005, 比率:1.08, 调整因子:1.08
+2025-04-02 03:03:14,589 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:39:00 趋势调整: 趋势值:-0.1123, 调整因子:1.10
+2025-04-02 03:03:14,589 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:39:00 设置多头智能初始止损: 217.91 (ATR: 0.17, 调整后乘数: 2.98, 距离: 0.51)
+2025-04-02 03:03:14,589 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T17:59:00 卖出信号! 神奇九转计数: 5.0, 价格: 218.76, 数量: 43
+2025-04-02 03:03:14,589 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:00:00 卖出执行: 价格: 218.76, 成本: 9392.06, 手续费: 0.00, 交易#: 60
+2025-04-02 03:03:14,589 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:00:00 多头交易亏损: -14.62 (0.16%)
+2025-04-02 03:03:14,589 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:00:00 交易利润, 毛利润: 14.62, 净利润: 14.62
+2025-04-02 03:03:14,589 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:00:00 交易统计 - 胜率: 10.00%, 交易数: 60, 多/空比: 16/0
+2025-04-02 03:03:14,592 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:00:00 卖空信号! 神奇九转计数: 6.0, 价格: 218.75, 数量: 43
+2025-04-02 03:03:14,592 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:01:00 卖空执行: 价格: 218.75, 成本: -9406.03, 手续费: 0.00, 交易#: 61
+2025-04-02 03:03:14,592 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:06:00 买入信号! 神奇九转计数: 5.0, 价格: 218.67, 数量: 43
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:07:00 平空买入执行: 价格: 218.67, 成本: -9406.03, 手续费: 0.00, 交易#: 62
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-28T18:07:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:07:00 交易利润, 毛利润: 3.23, 净利润: 3.23
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:07:00 交易统计 - 胜率: 9.68%, 交易数: 62, 多/空比: 16/0
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:11:00 卖空信号! 神奇九转计数: 5.0, 价格: 218.94, 数量: 43
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:12:00 卖空执行: 价格: 218.94, 成本: -9414.64, 手续费: 0.00, 交易#: 63
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:16:00 买入信号! 神奇九转计数: 5.0, 价格: 218.62, 数量: 43
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:17:00 平空买入执行: 价格: 218.60, 成本: -9414.64, 手续费: 0.00, 交易#: 64
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-28T18:17:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:17:00 交易利润, 毛利润: 14.83, 净利润: 14.83
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:17:00 交易统计 - 胜率: 9.38%, 交易数: 64, 多/空比: 16/0
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:21:00 卖空信号! 神奇九转计数: 5.0, 价格: 218.90, 数量: 43
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:22:00 卖空执行: 价格: 218.90, 成本: -9412.70, 手续费: 0.00, 交易#: 65
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:35:00 买入信号! 神奇九转计数: 5.0, 价格: 218.83, 数量: 43
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:36:00 平空买入执行: 价格: 218.83, 成本: -9412.70, 手续费: 0.00, 交易#: 66
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-28T18:36:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:36:00 交易利润, 毛利润: 3.01, 净利润: 3.01
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:36:00 交易统计 - 胜率: 9.09%, 交易数: 66, 多/空比: 16/0
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:36:00 买入信号! 神奇九转计数: 6.0, 价格: 218.69, 数量: 43
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:37:00 买入执行: 价格: 218.69, 成本: 9403.67, 手续费: 0.00, 交易#: 67
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:37:00 波动率调整: 当前:0.0005, 平均:0.0005, 比率:0.97, 调整因子:0.97
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:37:00 趋势调整: 趋势值:0.0682, 调整因子:0.90
+2025-04-02 03:03:14,593 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T18:37:00 设置多头智能初始止损: 218.37 (ATR: 0.15, 调整后乘数: 2.18, 距离: 0.32)
+2025-04-02 03:03:14,600 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T19:01:00 多头智能止损触发! 盈亏: -0.23%, 价格: 218.19, 止损价: 218.37, 数量: 43, 持仓K线数: 50
+2025-04-02 03:03:14,600 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T19:02:00 卖出执行: 价格: 218.19, 成本: 9403.67, 手续费: 0.00, 交易#: 68
+2025-04-02 03:03:14,600 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T19:02:00 多头交易盈利: 21.60 (-0.23%)
+2025-04-02 03:03:14,600 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T19:02:00 交易利润, 毛利润: -21.60, 净利润: -21.60
+2025-04-02 03:03:14,600 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T19:02:00 交易统计 - 胜率: 10.29%, 交易数: 68, 多/空比: 17/0
+2025-04-02 03:03:14,600 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T19:08:00 卖空信号! 神奇九转计数: 5.0, 价格: 218.57, 数量: 43
+2025-04-02 03:03:14,600 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T19:09:00 卖空执行: 价格: 218.57, 成本: -9398.51, 手续费: 0.00, 交易#: 69
+2025-04-02 03:03:14,604 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T19:46:00 买入信号! 神奇九转计数: 5.0, 价格: 218.14, 数量: 43
+2025-04-02 03:03:14,604 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T19:47:00 平空买入执行: 价格: 218.14, 成本: -9398.51, 手续费: 0.00, 交易#: 70
+2025-04-02 03:03:14,604 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-28T19:47:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,604 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T19:47:00 交易利润, 毛利润: 18.49, 净利润: 18.49
+2025-04-02 03:03:14,604 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T19:47:00 交易统计 - 胜率: 10.00%, 交易数: 70, 多/空比: 17/0
+2025-04-02 03:03:14,604 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-28T19:59:00 买入信号! 神奇九转计数: 5.0, 价格: 217.90, 数量: 43
+2025-04-02 03:03:14,605 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T13:30:00 买入执行: 价格: 217.20, 成本: 9339.60, 手续费: 0.00, 交易#: 71
+2025-04-02 03:03:14,605 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T13:30:00 波动率调整: 当前:0.0007, 平均:0.0005, 比率:1.34, 调整因子:1.34
+2025-04-02 03:03:14,605 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T13:30:00 趋势调整: 趋势值:-0.1143, 调整因子:1.10
+2025-04-02 03:03:14,605 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T13:30:00 设置多头智能初始止损: 215.94 (ATR: 0.34, 调整后乘数: 3.67, 距离: 1.26)
+2025-04-02 03:03:14,605 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T13:43:00 卖出信号! 神奇九转计数: 5.0, 价格: 217.99, 数量: 43
+2025-04-02 03:03:14,607 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T13:44:00 卖出执行: 价格: 218.03, 成本: 9339.60, 手续费: 0.00, 交易#: 72
+2025-04-02 03:03:14,607 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T13:44:00 多头交易亏损: -35.69 (0.38%)
+2025-04-02 03:03:14,607 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T13:44:00 交易利润, 毛利润: 35.69, 净利润: 35.69
+2025-04-02 03:03:14,607 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T13:44:00 交易统计 - 胜率: 9.72%, 交易数: 72, 多/空比: 18/0
+2025-04-02 03:03:14,607 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T13:44:00 卖空信号! 神奇九转计数: 6.0, 价格: 217.98, 数量: 43
+2025-04-02 03:03:14,607 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T13:45:00 卖空执行: 价格: 217.98, 成本: -9373.14, 手续费: 0.00, 交易#: 73
+2025-04-02 03:03:14,607 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T13:54:00 买入信号! 神奇九转计数: 5.0, 价格: 217.51, 数量: 43
+2025-04-02 03:03:14,608 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T13:55:00 平空买入执行: 价格: 217.51, 成本: -9373.14, 手续费: 0.00, 交易#: 74
+2025-04-02 03:03:14,608 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-31T13:55:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,608 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T13:55:00 交易利润, 毛利润: 20.22, 净利润: 20.22
+2025-04-02 03:03:14,608 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T13:55:00 交易统计 - 胜率: 9.46%, 交易数: 74, 多/空比: 18/0
+2025-04-02 03:03:14,609 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T14:10:00 卖空信号! 神奇九转计数: 5.0, 价格: 217.90, 数量: 44
+2025-04-02 03:03:14,609 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T14:11:00 卖空执行: 价格: 217.90, 成本: -9587.60, 手续费: 0.00, 交易#: 75
+2025-04-02 03:03:14,611 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T14:33:00 买入信号! 神奇九转计数: 5.0, 价格: 218.72, 数量: 44
+2025-04-02 03:03:14,611 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T14:34:00 平空买入执行: 价格: 218.72, 成本: -9587.60, 手续费: 0.00, 交易#: 76
+2025-04-02 03:03:14,611 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-31T14:34:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,611 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T14:34:00 交易利润, 毛利润: -36.08, 净利润: -36.08
+2025-04-02 03:03:14,611 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T14:34:00 交易统计 - 胜率: 9.21%, 交易数: 76, 多/空比: 18/0
+2025-04-02 03:03:14,614 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:21:00 买入信号! 神奇九转计数: 5.0, 价格: 219.14, 数量: 43
+2025-04-02 03:03:14,614 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:22:00 买入执行: 价格: 219.14, 成本: 9423.17, 手续费: 0.00, 交易#: 77
+2025-04-02 03:03:14,615 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:22:00 波动率调整: 当前:0.0009, 平均:0.0010, 比率:0.88, 调整因子:0.88
+2025-04-02 03:03:14,615 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:22:00 趋势调整: 趋势值:0.1539, 调整因子:0.90
+2025-04-02 03:03:14,615 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:22:00 设置多头智能初始止损: 218.57 (ATR: 0.29, 调整后乘数: 1.99, 距离: 0.57)
+2025-04-02 03:03:14,615 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:26:00 卖出信号! 神奇九转计数: 5.0, 价格: 219.82, 数量: 43
+2025-04-02 03:03:14,615 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:27:00 卖出执行: 价格: 219.83, 成本: 9423.17, 手续费: 0.00, 交易#: 78
+2025-04-02 03:03:14,615 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:27:00 多头交易亏损: -29.31 (0.31%)
+2025-04-02 03:03:14,615 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:27:00 交易利润, 毛利润: 29.31, 净利润: 29.31
+2025-04-02 03:03:14,615 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:27:00 交易统计 - 胜率: 8.97%, 交易数: 78, 多/空比: 19/0
+2025-04-02 03:03:14,616 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:31:00 买入信号! 神奇九转计数: 5.0, 价格: 219.13, 数量: 43
+2025-04-02 03:03:14,616 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:32:00 买入执行: 价格: 219.15, 成本: 9423.45, 手续费: 0.00, 交易#: 79
+2025-04-02 03:03:14,618 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:32:00 波动率调整: 当前:0.0009, 平均:0.0010, 比率:0.88, 调整因子:0.88
+2025-04-02 03:03:14,618 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:32:00 趋势调整: 趋势值:0.0879, 调整因子:0.90
+2025-04-02 03:03:14,618 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:32:00 设置多头智能初始止损: 218.60 (ATR: 0.28, 调整后乘数: 1.99, 距离: 0.55)
+2025-04-02 03:03:14,618 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:36:00 卖出信号! 神奇九转计数: 5.0, 价格: 219.36, 数量: 43
+2025-04-02 03:03:14,618 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:37:00 卖出执行: 价格: 219.36, 成本: 9423.45, 手续费: 0.00, 交易#: 80
+2025-04-02 03:03:14,618 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:37:00 多头交易亏损: -9.06 (0.10%)
+2025-04-02 03:03:14,618 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:37:00 交易利润, 毛利润: 9.06, 净利润: 9.06
+2025-04-02 03:03:14,618 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:37:00 交易统计 - 胜率: 8.75%, 交易数: 80, 多/空比: 20/0
+2025-04-02 03:03:14,619 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:47:00 买入信号! 神奇九转计数: 5.0, 价格: 219.57, 数量: 43
+2025-04-02 03:03:14,620 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:48:00 买入执行: 价格: 219.57, 成本: 9441.51, 手续费: 0.00, 交易#: 81
+2025-04-02 03:03:14,620 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:48:00 波动率调整: 当前:0.0008, 平均:0.0009, 比率:0.84, 调整因子:0.84
+2025-04-02 03:03:14,620 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:48:00 趋势调整: 趋势值:0.1334, 调整因子:0.90
+2025-04-02 03:03:14,620 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:48:00 设置多头智能初始止损: 219.15 (ATR: 0.22, 调整后乘数: 1.90, 距离: 0.42)
+2025-04-02 03:03:14,620 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:53:00 卖出信号! 神奇九转计数: 5.0, 价格: 220.15, 数量: 43
+2025-04-02 03:03:14,620 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:54:00 卖出执行: 价格: 220.15, 成本: 9441.51, 手续费: 0.00, 交易#: 82
+2025-04-02 03:03:14,621 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:54:00 多头交易亏损: -24.95 (0.26%)
+2025-04-02 03:03:14,621 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:54:00 交易利润, 毛利润: 24.95, 净利润: 24.95
+2025-04-02 03:03:14,621 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:54:00 交易统计 - 胜率: 8.54%, 交易数: 82, 多/空比: 21/0
+2025-04-02 03:03:14,621 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:54:00 卖空信号! 神奇九转计数: 6.0, 价格: 220.15, 数量: 43
+2025-04-02 03:03:14,621 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T15:55:00 卖空执行: 价格: 220.15, 成本: -9466.45, 手续费: 0.00, 交易#: 83
+2025-04-02 03:03:14,622 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:09:00 买入信号! 神奇九转计数: 5.0, 价格: 219.76, 数量: 43
+2025-04-02 03:03:14,622 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:10:00 平空买入执行: 价格: 219.76, 成本: -9466.45, 手续费: 0.00, 交易#: 84
+2025-04-02 03:03:14,622 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-31T16:10:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,622 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:10:00 交易利润, 毛利润: 16.79, 净利润: 16.79
+2025-04-02 03:03:14,622 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:10:00 交易统计 - 胜率: 8.33%, 交易数: 84, 多/空比: 21/0
+2025-04-02 03:03:14,622 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:10:00 买入信号! 神奇九转计数: 6.0, 价格: 219.66, 数量: 43
+2025-04-02 03:03:14,622 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:11:00 买入执行: 价格: 219.66, 成本: 9445.38, 手续费: 0.00, 交易#: 85
+2025-04-02 03:03:14,622 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:11:00 波动率调整: 当前:0.0008, 平均:0.0008, 比率:0.91, 调整因子:0.91
+2025-04-02 03:03:14,622 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:11:00 趋势调整: 趋势值:0.1861, 调整因子:0.90
+2025-04-02 03:03:14,622 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:11:00 设置多头智能初始止损: 219.21 (ATR: 0.22, 调整后乘数: 2.05, 距离: 0.45)
+2025-04-02 03:03:14,623 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:20:00 卖出信号! 神奇九转计数: 5.0, 价格: 220.15, 数量: 43
+2025-04-02 03:03:14,623 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:21:00 卖出执行: 价格: 220.14, 成本: 9445.38, 手续费: 0.00, 交易#: 86
+2025-04-02 03:03:14,623 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:21:00 多头交易亏损: -20.64 (0.22%)
+2025-04-02 03:03:14,623 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:21:00 交易利润, 毛利润: 20.64, 净利润: 20.64
+2025-04-02 03:03:14,624 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:21:00 交易统计 - 胜率: 8.14%, 交易数: 86, 多/空比: 22/0
+2025-04-02 03:03:14,624 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:21:00 卖空信号! 神奇九转计数: 6.0, 价格: 220.33, 数量: 43
+2025-04-02 03:03:14,624 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:22:00 卖空执行: 价格: 220.33, 成本: -9474.36, 手续费: 0.00, 交易#: 87
+2025-04-02 03:03:14,625 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:44:00 买入信号! 神奇九转计数: 5.0, 价格: 220.48, 数量: 43
+2025-04-02 03:03:14,626 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:45:00 平空买入执行: 价格: 220.48, 成本: -9474.36, 手续费: 0.00, 交易#: 88
+2025-04-02 03:03:14,626 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-31T16:45:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,626 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:45:00 交易利润, 毛利润: -6.28, 净利润: -6.28
+2025-04-02 03:03:14,626 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:45:00 交易统计 - 胜率: 7.95%, 交易数: 88, 多/空比: 22/0
+2025-04-02 03:03:14,627 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T16:59:00 买入信号! 神奇九转计数: 5.0, 价格: 220.10, 数量: 43
+2025-04-02 03:03:14,627 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:00:00 买入执行: 价格: 220.09, 成本: 9463.87, 手续费: 0.00, 交易#: 89
+2025-04-02 03:03:14,627 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:00:00 波动率调整: 当前:0.0006, 平均:0.0007, 比率:0.88, 调整因子:0.88
+2025-04-02 03:03:14,627 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:00:00 趋势调整: 趋势值:-0.0094, 调整因子:1.10
+2025-04-02 03:03:14,627 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:00:00 设置多头智能初始止损: 219.67 (ATR: 0.17, 调整后乘数: 2.42, 距离: 0.42)
+2025-04-02 03:03:14,628 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:05:00 卖出信号! 神奇九转计数: 5.0, 价格: 220.33, 数量: 43
+2025-04-02 03:03:14,628 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:06:00 卖出执行: 价格: 220.34, 成本: 9463.87, 手续费: 0.00, 交易#: 90
+2025-04-02 03:03:14,628 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:06:00 多头交易亏损: -10.69 (0.11%)
+2025-04-02 03:03:14,628 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:06:00 交易利润, 毛利润: 10.69, 净利润: 10.69
+2025-04-02 03:03:14,628 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:06:00 交易统计 - 胜率: 7.78%, 交易数: 90, 多/空比: 23/0
+2025-04-02 03:03:14,628 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:06:00 卖空信号! 神奇九转计数: 6.0, 价格: 220.42, 数量: 43
+2025-04-02 03:03:14,628 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:07:00 卖空执行: 价格: 220.42, 成本: -9478.06, 手续费: 0.00, 交易#: 91
+2025-04-02 03:03:14,629 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:18:00 买入信号! 神奇九转计数: 5.0, 价格: 220.12, 数量: 43
+2025-04-02 03:03:14,630 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:19:00 平空买入执行: 价格: 220.12, 成本: -9478.06, 手续费: 0.00, 交易#: 92
+2025-04-02 03:03:14,630 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-31T17:19:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,630 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:19:00 交易利润, 毛利润: 12.90, 净利润: 12.90
+2025-04-02 03:03:14,630 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:19:00 交易统计 - 胜率: 7.61%, 交易数: 92, 多/空比: 23/0
+2025-04-02 03:03:14,630 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:19:00 买入信号! 神奇九转计数: 6.0, 价格: 219.85, 数量: 44
+2025-04-02 03:03:14,630 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:20:00 买入执行: 价格: 219.85, 成本: 9673.62, 手续费: 0.00, 交易#: 93
+2025-04-02 03:03:14,630 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:20:00 波动率调整: 当前:0.0006, 平均:0.0006, 比率:1.01, 调整因子:1.01
+2025-04-02 03:03:14,630 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:20:00 趋势调整: 趋势值:-0.0596, 调整因子:1.10
+2025-04-02 03:03:14,630 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:20:00 设置多头智能初始止损: 219.36 (ATR: 0.18, 调整后乘数: 2.77, 距离: 0.50)
+2025-04-02 03:03:14,632 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:45:00 多头智能止损触发! 盈亏: -0.23%, 价格: 219.35, 止损价: 219.36, 数量: 44, 持仓K线数: 52
+2025-04-02 03:03:14,632 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:46:00 卖出执行: 价格: 219.35, 成本: 9673.62, 手续费: 0.00, 交易#: 94
+2025-04-02 03:03:14,632 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:46:00 多头交易盈利: 22.29 (-0.23%)
+2025-04-02 03:03:14,632 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:46:00 交易利润, 毛利润: -22.29, 净利润: -22.29
+2025-04-02 03:03:14,633 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:46:00 交易统计 - 胜率: 8.51%, 交易数: 94, 多/空比: 24/0
+2025-04-02 03:03:14,633 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:52:00 卖空信号! 神奇九转计数: 5.0, 价格: 220.11, 数量: 43
+2025-04-02 03:03:14,634 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:53:00 卖空执行: 价格: 220.11, 成本: -9464.92, 手续费: 0.00, 交易#: 95
+2025-04-02 03:03:14,634 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T17:59:00 买入信号! 神奇九转计数: 5.0, 价格: 219.49, 数量: 43
+2025-04-02 03:03:14,634 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:00:00 平空买入执行: 价格: 219.49, 成本: -9464.92, 手续费: 0.00, 交易#: 96
+2025-04-02 03:03:14,634 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-31T18:00:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,634 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:00:00 交易利润, 毛利润: 26.85, 净利润: 26.85
+2025-04-02 03:03:14,634 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:00:00 交易统计 - 胜率: 8.33%, 交易数: 96, 多/空比: 24/0
+2025-04-02 03:03:14,634 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:00:00 买入信号! 神奇九转计数: 6.0, 价格: 219.65, 数量: 44
+2025-04-02 03:03:14,634 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:01:00 买入执行: 价格: 219.65, 成本: 9664.38, 手续费: 0.00, 交易#: 97
+2025-04-02 03:03:14,634 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:01:00 波动率调整: 当前:0.0007, 平均:0.0006, 比率:1.08, 调整因子:1.08
+2025-04-02 03:03:14,634 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:01:00 趋势调整: 趋势值:-0.0777, 调整因子:1.10
+2025-04-02 03:03:14,634 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:01:00 设置多头智能初始止损: 219.02 (ATR: 0.21, 调整后乘数: 2.98, 距离: 0.63)
+2025-04-02 03:03:14,635 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:05:00 卖出信号! 神奇九转计数: 5.0, 价格: 220.04, 数量: 44
+2025-04-02 03:03:14,635 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:06:00 卖出执行: 价格: 220.05, 成本: 9664.38, 手续费: 0.00, 交易#: 98
+2025-04-02 03:03:14,635 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:06:00 多头交易亏损: -17.82 (0.18%)
+2025-04-02 03:03:14,635 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:06:00 交易利润, 毛利润: 17.82, 净利润: 17.82
+2025-04-02 03:03:14,635 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:06:00 交易统计 - 胜率: 8.16%, 交易数: 98, 多/空比: 25/0
+2025-04-02 03:03:14,635 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:06:00 卖空信号! 神奇九转计数: 6.0, 价格: 220.23, 数量: 44
+2025-04-02 03:03:14,635 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:07:00 卖空执行: 价格: 220.23, 成本: -9690.12, 手续费: 0.00, 交易#: 99
+2025-04-02 03:03:14,637 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:24:00 买入信号! 神奇九转计数: 5.0, 价格: 220.47, 数量: 44
+2025-04-02 03:03:14,637 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:25:00 平空买入执行: 价格: 220.47, 成本: -9690.12, 手续费: 0.00, 交易#: 100
+2025-04-02 03:03:14,637 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-31T18:25:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,637 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:25:00 交易利润, 毛利润: -10.78, 净利润: -10.78
+2025-04-02 03:03:14,637 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:25:00 交易统计 - 胜率: 8.00%, 交易数: 100, 多/空比: 25/0
+2025-04-02 03:03:14,637 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:25:00 买入信号! 神奇九转计数: 6.0, 价格: 220.55, 数量: 43
+2025-04-02 03:03:14,638 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:26:00 买入执行: 价格: 220.55, 成本: 9483.82, 手续费: 0.00, 交易#: 101
+2025-04-02 03:03:14,638 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:26:00 波动率调整: 当前:0.0006, 平均:0.0007, 比率:0.95, 调整因子:0.95
+2025-04-02 03:03:14,638 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:26:00 趋势调整: 趋势值:0.2176, 调整因子:0.90
+2025-04-02 03:03:14,638 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:26:00 设置多头智能初始止损: 220.16 (ATR: 0.19, 调整后乘数: 2.14, 距离: 0.40)
+2025-04-02 03:03:14,638 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:30:00 卖出信号! 神奇九转计数: 5.0, 价格: 220.77, 数量: 43
+2025-04-02 03:03:14,639 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:31:00 卖出执行: 价格: 220.77, 成本: 9483.82, 手续费: 0.00, 交易#: 102
+2025-04-02 03:03:14,639 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:31:00 多头交易亏损: -9.29 (0.10%)
+2025-04-02 03:03:14,639 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:31:00 交易利润, 毛利润: 9.29, 净利润: 9.29
+2025-04-02 03:03:14,639 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:31:00 交易统计 - 胜率: 7.84%, 交易数: 102, 多/空比: 26/0
+2025-04-02 03:03:14,639 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:31:00 卖空信号! 神奇九转计数: 6.0, 价格: 220.90, 数量: 43
+2025-04-02 03:03:14,639 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:32:00 卖空执行: 价格: 220.90, 成本: -9498.70, 手续费: 0.00, 交易#: 103
+2025-04-02 03:03:14,640 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:46:00 买入信号! 神奇九转计数: 5.0, 价格: 220.55, 数量: 43
+2025-04-02 03:03:14,640 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:47:00 平空买入执行: 价格: 220.55, 成本: -9498.70, 手续费: 0.00, 交易#: 104
+2025-04-02 03:03:14,640 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-31T18:47:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,640 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:47:00 交易利润, 毛利润: 15.05, 净利润: 15.05
+2025-04-02 03:03:14,640 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:47:00 交易统计 - 胜率: 7.69%, 交易数: 104, 多/空比: 26/0
+2025-04-02 03:03:14,640 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:47:00 买入信号! 神奇九转计数: 6.0, 价格: 220.52, 数量: 44
+2025-04-02 03:03:14,640 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:48:00 买入执行: 价格: 220.52, 成本: 9702.88, 手续费: 0.00, 交易#: 105
+2025-04-02 03:03:14,640 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:48:00 波动率调整: 当前:0.0006, 平均:0.0006, 比率:0.94, 调整因子:0.94
+2025-04-02 03:03:14,640 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:48:00 趋势调整: 趋势值:0.1592, 调整因子:0.90
+2025-04-02 03:03:14,640 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:48:00 设置多头智能初始止损: 220.11 (ATR: 0.19, 调整后乘数: 2.11, 距离: 0.41)
+2025-04-02 03:03:14,642 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:52:00 卖出信号! 神奇九转计数: 5.0, 价格: 221.09, 数量: 44
+2025-04-02 03:03:14,642 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:53:00 卖出执行: 价格: 221.09, 成本: 9702.88, 手续费: 0.00, 交易#: 106
+2025-04-02 03:03:14,642 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:53:00 多头交易亏损: -25.08 (0.26%)
+2025-04-02 03:03:14,642 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:53:00 交易利润, 毛利润: 25.08, 净利润: 25.08
+2025-04-02 03:03:14,642 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:53:00 交易统计 - 胜率: 7.55%, 交易数: 106, 多/空比: 27/0
+2025-04-02 03:03:14,642 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:53:00 卖空信号! 神奇九转计数: 6.0, 价格: 221.19, 数量: 44
+2025-04-02 03:03:14,642 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:54:00 卖空执行: 价格: 221.19, 成本: -9732.36, 手续费: 0.00, 交易#: 107
+2025-04-02 03:03:14,643 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:58:00 买入信号! 神奇九转计数: 5.0, 价格: 220.79, 数量: 44
+2025-04-02 03:03:14,644 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:59:00 平空买入执行: 价格: 220.79, 成本: -9732.36, 手续费: 0.00, 交易#: 108
+2025-04-02 03:03:14,644 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-31T18:59:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,644 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:59:00 交易利润, 毛利润: 17.60, 净利润: 17.60
+2025-04-02 03:03:14,644 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:59:00 交易统计 - 胜率: 7.41%, 交易数: 108, 多/空比: 27/0
+2025-04-02 03:03:14,644 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T18:59:00 买入信号! 神奇九转计数: 6.0, 价格: 220.58, 数量: 44
+2025-04-02 03:03:14,644 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:00:00 买入执行: 价格: 220.58, 成本: 9705.52, 手续费: 0.00, 交易#: 109
+2025-04-02 03:03:14,644 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:00:00 波动率调整: 当前:0.0006, 平均:0.0006, 比率:1.05, 调整因子:1.05
+2025-04-02 03:03:14,644 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:00:00 趋势调整: 趋势值:0.1475, 调整因子:0.90
+2025-04-02 03:03:14,644 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:00:00 设置多头智能初始止损: 220.13 (ATR: 0.19, 调整后乘数: 2.35, 距离: 0.45)
+2025-04-02 03:03:14,645 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:05:00 卖出信号! 神奇九转计数: 5.0, 价格: 221.09, 数量: 44
+2025-04-02 03:03:14,645 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:06:00 卖出执行: 价格: 221.09, 成本: 9705.52, 手续费: 0.00, 交易#: 110
+2025-04-02 03:03:14,645 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:06:00 多头交易亏损: -22.44 (0.23%)
+2025-04-02 03:03:14,645 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:06:00 交易利润, 毛利润: 22.44, 净利润: 22.44
+2025-04-02 03:03:14,645 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:06:00 交易统计 - 胜率: 7.27%, 交易数: 110, 多/空比: 28/0
+2025-04-02 03:03:14,645 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:06:00 卖空信号! 神奇九转计数: 6.0, 价格: 221.14, 数量: 44
+2025-04-02 03:03:14,646 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:07:00 卖空执行: 价格: 221.14, 成本: -9730.16, 手续费: 0.00, 交易#: 111
+2025-04-02 03:03:14,646 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:20:00 买入信号! 神奇九转计数: 5.0, 价格: 221.20, 数量: 44
+2025-04-02 03:03:14,647 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:21:00 平空买入执行: 价格: 221.20, 成本: -9730.16, 手续费: 0.00, 交易#: 112
+2025-04-02 03:03:14,647 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-03-31T19:21:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,647 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:21:00 交易利润, 毛利润: -2.64, 净利润: -2.64
+2025-04-02 03:03:14,647 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:21:00 交易统计 - 胜率: 7.14%, 交易数: 112, 多/空比: 28/0
+2025-04-02 03:03:14,648 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:43:00 卖空信号! 神奇九转计数: 5.0, 价格: 222.28, 数量: 43
+2025-04-02 03:03:14,649 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-03-31T19:44:00 卖空执行: 价格: 222.29, 成本: -9558.47, 手续费: 0.00, 交易#: 113
+2025-04-02 03:03:14,650 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-04-01T13:33:00 买入信号! 神奇九转计数: 5.0, 价格: 219.55, 数量: 43
+2025-04-02 03:03:14,650 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-04-01T13:34:00 平空买入执行: 价格: 219.55, 成本: -9558.47, 手续费: 0.00, 交易#: 114
+2025-04-02 03:03:14,650 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-04-01T13:34:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,650 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-04-01T13:34:00 交易利润, 毛利润: 117.82, 净利润: 117.82
+2025-04-02 03:03:14,650 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-04-01T13:34:00 交易统计 - 胜率: 7.02%, 交易数: 114, 多/空比: 28/0
+2025-04-02 03:03:14,651 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-04-01T13:38:00 卖空信号! 神奇九转计数: 5.0, 价格: 220.49, 数量: 44
+2025-04-02 03:03:14,651 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-04-01T13:39:00 卖空执行: 价格: 220.49, 成本: -9701.56, 手续费: 0.00, 交易#: 115
+2025-04-02 03:03:14,652 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-04-01T14:10:00 买入信号! 神奇九转计数: 5.0, 价格: 221.62, 数量: 44
+2025-04-02 03:03:14,653 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-04-01T14:11:00 平空买入执行: 价格: 221.62, 成本: -9701.56, 手续费: 0.00, 交易#: 116
+2025-04-02 03:03:14,653 - src.magic_nine_strategy_with_smart_stoploss - WARNING - 2025-04-01T14:11:00 空头平仓但无法计算收益: 最低价记录缺失
+2025-04-02 03:03:14,653 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-04-01T14:11:00 交易利润, 毛利润: -49.50, 净利润: -49.50
+2025-04-02 03:03:14,653 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-04-01T14:11:00 交易统计 - 胜率: 6.90%, 交易数: 116, 多/空比: 28/0
+2025-04-02 03:03:14,653 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-04-01T14:11:00 买入信号! 神奇九转计数: 6.0, 价格: 221.32, 数量: 44
+2025-04-02 03:03:14,654 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-04-01T14:12:00 买入执行: 价格: 221.32, 成本: 9738.30, 手续费: 0.00, 交易#: 117
+2025-04-02 03:03:14,654 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-04-01T14:12:00 波动率调整: 当前:0.0017, 平均:0.0023, 比率:0.78, 调整因子:0.80
+2025-04-02 03:03:14,654 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-04-01T14:12:00 趋势调整: 趋势值:0.1827, 调整因子:0.90
+2025-04-02 03:03:14,654 - src.magic_nine_strategy_with_smart_stoploss - INFO - 2025-04-01T14:12:00 设置多头智能初始止损: 220.56 (ATR: 0.42, 调整后乘数: 1.80, 距离: 0.76)
+2025-04-02 03:03:14,655 - __main__ - INFO - 最终资金: 10352.84
+2025-04-02 03:03:14,655 - __main__ - INFO - 总收益率: 3.53%
+2025-04-02 03:03:14,655 - __main__ - INFO - 夏普比率: 无效
+2025-04-02 03:03:14,655 - __main__ - INFO - 最大回撤: 1.52%，持续周期: 78
+2025-04-02 03:03:14,655 - __main__ - INFO - 总交易次数: 58
+2025-04-02 03:03:14,655 - __main__ - INFO - 平均每天交易次数: 1.93
+2025-04-02 03:03:14,655 - __main__ - INFO - 盈利交易次数: 39
+2025-04-02 03:03:14,655 - __main__ - INFO - 胜率: 67.24%
+2025-04-02 03:03:14,655 - __main__ - INFO - 系统质量指标(SQN): 1.8641

@@ -1,0 +1,25 @@
+# IB API配置
+host: 127.0.0.1
+port: 7497
+client_id: 1
+timeout: 30
+retry_times: 3
+retry_interval: 1
+
+# 账户配置
+account: U1234567
+currency: USD
+
+# 交易配置
+order_type: LMT  # 订单类型：LMT(限价)、MKT(市价)、STP(止损)
+time_in_force: DAY  # 订单有效期：DAY(当日有效)、GTC(撤销前有效)
+use_rth: true  # 是否只在常规交易时段交易
+
+# 风控配置
+max_position_size: 1000  # 最大持仓数量
+max_order_value: 100000  # 最大订单价值
+max_daily_loss: 0.05  # 最大日亏损比例
+
+# 日志配置
+log_level: INFO
+log_file: logs/ib/trading.log 
