@@ -9,8 +9,9 @@ from tigeropen.common.consts import BarPeriod, SecurityType, Market, Currency
 from tigeropen.common.util.contract_utils import stock_contract
 from tigeropen.common.util.order_utils import limit_order
 from tigeropen.quote.quote_client import QuoteClient
-from tigeropen.tiger_open_config import get_client_config
 from tigeropen.trade.trade_client import TradeClient
+
+from src.brokers.tiger.examples.client_config import get_client_config
 
 client_logger = logging.getLogger('client')
 client_logger.setLevel(logging.WARNING)
@@ -55,28 +56,19 @@ CLOSE = "close"
 DATE = "date"
 LOT_SIZE = "lot_size"
 
-PRIVATE_KEY_PATH = "your private key path"
-TIGER_ID = "your tiger id"
-ACCOUNT = "your account"
-client_config = get_client_config(private_key_path=PRIVATE_KEY_PATH, tiger_id=TIGER_ID, account=ACCOUNT)
+client_config = get_client_config()
 quote_client = QuoteClient(client_config, logger=client_logger)
 trade_client = TradeClient(client_config, logger=client_logger)
 
 
 def request(symbols, method, **kwargs):
-    """
-    :param symbols:
-    :param method:
-    :param kwargs:
-    :return:
-    """
     symbols = list(symbols)
     result = pd.DataFrame()
     for i in range(0, len(symbols), REQUEST_SIZE):
         part = symbols[i:i + REQUEST_SIZE]
         quote = method(part, **kwargs)
-        result = result.append(quote)
-        # for rate limit
+        # 修改此处
+        result = pd.concat([result, quote], ignore_index=True)
         time.sleep(0.5)
     return result
 
@@ -123,7 +115,8 @@ def get_history(symbols, total=200, batch_size=50) -> pd.DataFrame:
         part = request(symbols, quote_client.get_bars, period=BarPeriod.DAY, end_time=end, limit=limit)
         part[DATE] = pd.to_datetime(part[TIME], unit='ms').dt.tz_localize('UTC').dt.tz_convert('US/Eastern')
         end = min(part[TIME])
-        history = history.append(part)
+        # 修改此处
+        history = pd.concat([history, part], ignore_index=True)
     history.set_index([DATE, SYMBOL], inplace=True)
     history.sort_index(inplace=True)
     return history

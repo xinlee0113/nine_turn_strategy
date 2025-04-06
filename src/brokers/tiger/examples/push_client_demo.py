@@ -4,10 +4,10 @@ Created on 2018/10/30
 
 @author: gaoan
 """
+import json
 import time
-# from tigeropen.common.consts import QuoteKeyType
-import pandas as pd
 
+from tigeropen.common.consts import OrderStatus
 from tigeropen.common.consts import StockRankingIndicator, OptionRankingIndicator
 from tigeropen.push.pb.AssetData_pb2 import AssetData
 from tigeropen.push.pb.KlineData_pb2 import KlineData
@@ -19,11 +19,13 @@ from tigeropen.push.pb.QuoteBBOData_pb2 import QuoteBBOData
 from tigeropen.push.pb.QuoteBasicData_pb2 import QuoteBasicData
 from tigeropen.push.pb.QuoteDepthData_pb2 import QuoteDepthData
 from tigeropen.push.pb.StockTopData_pb2 import StockTopData
-from tigeropen.push.pb.TradeTickData_pb2 import TradeTickData
 from tigeropen.push.pb.trade_tick import TradeTick
-from tigeropen.common.consts import OrderStatus
 from tigeropen.push.push_client import PushClient
-from tigeropen.examples.client_config import get_client_config
+
+from src.brokers.tiger.examples.client_config import get_client_config
+
+
+# from tigeropen.common.consts import QuoteKeyType
 
 
 def query_subscribed_callback(data):
@@ -34,8 +36,9 @@ def query_subscribed_callback(data):
          'subscribed_trade_tick_symbols': ['QQQ', 'AMD', '00700'], 'trade_tick_limit': 1200, 'trade_tick_used': 3,
          'kline_limit': 1200, 'kline_used': 0}
     """
+    data = json.loads(data)
     print(f'subscribed data:{data}')
-    print(f'subscribed symbols:{data["subscribed_symbols"]}')
+    print(f'subscribed symbols:{data["subscribedSymbols"]}')
 
 
 def on_quote_changed(frame: QuoteBasicData):

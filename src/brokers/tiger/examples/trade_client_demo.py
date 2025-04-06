@@ -8,28 +8,26 @@ import logging
 import traceback
 import unittest
 
+from tigeropen.common.consts import Currency, SecurityType, OrderSortBy
+from tigeropen.common.request import OpenApiRequest
+from tigeropen.common.response import TigerResponse
+from tigeropen.common.util.contract_utils import stock_contract
+from tigeropen.common.util.order_utils import order_leg, algo_order_params, \
+    algo_order
 from tigeropen.common.util.price_util import PriceUtil
+from tigeropen.tiger_open_client import TigerOpenClient
 from tigeropen.trade.domain.order import OrderStatus
 from tigeropen.trade.request.model import AccountsParams
-from tigeropen.tiger_open_client import TigerOpenClient
 from tigeropen.trade.trade_client import TradeClient
-from tigeropen.common.response import TigerResponse
-from tigeropen.common.request import OpenApiRequest
-from tigeropen.common.consts import Currency, SecurityType, OrderSortBy
-from tigeropen.common.util.contract_utils import stock_contract, option_contract_by_symbol, future_contract, \
-     war_contract_by_symbol, iopt_contract_by_symbol
-from tigeropen.common.util.order_utils import limit_order, limit_order_with_legs, order_leg, algo_order_params, \
-    algo_order
-from tigeropen.tiger_open_config import get_client_config
+
+from src.brokers.tiger.examples.client_config import get_client_config
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s %(message)s',
                     filemode='a', )
 logger = logging.getLogger('TigerOpenApi')
 
-client_config = get_client_config(private_key_path='your private key file path',
-                                  tiger_id='your tiger id',
-                                  account='your account')
+client_config = get_client_config()
 
 
 def get_contract_apis():
@@ -41,6 +39,7 @@ def get_contract_apis():
     # get derivative option_basics of stock. include OPT, WAR, IOPT
     contracts = openapi_client.get_derivative_contracts('00700', SecurityType.WAR, '20220929')
     print(contracts)
+
 
 def get_account_apis():
     openapi_client = TradeClient(client_config, logger=logger)
@@ -157,7 +156,6 @@ def trade_apis():
         price = PriceUtil.fix_price_by_tick_size(price, contract.tick_sizes)
 
 
-
 def algo_order_demo():
     account = client_config.account
     openapi_client = TradeClient(client_config, logger=logger)
@@ -202,7 +200,7 @@ class TestTradeClient(unittest.TestCase):
     def test_transfer_segment_fund(self):
         """资金划转"""
         # 查看可转资金
-        available = self.trade_client.get_segment_fund_available()
+        available = self.trade_client.get_segment_fund_available(from_segment='SEC')
         print(available)
 
         # 划转资金
@@ -219,8 +217,60 @@ class TestTradeClient(unittest.TestCase):
     def test_forex_order(self):
         """换汇"""
         order = self.trade_client.place_forex_order(seg_type='FUT', source_currency='USD', target_currency='HKD',
-                                               source_amount=50)
+                                                    source_amount=50)
         print(order)
+
+    def test_get_account_apis(self):
+        """获取账户信息"""
+        accounts = self.trade_client.get_managed_accounts()
+        print(accounts)
+        account = self.trade_client.get_managed_accounts(accounts[0].account)
+        print(account)
+        get_account_info()
+
+    def test_get_account_positions(self):
+        """获取账户持仓"""
+        accounts = self.trade_client.get_managed_accounts()
+        account = accounts[0]
+        positions = self.trade_client.get_managed_accounts(account.account)
+        print(positions)
+        positions = self.trade_client.get_positions(account.account)
+        print(positions)
+
+    def test_get_account_orders(self):
+        """获取账户订单"""
+        accounts = self.trade_client.get_managed_accounts()
+        account = accounts[0]
+        orders = self.trade_client.get_orders(account.account)
+        print(orders)
+
+    def test_get_account_transactions(self):
+        """获取账户交易"""
+        accounts = self.trade_client.get_managed_accounts()
+        account = accounts[0]
+        transactions = self.trade_client.get_transactions(account.account,symbol='AAPL')
+        print(transactions)
+
+    def test_get_account_funds(self):
+        """获取账户资金"""
+        accounts = self.trade_client.get_managed_accounts()
+        account = accounts[0]
+        funds = self.trade_client.get_segment_fund_history(account.account)
+        print(funds)
+
+    def test_get_account_segments(self):
+        """获取账户资金"""
+        accounts = self.trade_client.get_managed_accounts()
+        account = accounts[0]
+        segments = self.trade_client.get_segment_fund_history(account.account)
+        print(segments)
+
+    def test_get_account_segments_funds(self):
+        """获取账户资金"""
+        accounts = self.trade_client.get_managed_accounts()
+        account = accounts[0]
+        segments = self.trade_client.get_segment_fund_available(from_segment='SEC',currency=Currency.USD)
+        print(segments)
 
 
 if __name__ == '__main__':

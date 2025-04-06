@@ -10,15 +10,14 @@ import unittest
 
 import pandas as pd
 from tigeropen.common.consts import Market, QuoteRight, FinancialReportPeriodType, Valuation, \
-    Income, Balance, CashFlow, BalanceSheetRatio, Growth, Leverage, Profitability, IndustryLevel, BarPeriod, \
+    Income, CashFlow, IndustryLevel, BarPeriod, \
     SortDirection, CapitalPeriod
 from tigeropen.common.consts.filter_fields import AccumulateField, StockField, FinancialField, MultiTagField, \
     AccumulatePeriod, FinancialPeriod
 from tigeropen.quote.domain.filter import OptionFilter, StockFilter, SortFilterData
-
 from tigeropen.quote.quote_client import QuoteClient
 
-from tigeropen.examples.client_config import get_client_config
+from src.brokers.tiger.examples.client_config import get_client_config
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s %(message)s',
@@ -72,6 +71,7 @@ def get_quote():
 
     fundamental = openapi_client.get_stock_fundamental(['AAPL', 'GOOG'], market=Market.US)
     print(fundamental)
+
 
 def test_gat_bars_by_page():
     bars = openapi_client.get_bars_by_page(['AAPL'], period=BarPeriod.DAY,
@@ -307,13 +307,15 @@ class TestQuoteClient(unittest.TestCase):
         close = float(result.iloc[0]['close'])
 
     def test_get_fund_history_quote(self):
-        result = openapi_client.get_fund_history_quote(['LU0476943708.HKD'], begin_time=1691337600000, end_time=1691596800000)
+        result = openapi_client.get_fund_history_quote(['LU0476943708.HKD'], begin_time=1691337600000,
+                                                       end_time=1691596800000)
         print(result)
-        print(result.loc[result['symbol']=='LU0476943708.HKD'].iloc[0]['nav'])
+        print(result.loc[result['symbol'] == 'LU0476943708.HKD'].iloc[0]['nav'])
 
     def test_get_hk_option_symbols(self):
         symbols = openapi_client.get_option_symbols()
         print(symbols)
+
 
 if __name__ == '__main__':
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):

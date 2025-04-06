@@ -5,6 +5,10 @@ import pandas as pd
 from pandas import DataFrame
 
 from tigeropen.common.consts import Market, Valuation, Balance, Income, CashFlow, FinancialReportPeriodType
+from tigeropen.quote import quote_client
+from tigeropen.quote.quote_client import QuoteClient
+
+from src.brokers.tiger.examples.client_config import get_client_config
 
 pd.set_option('display.max_columns', 500)
 pd.set_option('display.max_rows', 100)
@@ -126,10 +130,14 @@ class IndicatorCalculator:
         print(f'{self.symbols[0]} PE rate: {pivot_df.loc[self.symbols[0]]["pe_rate"]}')
 
 
+def get_quote_client():
+    client_config = get_client_config()
+    return QuoteClient(client_config)
+
+
 if __name__ == '__main__':
     # 此处修改为自己环境对应的 quote_client 实例
-    from client import quote_client
-
+    quote_client = get_quote_client()
     calculator = IndicatorCalculator(quote_client, symbols=['AAPL', 'BABA'], market=Market.US)
     # calculator = IndicatorCalculator(quote_client, symbols=['09988'], market=Market.HK)
     calculator.get_financial()

@@ -15,10 +15,10 @@ def get_client_config():
     :return:
     """
     is_sandbox = False
-    client_config = TigerOpenClientConfig(sandbox_debug=is_sandbox)
-    client_config.private_key = read_private_key('your private key file path')
-    client_config.tiger_id = 'your tiger id'
-    client_config.account = 'your account'
+    client_config = TigerOpenClientConfig(sandbox_debug=is_sandbox, props_path='../../../../configs/tiger/config.properties')
+    client_config.private_key = read_private_key('../../../../configs/tiger/private_key.pem')
+    client_config.tiger_id = '20154788'
+    client_config.account = '21722764233480907'
     client_config.secret_key = None  # 机构交易员专有密钥 (机构用户需要填写, 个人开发者无需填写)
     client_config.language = Language.en_US
     # client_config.timezone = 'US/Eastern' # 设置全局时区
