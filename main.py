@@ -74,7 +74,7 @@ def parse_args():
     parser.add_argument('--magic-period', type=int, default=3, help='神奇九转比较周期(默认2)')
     parser.add_argument('--multi-asset', action='store_true', help='使用多资产独立交易策略')
     parser.add_argument('--enable-short', action='store_true', help='启用做空交易',default=True)
-    parser.add_argument('--no-plot', action='store_true', help='不显示回测图表',default=True)
+    parser.add_argument('--no-plot', action='store_true', help='不显示回测图表',default=False)
     parser.add_argument('--verbose', action='store_true', help='显示详细日志')
     
     # 交易成本选项
