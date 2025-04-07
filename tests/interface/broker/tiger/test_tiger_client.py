@@ -49,7 +49,7 @@ class TestTigerClient(unittest.TestCase):
         print(f"周期: 1m")
         
         # 获取数据
-        data = self.client.get_historical_data("AAPL", begin_time, end_time, "1m")
+        data = self.client.get_historical_data("QQQ", begin_time, end_time, "1m")
         
         # 基本数据验证
         self.assertIsNotNone(data)

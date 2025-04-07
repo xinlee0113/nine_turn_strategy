@@ -7,8 +7,10 @@ Created on 2018/10/31
 import logging
 import time
 import unittest
+from datetime import datetime, timedelta
 
 import pandas as pd
+import pytz
 from tigeropen.common.consts import Market, QuoteRight, FinancialReportPeriodType, Valuation, \
     Income, CashFlow, IndustryLevel, BarPeriod, \
     SortDirection, CapitalPeriod
@@ -17,7 +19,7 @@ from tigeropen.common.consts.filter_fields import AccumulateField, StockField, F
 from tigeropen.quote.domain.filter import OptionFilter, StockFilter, SortFilterData
 from tigeropen.quote.quote_client import QuoteClient
 
-from src.brokers.tiger.examples.client_config import get_client_config
+from src.interface.broker.ib.client_config import get_client_config
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s %(message)s',
@@ -83,6 +85,23 @@ def test_gat_bars_by_page():
     bars['us_date'] = pd.to_datetime(bars['time'], unit='ms').dt.tz_localize('UTC').dt.tz_convert('US/Eastern')
     print(bars)
 
+def test_gat_bars_by_page_30days_1min_kline():
+    days = 30
+    end_time = pytz.timezone('US/Eastern').localize(datetime.now())  # 模拟当前时间：2025-02-10 13:57 EDT
+    begin_time = end_time - timedelta(days=days)
+
+    start_date = pd.Timestamp(begin_time).tz_convert('US/Eastern')
+    end_date = pd.Timestamp(end_time).tz_convert('US/Eastern')
+    print(start_date, end_date)
+    bars = openapi_client.get_bars_by_page(['QQQ'], period=BarPeriod.ONE_MINUTE,
+                                           end_time=end_date.value // 10 ** 6,
+                                           begin_time=start_date.value // 10 ** 6,
+                                           time_interval=3,
+                                           )
+    bars['cn_date'] = pd.to_datetime(bars['time'], unit='ms').dt.tz_localize('UTC').dt.tz_convert('Asia/Shanghai')
+    bars['us_date'] = pd.to_datetime(bars['time'], unit='ms').dt.tz_localize('UTC').dt.tz_convert('US/Eastern')
+    bars['utc_date'] = pd.to_datetime(bars['time'], unit='ms').dt.tz_localize('UTC').dt.tz_convert('UTC')
+    print(bars)
 
 def get_option_quote():
     symbol = 'AAPL'

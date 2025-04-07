@@ -17,9 +17,12 @@ def get_client_config():
     https://www.itiger.com/openapi/info 开发者信息获取
     :return:
     """
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+    config_path = os.path.join(base_dir, "configs", "tiger", "tiger_openapi_config.properties")
+    private_key_path = os.path.join(base_dir, "configs", "tiger", "private_key.pem")
     is_sandbox = False
-    client_config = TigerOpenClientConfig(sandbox_debug=is_sandbox, props_path='../../../../configs/tiger/config.properties')
-    client_config.private_key = read_private_key('../../../../configs/tiger/private_key.pem')
+    client_config = TigerOpenClientConfig(sandbox_debug=is_sandbox, props_path=config_path)
+    client_config.private_key = read_private_key(private_key_path)
     client_config.tiger_id = '20154788'
     client_config.account = '21722764233480907'
     client_config.secret_key = None  # 机构交易员专有密钥 (机构用户需要填写, 个人开发者无需填写)

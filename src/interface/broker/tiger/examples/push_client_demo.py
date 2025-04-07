@@ -22,7 +22,7 @@ from tigeropen.push.pb.StockTopData_pb2 import StockTopData
 from tigeropen.push.pb.trade_tick import TradeTick
 from tigeropen.push.push_client import PushClient
 
-from src.brokers.tiger.examples.client_config import get_client_config
+from src.interface.broker.ib.client_config import get_client_config
 
 
 # from tigeropen.common.consts import QuoteKeyType
