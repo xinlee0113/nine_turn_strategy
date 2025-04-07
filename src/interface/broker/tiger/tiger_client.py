@@ -106,17 +106,23 @@ class TigerClient:
             raise ConnectionError("客户端未连接")
 
         try:
-            begin_time = start_date
-
-            start_date = pd.Timestamp(begin_time).tz_convert('US/Eastern')
-            end_date = pd.Timestamp(end_date).tz_convert('US/Eastern')
+            # 确保时间戳先本地化再转换时区
+            start_date_ts = pd.Timestamp(start_date)
+            if start_date_ts.tz is None:
+                start_date_ts = start_date_ts.tz_localize('UTC')
+            start_date_eastern = start_date_ts.tz_convert('US/Eastern')
+            
+            end_date_ts = pd.Timestamp(end_date)
+            if end_date_ts.tz is None:
+                end_date_ts = end_date_ts.tz_localize('UTC')
+            end_date_eastern = end_date_ts.tz_convert('US/Eastern')
 
             time_interval = 2  # 每次数据的时间间隔
             # 转换为Tiger API所需的周期
             period = self._convert_period(interval)
             data = self._api_client.get_bars_by_page(symbol, period=period,
-                                                     begin_time=start_date.value // 10 ** 6,
-                                                     end_time=end_date.value // 10 ** 6,
+                                                     begin_time=start_date_eastern.value // 10 ** 6,
+                                                     end_time=end_date_eastern.value // 10 ** 6,
                                                      time_interval=time_interval)
 
             data['cn_date'] = pd.to_datetime(data['time'], unit='ms').dt.tz_localize('UTC').dt.tz_convert('Asia/Shanghai')
