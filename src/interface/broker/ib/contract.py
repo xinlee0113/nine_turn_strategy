@@ -1,11 +1,14 @@
+"""
+Interactive Brokers合约实现
+"""
 from typing import Dict, Any, List
 from ibapi.contract import Contract
-from src.brokers.ib.client import IBClientManager
+from .client import IBClient
 
-class IBContractManager:
-    """Interactive Brokers合约管理类"""
+class IBContract:
+    """Interactive Brokers合约类"""
     
-    def __init__(self, client: IBClientManager):
+    def __init__(self, client: IBClient):
         """
         初始化合约管理
         

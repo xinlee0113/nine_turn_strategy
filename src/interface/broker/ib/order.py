@@ -1,13 +1,16 @@
+"""
+Interactive Brokers订单实现
+"""
 from typing import Dict, Any, Optional, List
-from ibapi.order import Order
+from ibapi.order import Order as IBapiOrder
 from ibapi.contract import Contract
-from src.brokers.ib.client import IBClientManager
-from src.brokers.ib.contract import IBContractManager
+from .client import IBClient
+from .contract import IBContract
 
 class IBOrderExecutor:
     """Interactive Brokers订单执行类"""
     
-    def __init__(self, client: IBClientManager, contract_manager: IBContractManager):
+    def __init__(self, client: IBClient, contract_manager: IBContract):
         """
         初始化订单执行
         
@@ -87,12 +90,38 @@ class IBOrderExecutor:
         return self.client.get_order_history()
     
     def _create_order(self, side: str, quantity: int, 
-                     price: Optional[float] = None) -> Order:
+                     price: Optional[float] = None) -> IBapiOrder:
         """创建订单对象"""
-        order = Order()
+        order = IBapiOrder()
         order.action = side
         order.totalQuantity = quantity
         order.orderType = 'LMT' if price else 'MKT'
         if price:
             order.lmtPrice = price
-        return order 
+        return order
+
+class IBOrder:
+    """Interactive Brokers订单类"""
+    
+    def __init__(self, client: IBClient):
+        self.client = client
+        self.order = IBapiOrder()
+        
+    def create_order(self, order_type: str, quantity: int, 
+                    action: str, price: float = 0.0) -> Dict[str, Any]:
+        """创建订单"""
+        self.order.orderType = order_type
+        self.order.totalQuantity = quantity
+        self.order.action = action
+        if price > 0:
+            self.order.lmtPrice = price
+        return {
+            'order_type': order_type,
+            'quantity': quantity,
+            'action': action,
+            'price': price
+        }
+        
+    def get_order(self) -> IBapiOrder:
+        """获取订单对象"""
+        return self.order 

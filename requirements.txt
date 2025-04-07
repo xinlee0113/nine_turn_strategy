@@ -13,3 +13,5 @@ statsmodels
 python-dateutil
 requests
 protobuf==5.28.3
+pytest
+ibapi

@@ -1,18 +1,16 @@
-# Interactive Brokers接口模块
-# 待实现 
+"""
+券商接口模块包，包含各种券商接口实现。
+用于对接不同券商的交易接口。
+"""
 
-from src.brokers.ib.config import IBConfig
-from src.brokers.ib.client import IBClientManager
-from src.brokers.ib.market import IBMarketStatus
-from src.brokers.ib.contract import IBContractManager
-from src.brokers.ib.order import IBOrderExecutor
-from src.brokers.ib.data import IBData
+from .base_broker import BaseBroker
+from .backtest_broker import BacktestBroker
+from .ib.ib_broker import IBBroker
+from .tiger.tiger_broker import TigerBroker
 
 __all__ = [
-    'IBConfig',
-    'IBClientManager',
-    'IBMarketStatus',
-    'IBContractManager',
-    'IBOrderExecutor',
-    'IBData'
+    'BaseBroker',
+    'BacktestBroker',
+    'IBBroker',
+    'TigerBroker'
 ] 

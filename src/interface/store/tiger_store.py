@@ -1,42 +1,55 @@
-from .base_store import BaseStore
+"""
+老虎证券数据存储实现
+"""
+from .base_store import DataStoreBase
+from datetime import datetime
+from typing import Dict, Optional
+import pandas as pd
+from src.infrastructure.config import Config
 
-class TigerStore(BaseStore):
-    """Tiger存储接口"""
+class TigerStore(DataStoreBase):
+    """老虎证券数据存储类"""
     
-    def __init__(self):
+    def __init__(self, config: Config):
+        self.config = config
         self.connected = False
         
-    def start(self):
-        """启动存储服务"""
+    def start(self) -> bool:
+        """启动数据存储"""
+        # 实现Tiger连接逻辑
         self._connect_api()
         self.connected = True
-    
-    def stop(self):
-        """停止存储服务"""
+        return True
+        
+    def stop(self) -> bool:
+        """停止数据存储"""
+        # 实现Tiger断开连接逻辑
         self.connected = False
+        return True
+        
+    def get_historical_data(self, symbol: str, start_date: datetime, 
+                          end_date: datetime) -> Optional[pd.DataFrame]:
+        """获取历史数据"""
+        if not self.connected:
+            raise ConnectionError("存储服务未连接")
+        # 实现Tiger历史数据获取逻辑
+        return None
+        
+    def get_realtime_quotes(self, symbol: str) -> Optional[Dict]:
+        """获取实时行情"""
+        if not self.connected:
+            raise ConnectionError("存储服务未连接")
+        # 实现Tiger实时行情获取逻辑
+        return None
+        
+    def _connect_api(self):
+        """连接Tiger API"""
+        # 实现Tiger API连接逻辑
+        pass
     
     def get_data(self):
         """获取数据"""
         return self.get_historical_data()
-    
-    def get_realtime_quotes(self):
-        """获取实时行情"""
-        if not self.connected:
-            raise ConnectionError("存储服务未连接")
-        # 实现实时行情获取逻辑
-        pass
-    
-    def get_historical_data(self):
-        """获取历史数据"""
-        if not self.connected:
-            raise ConnectionError("存储服务未连接")
-        # 实现历史数据获取逻辑
-        pass
-    
-    def _connect_api(self):
-        """连接API"""
-        # 实现API连接逻辑
-        pass
     
     def _handle_response(self):
         """处理响应"""

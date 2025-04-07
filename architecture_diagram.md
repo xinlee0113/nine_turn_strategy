@@ -33,7 +33,6 @@
 ```
 nine_turn_strategy/
 ├── architecture_diagram.md
-├── main.py
 ├── src/
 │   ├── application/
 │   │   ├── __init__.py

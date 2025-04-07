@@ -1,12 +1,16 @@
+"""
+Interactive Brokers市场状态实现
+"""
 from typing import Dict, Any, List
 import time
 from datetime import datetime, timedelta
-from src.brokers.ib.client import IBClientManager
+from ibapi.contract import Contract
+from .client import IBClient
 
-class IBMarketStatus:
-    """Interactive Brokers市场状态管理类"""
+class IBMarket:
+    """Interactive Brokers市场状态类"""
     
-    def __init__(self, client: IBClientManager):
+    def __init__(self, client: IBClient):
         """
         初始化市场状态
         
@@ -92,7 +96,7 @@ class IBMarketStatus:
         
         return False
     
-    def _create_contract(self, symbol: str) -> Any:
+    def _create_contract(self, symbol: str) -> Contract:
         """创建合约对象"""
         contract = Contract()
         contract.symbol = symbol

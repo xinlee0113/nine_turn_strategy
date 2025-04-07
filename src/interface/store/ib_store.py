@@ -1,37 +1,38 @@
-from .base_store import BaseStore
+"""
+Interactive Brokers数据存储实现
+"""
+from .base_store import DataStoreBase
+from datetime import datetime
+from typing import Dict, Optional
+import pandas as pd
 
-class IBStore(BaseStore):
-    """IB存储接口"""
+class IBStore(DataStoreBase):
+    """Interactive Brokers数据存储类"""
     
-    def __init__(self):
-        self.connected = False
+    def start(self) -> bool:
+        """启动数据存储"""
+        # 实现IB连接逻辑
+        return True
         
-    def start(self):
-        """启动存储服务"""
-        self._connect_api()
-        self.connected = True
-    
-    def stop(self):
-        """停止存储服务"""
-        self.connected = False
+    def stop(self) -> bool:
+        """停止数据存储"""
+        # 实现IB断开连接逻辑
+        return True
+        
+    def get_historical_data(self, symbol: str, start_date: datetime, 
+                          end_date: datetime) -> Optional[pd.DataFrame]:
+        """获取历史数据"""
+        # 实现IB历史数据获取逻辑
+        return None
+        
+    def get_realtime_quotes(self, symbol: str) -> Optional[Dict]:
+        """获取实时行情"""
+        # 实现IB实时行情获取逻辑
+        return None
     
     def get_data(self):
         """获取数据"""
         return self.get_historical_data()
-    
-    def get_realtime_quotes(self):
-        """获取实时行情"""
-        if not self.connected:
-            raise ConnectionError("存储服务未连接")
-        # 实现实时行情获取逻辑
-        pass
-    
-    def get_historical_data(self):
-        """获取历史数据"""
-        if not self.connected:
-            raise ConnectionError("存储服务未连接")
-        # 实现历史数据获取逻辑
-        pass
     
     def _connect_api(self):
         """连接API"""

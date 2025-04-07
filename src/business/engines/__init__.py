@@ -1,16 +1,16 @@
 """
-回测模块包，包含回测结果分析和报告生成。
-用于分析回测结果并生成报告。
+引擎模块包，包含各种交易引擎。
+用于执行回测、优化和实盘交易。
 """
 
-from .engine import BacktestEngine
-from .analyzer import BacktestAnalyzer
-from .metrics import PerformanceMetrics
-from .visualizer import BacktestVisualizer
+from .base_engine import BaseEngine
+from .backtest.backtest_engine import BacktestEngine
+from .live.live_engine import LiveEngine
+from .optimize.optimize_engine import OptimizeEngine
 
 __all__ = [
+    'BaseEngine',
     'BacktestEngine',
-    'BacktestAnalyzer',
-    'PerformanceMetrics',
-    'BacktestVisualizer'
+    'LiveEngine',
+    'OptimizeEngine'
 ] 

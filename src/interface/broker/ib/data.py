@@ -1,14 +1,17 @@
+"""
+Interactive Brokers数据获取实现
+"""
 from typing import Dict, Any, List, Optional
 import pandas as pd
 from datetime import datetime, timedelta
 from ibapi.contract import Contract
-from src.brokers.ib.client import IBClientManager
-from src.brokers.ib.contract import IBContractManager
+from .client import IBClient
+from .contract import IBContract
 
 class IBData:
     """Interactive Brokers数据获取类"""
     
-    def __init__(self, client: IBClientManager, contract_manager: IBContractManager):
+    def __init__(self, client: IBClient, contract_manager: IBContract):
         """
         初始化数据获取
         
