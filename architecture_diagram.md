@@ -239,7 +239,7 @@ graph TD
     B2[SignalGenerator]
     B3[PositionSizer]
     B4[RiskManager]
-    B5[ConsecutiveBars]
+    B5[MagicNineIndicator]
     B6[PerformanceAnalyzer]
     B7[BacktestEngine]
     B8[OptimizeEngine]
@@ -349,8 +349,7 @@ sequenceDiagram
     participant SignalGenerator
     participant PositionSizer
     participant RiskManager
-    participant ConsecutiveBars
-    participant BtIndicators
+    participant MagicNine
     participant Analyzer
     participant PandasData
     participant DataStoreBase
@@ -364,12 +363,8 @@ sequenceDiagram
     ScriptManager->>BacktestScript: 初始化回测脚本
     BacktestScript->>Config: 加载回测配置
     BacktestScript->>BacktestEngine: 创建回测引擎
-    BacktestScript->>Strategy: 创建策略实例
-    Strategy->>SignalGenerator: 初始化信号生成器
-    Strategy->>PositionSizer: 初始化仓位管理器
-    Strategy->>RiskManager: 初始化风险管理器
-    Strategy->>ConsecutiveBars: 初始化连续K线指标
-    Strategy->>BtIndicators: 初始化技术指标(SMA,RSI等)
+    BacktestScript->>Strategy: 注册策略类
+    Note over Strategy: BacktestEngine通过\ncerebro.addstrategy()\n实际创建策略实例
     BacktestEngine->>Strategy: 添加策略
     BacktestScript->>PandasData: 创建数据源
     PandasData->>DataStoreBase: 请求历史数据
@@ -384,12 +379,19 @@ sequenceDiagram
     BacktestEngine->>EventManager: 注册事件监听
     BacktestEngine->>Logger: 开始回测
 
+    Note over BacktestEngine,Strategy: 回测引擎通过cerebro.run()执行回测
+    BacktestEngine->>Strategy: 初始化策略
+    Strategy->>SignalGenerator: 初始化信号生成器
+    Strategy->>PositionSizer: 初始化仓位管理器
+    Strategy->>RiskManager: 初始化风险管理器
+    Strategy->>MagicNine: 初始化神奇九转指标
+    Note over Strategy: 初始化内置指标\n(RSI, EMA等)
+
     loop 每个交易日
         PandasData->>Strategy: next()
-        Strategy->>ConsecutiveBars: 计算连续K线指标
-        ConsecutiveBars-->>Strategy: 返回指标值
-        Strategy->>BtIndicators: 计算技术指标
-        BtIndicators-->>Strategy: 返回指标值
+        Strategy->>MagicNine: 计算神奇九转指标
+        MagicNine-->>Strategy: 返回指标值
+        Note over Strategy: 内置指标自动计算\n(RSI, EMA等)
         Strategy->>SignalGenerator: 生成交易信号
         SignalGenerator-->>Strategy: 返回信号
         Strategy->>RiskManager: 检查风险限制
@@ -421,7 +423,7 @@ sequenceDiagram
     participant SignalGenerator
     participant PositionSizer
     participant RiskManager
-    participant ConsecutiveBars
+    participant MagicNineIndicator
     participant BtIndicators
     participant Analyzer
     participant PandasData
@@ -440,7 +442,7 @@ sequenceDiagram
     Strategy->>SignalGenerator: 配置信号参数
     Strategy->>PositionSizer: 配置仓位参数
     Strategy->>RiskManager: 配置风险参数
-    Strategy->>ConsecutiveBars: 配置连续K线指标参数
+    Strategy->>MagicNineIndicator: 配置连续K线指标参数
     Strategy->>BtIndicators: 配置技术指标参数
     OptimizeEngine->>Strategy: 添加策略
     OptimizeScript->>PandasData: 创建数据源
@@ -461,13 +463,13 @@ sequenceDiagram
         Strategy->>SignalGenerator: 更新信号参数
         Strategy->>PositionSizer: 更新仓位参数
         Strategy->>RiskManager: 更新风险参数
-        Strategy->>ConsecutiveBars: 更新连续K线指标参数
+        Strategy->>MagicNineIndicator: 更新连续K线指标参数
         Strategy->>BtIndicators: 更新技术指标参数
         
         loop 每个交易日
             PandasData->>Strategy: next()
-            Strategy->>ConsecutiveBars: 计算连续K线指标
-            ConsecutiveBars-->>Strategy: 返回指标值
+            Strategy->>MagicNineIndicator: 计算连续K线指标
+            MagicNineIndicator-->>Strategy: 返回指标值
             Strategy->>BtIndicators: 计算技术指标
             BtIndicators-->>Strategy: 返回指标值
             Strategy->>SignalGenerator: 生成交易信号
@@ -505,7 +507,7 @@ sequenceDiagram
     participant SignalGenerator
     participant PositionSizer
     participant RiskManager
-    participant ConsecutiveBars
+    participant MagicNineIndicator
     participant BtIndicators
     participant Analyzer
     participant TigerRealtimeData
@@ -523,7 +525,7 @@ sequenceDiagram
     Strategy->>SignalGenerator: 配置信号生成器
     Strategy->>PositionSizer: 配置仓位管理器
     Strategy->>RiskManager: 配置风险管理器
-    Strategy->>ConsecutiveBars: 配置连续K线指标
+    Strategy->>MagicNineIndicator: 配置连续K线指标
     Strategy->>BtIndicators: 配置技术指标(SMA,RSI等)
     LiveEngine->>Strategy: 添加策略
     TradeScript->>TigerStore: 连接Tiger服务器
@@ -550,8 +552,8 @@ sequenceDiagram
         TigerClient->>TigerStore: 推送实时数据
         TigerStore->>TigerRealtimeData: 推送数据
         TigerRealtimeData->>Strategy: next()
-        Strategy->>ConsecutiveBars: 计算连续K线指标
-        ConsecutiveBars-->>Strategy: 返回指标值
+        Strategy->>MagicNineIndicator: 计算连续K线指标
+        MagicNineIndicator-->>Strategy: 返回指标值
         Strategy->>BtIndicators: 计算技术指标
         BtIndicators-->>Strategy: 返回指标值
         Strategy->>SignalGenerator: 生成交易信号
