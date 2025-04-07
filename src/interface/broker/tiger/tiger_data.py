@@ -7,6 +7,7 @@ import pandas as pd
 from dataclasses import dataclass
 from src.interface.data.base_data import BaseData
 from src.interface.broker.tiger.tiger_client import TigerClient
+from src.infrastructure.constants.const import TimeInterval
 
 @dataclass
 class BarData:
@@ -47,7 +48,7 @@ class TigerData(BaseData):
         return self.client.disconnect()
         
     def get_historical_data(self, symbol: str, start_date: datetime, 
-                          end_date: datetime, interval: str = "1m") -> pd.DataFrame:
+                          end_date: datetime, interval: str = TimeInterval.ONE_MINUTE.value) -> pd.DataFrame:
         """获取历史数据"""
         return self.client.get_historical_data(symbol, start_date, end_date, interval)
         

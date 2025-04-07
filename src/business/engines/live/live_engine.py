@@ -1,8 +1,8 @@
 from typing import Dict, Any, List
 import pandas as pd
 import numpy as np
-from src.strategy.base import BaseStrategy
-from src.brokers.tiger.client import TigerClient
+from src.business.strategy.base_strategy import BaseStrategy
+from src.interface.broker.tiger.tiger_client import TigerClient
 
 class LiveEngine:
     """实盘引擎"""

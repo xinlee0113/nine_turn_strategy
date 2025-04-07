@@ -1,67 +1,74 @@
 """
 脚本管理器
-负责管理各种运行脚本，如回测、优化、实盘等
+负责管理和创建不同的脚本实例
 """
+import logging
+from typing import Dict, Any, Optional, Type
+
 from src.application.scripts.backtest_script import BacktestScript
-from src.application.scripts.optimize_script import OptimizeScript
-from src.application.scripts.trade_script import TradeScript
+from src.infrastructure.logging.logger import Logger
 
 class ScriptManager:
     """
-    脚本管理器类
+    脚本管理器
+    负责创建和管理各种脚本实例，如回测脚本、优化脚本、实盘脚本等
+    符合架构图中的设计
     """
     def __init__(self):
-        """
-        初始化脚本管理器
-        """
-        self.backtest_script = None
-        self.optimize_script = None
-        self.trade_script = None
+        """初始化脚本管理器"""
+        self.logger = logging.getLogger(__name__)
+        self.logger_manager = Logger()
+        self.scripts = {}
+        self.logger.info("ScriptManager初始化完成")
     
-    def create_script(self, script_type):
+    def create_backtest_script(self) -> BacktestScript:
         """
-        创建指定类型的脚本
+        创建回测脚本
+        按照架构图中的回测流程设计
+        
+        Returns:
+            BacktestScript: 回测脚本实例
+        """
+        self.logger.info("创建回测脚本")
+        backtest_script = BacktestScript()
+        self.scripts['backtest'] = backtest_script
+        return backtest_script
+    
+    def run_backtest(self, symbol: str, start_date, end_date, period: str) -> Dict[str, Any]:
+        """
+        运行回测脚本
         
         Args:
-            script_type: 脚本类型，可选值：'backtest', 'optimize', 'trade'
+            symbol: 交易标的代码
+            start_date: 开始日期
+            end_date: 结束日期
+            period: 数据周期
             
         Returns:
-            创建的脚本实例
+            Dict[str, Any]: 回测结果
         """
-        if script_type == 'backtest':
-            self.backtest_script = BacktestScript()
-            return self.backtest_script
-        elif script_type == 'optimize':
-            self.optimize_script = OptimizeScript()
-            return self.optimize_script
-        elif script_type == 'trade':
-            self.trade_script = TradeScript()
-            return self.trade_script
-        else:
-            raise ValueError(f"Unknown script type: {script_type}")
+        self.logger.info(f"运行回测: {symbol}, {start_date} - {end_date}")
+        
+        # 如果脚本不存在，则创建
+        if 'backtest' not in self.scripts:
+            self.create_backtest_script()
+            
+        # 运行回测
+        backtest_script = self.scripts['backtest']
+        results = backtest_script.run(symbol, start_date, end_date, period)
+        
+        # 展示回测结果
+        self.logger.info("回测执行完成，返回结果")
+        return results
     
-    def run_script(self, script_type):
+    def get_script(self, script_name: str) -> Optional[Any]:
         """
-        运行指定类型的脚本
+        获取已创建的脚本实例
         
         Args:
-            script_type: 脚本类型，可选值：'backtest', 'optimize', 'trade'
+            script_name: 脚本名称
+            
+        Returns:
+            Optional[Any]: 脚本实例，如果不存在则返回None
         """
-        script = self.create_script(script_type)
-        script.run()
-    
-    def stop_script(self, script_type):
-        """
-        停止指定类型的脚本
-        
-        Args:
-            script_type: 脚本类型，可选值：'backtest', 'optimize', 'trade'
-        """
-        if script_type == 'backtest' and self.backtest_script:
-            self.backtest_script.stop()
-        elif script_type == 'optimize' and self.optimize_script:
-            self.optimize_script.stop()
-        elif script_type == 'trade' and self.trade_script:
-            self.trade_script.stop()
-        else:
-            raise ValueError(f"Unknown script type: {script_type}") 
+        return self.scripts.get(script_name) 

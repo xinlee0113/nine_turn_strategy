@@ -93,6 +93,7 @@ nine_turn_strategy/
 │   │       │   ├── tiger_config.py
 │   │       │   ├── tiger_contract.py
 │   │       │   ├── tiger_data.py
+│   │       │   ├── tiger_data_fetcher.py
 │   │       │   ├── tiger_market.py
 │   │       │   ├── tiger_order.py
 │   │       │   └── examples/
@@ -120,6 +121,9 @@ nine_turn_strategy/
 │       │   ├── base_config.py
 │       │   ├── strategy_config.py
 │       │   └── data_config.py
+│       ├── constants/
+│       │   ├── __init__.py
+│       │   └── const.py
 │       ├── logging/
 │       │   ├── __init__.py
 │       │   └── logger.py
@@ -195,6 +199,7 @@ nine_turn_strategy/
   - data/: 数据接口
 - **infrastructure/**: 基础设施模块
   - config/: 配置管理
+  - constants/: 常量定义
   - logging/: 日志管理
   - event/: 事件管理
 
@@ -234,7 +239,7 @@ graph TD
     B2[SignalGenerator]
     B3[PositionSizer]
     B4[RiskManager]
-    B5[CustomIndicator]
+    B5[ConsecutiveBars]
     B6[PerformanceAnalyzer]
     B7[BacktestEngine]
     B8[OptimizeEngine]
@@ -260,6 +265,7 @@ graph TD
     D5[TradeEventHandler]
     D6[RiskEventHandler]
     D7[DataEventHandler]
+    D8[Const]
     end
     
     %% 依赖关系
@@ -317,6 +323,7 @@ graph TD
 
 ### 4. 基础设施层
 - **配置管理**：管理所有配置信息
+- **常量定义**：定义系统中使用的各种常量和枚举
 - **日志系统**：提供日志记录功能
 - **事件系统**：提供事件管理功能
 - **测试系统**：提供测试支持
@@ -342,7 +349,8 @@ sequenceDiagram
     participant SignalGenerator
     participant PositionSizer
     participant RiskManager
-    participant Indicator
+    participant ConsecutiveBars
+    participant BtIndicators
     participant Analyzer
     participant PandasData
     participant DataStoreBase
@@ -360,7 +368,8 @@ sequenceDiagram
     Strategy->>SignalGenerator: 初始化信号生成器
     Strategy->>PositionSizer: 初始化仓位管理器
     Strategy->>RiskManager: 初始化风险管理器
-    Strategy->>Indicator: 初始化技术指标
+    Strategy->>ConsecutiveBars: 初始化连续K线指标
+    Strategy->>BtIndicators: 初始化技术指标(SMA,RSI等)
     BacktestEngine->>Strategy: 添加策略
     BacktestScript->>PandasData: 创建数据源
     PandasData->>DataStoreBase: 请求历史数据
@@ -377,8 +386,10 @@ sequenceDiagram
 
     loop 每个交易日
         PandasData->>Strategy: next()
-        Strategy->>Indicator: 计算技术指标
-        Indicator-->>Strategy: 返回指标值
+        Strategy->>ConsecutiveBars: 计算连续K线指标
+        ConsecutiveBars-->>Strategy: 返回指标值
+        Strategy->>BtIndicators: 计算技术指标
+        BtIndicators-->>Strategy: 返回指标值
         Strategy->>SignalGenerator: 生成交易信号
         SignalGenerator-->>Strategy: 返回信号
         Strategy->>RiskManager: 检查风险限制
@@ -410,7 +421,8 @@ sequenceDiagram
     participant SignalGenerator
     participant PositionSizer
     participant RiskManager
-    participant Indicator
+    participant ConsecutiveBars
+    participant BtIndicators
     participant Analyzer
     participant PandasData
     participant DataStoreBase
@@ -428,7 +440,8 @@ sequenceDiagram
     Strategy->>SignalGenerator: 配置信号参数
     Strategy->>PositionSizer: 配置仓位参数
     Strategy->>RiskManager: 配置风险参数
-    Strategy->>Indicator: 配置指标参数
+    Strategy->>ConsecutiveBars: 配置连续K线指标参数
+    Strategy->>BtIndicators: 配置技术指标参数
     OptimizeEngine->>Strategy: 添加策略
     OptimizeScript->>PandasData: 创建数据源
     PandasData->>DataStoreBase: 请求历史数据
@@ -448,12 +461,15 @@ sequenceDiagram
         Strategy->>SignalGenerator: 更新信号参数
         Strategy->>PositionSizer: 更新仓位参数
         Strategy->>RiskManager: 更新风险参数
-        Strategy->>Indicator: 更新指标参数
+        Strategy->>ConsecutiveBars: 更新连续K线指标参数
+        Strategy->>BtIndicators: 更新技术指标参数
         
         loop 每个交易日
             PandasData->>Strategy: next()
-            Strategy->>Indicator: 计算技术指标
-            Indicator-->>Strategy: 返回指标值
+            Strategy->>ConsecutiveBars: 计算连续K线指标
+            ConsecutiveBars-->>Strategy: 返回指标值
+            Strategy->>BtIndicators: 计算技术指标
+            BtIndicators-->>Strategy: 返回指标值
             Strategy->>SignalGenerator: 生成交易信号
             SignalGenerator-->>Strategy: 返回信号
             Strategy->>RiskManager: 检查风险限制
@@ -489,7 +505,8 @@ sequenceDiagram
     participant SignalGenerator
     participant PositionSizer
     participant RiskManager
-    participant Indicator
+    participant ConsecutiveBars
+    participant BtIndicators
     participant Analyzer
     participant TigerRealtimeData
     participant TigerStore
@@ -506,7 +523,8 @@ sequenceDiagram
     Strategy->>SignalGenerator: 配置信号生成器
     Strategy->>PositionSizer: 配置仓位管理器
     Strategy->>RiskManager: 配置风险管理器
-    Strategy->>Indicator: 配置技术指标
+    Strategy->>ConsecutiveBars: 配置连续K线指标
+    Strategy->>BtIndicators: 配置技术指标(SMA,RSI等)
     LiveEngine->>Strategy: 添加策略
     TradeScript->>TigerStore: 连接Tiger服务器
     TigerStore->>TigerClient: 初始化连接
@@ -532,8 +550,10 @@ sequenceDiagram
         TigerClient->>TigerStore: 推送实时数据
         TigerStore->>TigerRealtimeData: 推送数据
         TigerRealtimeData->>Strategy: next()
-        Strategy->>Indicator: 计算技术指标
-        Indicator-->>Strategy: 返回指标值
+        Strategy->>ConsecutiveBars: 计算连续K线指标
+        ConsecutiveBars-->>Strategy: 返回指标值
+        Strategy->>BtIndicators: 计算技术指标
+        BtIndicators-->>Strategy: 返回指标值
         Strategy->>SignalGenerator: 生成交易信号
         SignalGenerator-->>Strategy: 返回信号
         Strategy->>RiskManager: 检查风险限制

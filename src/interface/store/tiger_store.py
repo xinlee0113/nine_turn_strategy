@@ -8,12 +8,15 @@ import os
 import logging
 from src.interface.store.base_store import DataStoreBase
 import glob
+import numpy as np
+from src.interface.broker.tiger.tiger_client import TigerClient
+from src.infrastructure.constants.const import TimeInterval, MAX_1MIN_DATA_DAYS
 
 
 class TigerStore(DataStoreBase):
     """老虎证券数据存储类"""
 
-    def __init__(self, client=None):
+    def __init__(self, client: Optional[TigerClient] = None):
         super().__init__()
         self.client = client
         self.logger = logging.getLogger(__name__)
@@ -28,25 +31,36 @@ class TigerStore(DataStoreBase):
         """停止数据存储"""
         return True
 
-    def get_historical_data(self, symbol: str, start_time: datetime, end_time: datetime, period: str) -> pd.DataFrame:
+    def get_historical_data(self, symbol: str, start_time: datetime, end_time: datetime, period: str = TimeInterval.ONE_MINUTE.value) -> pd.DataFrame:
         """获取历史数据
-
+        
         Args:
             symbol: 股票代码
             start_time: 开始时间
             end_time: 结束时间
-            period: 周期，如 1m, 1d
-
+            period: 数据周期，默认为1分钟
+            
         Returns:
             DataFrame: 历史数据
         """
-        self.logger.info(f"开始请求数据: {symbol}, {start_time} - {end_time}, {period}")
+        self.logger.info(f"获取历史数据: {symbol}, {start_time} - {end_time}, {period}")
         
-        # 统一时区处理 - 将时间转换为naive时间戳以便于比较
-        start_time_naive = start_time.replace(tzinfo=None) if hasattr(start_time, 'tzinfo') and start_time.tzinfo else start_time
-        end_time_naive = end_time.replace(tzinfo=None) if hasattr(end_time, 'tzinfo') and end_time.tzinfo else end_time
+        if self.client is None:
+            raise ValueError("客户端未初始化")
+            
+        # 检查1分钟K线的时间限制
+        if period == TimeInterval.ONE_MINUTE.value:
+            date_diff = (end_time - start_time).days
+            if date_diff > MAX_1MIN_DATA_DAYS:
+                self.logger.warning(f"1分钟K线数据只能获取最近{MAX_1MIN_DATA_DAYS}天的数据，当前请求时间范围：{date_diff}天")
+                self.logger.warning(f"将起始日期从 {start_time} 调整为 {end_time - timedelta(days=MAX_1MIN_DATA_DAYS)}")
+                start_time = end_time - timedelta(days=MAX_1MIN_DATA_DAYS)
+            
+        # 确保时间值没有时区信息，以统一处理
+        start_time_naive = start_time.replace(tzinfo=None) if start_time.tzinfo else start_time
+        end_time_naive = end_time.replace(tzinfo=None) if end_time.tzinfo else end_time
         
-        # 尝试从缓存读取
+        # 构建缓存key
         cache_key = f"{symbol}, {start_time} - {end_time}, {period}"
         self.logger.info(f"查找缓存文件: {cache_key}")
         

@@ -1,41 +1,46 @@
 """
 脚本工厂
-负责创建各种类型的脚本
+创建各种脚本实例
 """
-from src.application.scripts.backtest_script import BacktestScript
-from src.application.scripts.optimize_script import OptimizeScript
-from src.application.scripts.trade_script import TradeScript
+import logging
 
 class ScriptFactory:
-    """
-    脚本工厂类
-    """
-    @staticmethod
-    def create_backtest_script():
-        """
-        创建回测脚本
-        
-        Returns:
-            BacktestScript实例
-        """
-        return BacktestScript()
+    """脚本工厂类"""
     
-    @staticmethod
-    def create_optimize_script():
-        """
-        创建优化脚本
+    def __init__(self):
+        """初始化脚本工厂"""
+        self.scripts = {}
+        self.logger = logging.getLogger(__name__)
         
-        Returns:
-            OptimizeScript实例
+    def register_script(self, script_type, script_class):
         """
-        return OptimizeScript()
-    
-    @staticmethod
-    def create_trade_script():
-        """
-        创建交易脚本
+        注册脚本
         
-        Returns:
-            TradeScript实例
+        Args:
+            script_type: 脚本类型
+            script_class: 脚本类
         """
-        return TradeScript() 
+        self.scripts[script_type] = script_class
+        
+    def create_script(self, script_type):
+        """
+        创建脚本
+        
+        Args:
+            script_type: 脚本类型
+            
+        Returns:
+            Script: 脚本实例
+            
+        Raises:
+            ValueError: 如果脚本类型未注册
+        """
+        if script_type not in self.scripts:
+            raise ValueError(f"未知的脚本类型: {script_type}")
+            
+        script_class = self.scripts[script_type]
+        return script_class()
+        
+    def get_script_count(self):
+        """获取已注册的脚本数量"""
+        return len(self.scripts) 

@@ -3,10 +3,8 @@
 用于计算和提供技术分析指标。
 """
 
-from .base_indicator import BaseIndicator
-from .custom_indicators import CustomIndicator
+from .magic_nine_indicator import MagicNineIndicator
 
 __all__ = [
-    'BaseIndicator',
-    'CustomIndicator'
+    'MagicNineIndicator'
 ] 

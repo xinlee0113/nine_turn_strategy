@@ -2,13 +2,13 @@
 交易脚本
 负责实盘交易流程的控制
 """
-from src.business.engines.live_engine import LiveEngine
+from src.business.engines.live.live_engine import LiveEngine
 from src.business.strategy.magic_nine import MagicNineStrategy
 from src.interface.data.tiger_realtime_data import TigerRealtimeData
-from src.interface.broker.tiger_broker import TigerBroker
+from src.interface.broker.tiger.tiger_broker import TigerBroker
 from src.interface.store.tiger_store import TigerStore
-from src.infrastructure.config import Config
-from src.infrastructure.logging import Logger
+from src.infrastructure.config.strategy_config import StrategyConfig
+from src.infrastructure.logging.logger import Logger
 
 class TradeScript:
     """
@@ -23,7 +23,7 @@ class TradeScript:
         self.data = None
         self.broker = None
         self.store = None
-        self.config = Config()
+        self.config = StrategyConfig()
         self.logger = Logger()
     
     def run(self):

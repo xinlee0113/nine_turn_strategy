@@ -11,6 +11,7 @@ from tigeropen.tiger_open_config import TigerOpenClientConfig
 from tigeropen.quote.quote_client import QuoteClient
 from tigeropen.common.consts import Language, BarPeriod, Market
 from tigeropen.common.util.signature_utils import read_private_key
+from src.infrastructure.constants.const import TimeInterval, TimeZone, MAX_1MIN_DATA_DAYS, DATA_REQUIRED_COLUMNS
 
 
 class TigerClient:
@@ -88,14 +89,14 @@ class TigerClient:
     def _convert_period(self, period: str) -> BarPeriod:
         """转换周期字符串为Tiger API枚举值"""
         period_map = {
-            '1m': BarPeriod.ONE_MINUTE,
-            '5m': BarPeriod.FIVE_MINUTES,
-            '15m': BarPeriod.FIFTEEN_MINUTES,
-            '30m': BarPeriod.HALF_HOUR,
-            '1h': BarPeriod.ONE_HOUR,
-            '1d': BarPeriod.DAY,
-            '1w': BarPeriod.WEEK,
-            '1M': BarPeriod.MONTH
+            TimeInterval.ONE_MINUTE.value: BarPeriod.ONE_MINUTE,
+            TimeInterval.FIVE_MINUTES.value: BarPeriod.FIVE_MINUTES,
+            TimeInterval.FIFTEEN_MINUTES.value: BarPeriod.FIFTEEN_MINUTES,
+            TimeInterval.THIRTY_MINUTES.value: BarPeriod.HALF_HOUR,
+            TimeInterval.ONE_HOUR.value: BarPeriod.ONE_HOUR,
+            TimeInterval.ONE_DAY.value: BarPeriod.DAY,
+            TimeInterval.ONE_WEEK.value: BarPeriod.WEEK,
+            TimeInterval.ONE_MONTH.value: BarPeriod.MONTH
         }
         return period_map.get(period, BarPeriod.ONE_MINUTE)
 
@@ -106,16 +107,29 @@ class TigerClient:
             raise ConnectionError("客户端未连接")
 
         try:
-            # 确保时间戳先本地化再转换时区
+            # 确保日期对象有一致的时区信息
+            # 转换为pandas Timestamp并确保具有时区信息
             start_date_ts = pd.Timestamp(start_date)
-            if start_date_ts.tz is None:
-                start_date_ts = start_date_ts.tz_localize('UTC')
-            start_date_eastern = start_date_ts.tz_convert('US/Eastern')
-            
             end_date_ts = pd.Timestamp(end_date)
+            
+            # 如果没有时区信息，则添加UTC时区
+            if start_date_ts.tz is None:
+                start_date_ts = start_date_ts.tz_localize(TimeZone.UTC.value)
             if end_date_ts.tz is None:
-                end_date_ts = end_date_ts.tz_localize('UTC')
-            end_date_eastern = end_date_ts.tz_convert('US/Eastern')
+                end_date_ts = end_date_ts.tz_localize(TimeZone.UTC.value)
+                
+            # 确保都是同一个时区
+            start_date_eastern = start_date_ts.tz_convert(TimeZone.US_EASTERN.value)
+            end_date_eastern = end_date_ts.tz_convert(TimeZone.US_EASTERN.value)
+            
+            # 计算日期差异时使用tz-aware的时间戳
+            date_diff = (end_date_eastern - start_date_eastern).days
+            
+            # 对于1分钟K线，老虎证券API限制最多只能获取30天数据
+            if interval == TimeInterval.ONE_MINUTE.value and date_diff > MAX_1MIN_DATA_DAYS:
+                self.logger.warning(f"1分钟K线只能获取最近{MAX_1MIN_DATA_DAYS}天的数据，当前请求时间范围：{date_diff}天")
+                self.logger.warning(f"将起始日期从 {start_date_eastern} 调整为 {end_date_eastern - pd.Timedelta(days=MAX_1MIN_DATA_DAYS)}")
+                start_date_eastern = end_date_eastern - pd.Timedelta(days=MAX_1MIN_DATA_DAYS)
 
             time_interval = 2  # 每次数据的时间间隔
             # 转换为Tiger API所需的周期
@@ -125,12 +139,13 @@ class TigerClient:
                                                      end_time=end_date_eastern.value // 10 ** 6,
                                                      time_interval=time_interval)
 
-            data['cn_date'] = pd.to_datetime(data['time'], unit='ms').dt.tz_localize('UTC').dt.tz_convert('Asia/Shanghai')
-            data['us_date'] = pd.to_datetime(data['time'], unit='ms').dt.tz_localize('UTC').dt.tz_convert('US/Eastern')
-            data['utc_date'] = pd.to_datetime(data['time'], unit='ms').dt.tz_localize('UTC').dt.tz_convert('UTC')
-
             if data.empty:
                 return pd.DataFrame()
+
+            # 添加中国时间、美国东部时间和UTC时间
+            data['cn_date'] = pd.to_datetime(data['time'], unit='ms').dt.tz_localize(TimeZone.UTC.value).dt.tz_convert(TimeZone.CHINA.value)
+            data['us_date'] = pd.to_datetime(data['time'], unit='ms').dt.tz_localize(TimeZone.UTC.value).dt.tz_convert(TimeZone.US_EASTERN.value)
+            data['utc_date'] = pd.to_datetime(data['time'], unit='ms').dt.tz_localize(TimeZone.UTC.value)
 
             # 数据清洗和格式化
             if 'next_page_token' in data.columns:
@@ -148,8 +163,8 @@ class TigerClient:
                 'volume': 'volume'
             })
 
-            required_columns = ['open', 'high', 'low', 'close', 'volume']
-            data = data[required_columns]
+            # 只保留必要的列
+            data = data[DATA_REQUIRED_COLUMNS]
 
             # 去重并排序，因为分块获取可能导致重叠或顺序问题
             data = data[~data.index.duplicated(keep='first')]
@@ -195,14 +210,19 @@ class TigerClient:
                     self.logger.warning(f"获取 {symbol} 的实时行情失败: {str(e)}")
                     # 尝试使用备用方法：market_status
                     try:
-                        status = self._api_client.get_market_status(symbol=symbol)
-                        if status and symbol in status:
-                            quotes_data[symbol] = {
-                                'symbol': symbol,
-                                'status': status.get(symbol),
-                                'timestamp': datetime.now(),
-                            }
-                            self.logger.info(f"使用市场状态方法获取 {symbol} 的状态: {status.get(symbol)}")
+                        # 修复：get_market_status方法返回的可能是字典，但也可能是其他格式
+                        status = self._api_client.get_market_status()
+                        # 修复：确保status是字典类型，并且symbol是其中的键
+                        if status and isinstance(status, dict):
+                            # 使用get方法避免KeyError
+                            symbol_status = status.get(symbol)
+                            if symbol_status is not None:
+                                quotes_data[symbol] = {
+                                    'symbol': symbol,
+                                    'status': symbol_status,
+                                    'timestamp': datetime.now(),
+                                }
+                                self.logger.info(f"使用市场状态方法获取 {symbol} 的状态: {symbol_status}")
                     except Exception as ex:
                         self.logger.warning(f"备用方法获取 {symbol} 的状态也失败: {str(ex)}")
 
