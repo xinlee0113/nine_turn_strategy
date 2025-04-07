@@ -4,6 +4,7 @@ import pytz
 from datetime import datetime, timedelta
 
 from src.business.indicators import MagicNine
+from src.business.indicators.kdj_bundle import KDJBundle
 from src.business.strategy.signal_generator import SignalGenerator
 from src.business.strategy.position_sizer import PositionSizer
 from src.business.strategy.risk_manager import RiskManager
@@ -18,6 +19,14 @@ class MagicNineStrategy(bt.Strategy):
         ('rsi_period', 14),     # RSI周期
         ('rsi_overbought', 70), # RSI超买值
         ('rsi_oversold', 30),   # RSI超卖值
+        ('kdj_period', 9),      # KDJ指标周期
+        ('kdj_fast', 3),        # KDJ快速线周期
+        ('kdj_slow', 3),        # KDJ慢速线周期
+        ('kdj_overbought', 80), # KDJ超买值
+        ('kdj_oversold', 20),   # KDJ超卖值
+        ('macd_fast', 12),      # MACD快线周期
+        ('macd_slow', 26),      # MACD慢线周期
+        ('macd_signal', 9),     # MACD信号线周期
         ('stop_loss_pct', 0.8), # 止损百分比
         ('profit_target_pct', 2.0), # 利润目标百分比
         ('trailing_pct', 1.0),  # 移动止损激活百分比
@@ -44,10 +53,28 @@ class MagicNineStrategy(bt.Strategy):
         self.ema20 = bt.indicators.EMA(self.data, period=20)
         self.ema50 = bt.indicators.EMA(self.data, period=50)
         
+        # 使用MACDHisto指标替换MACD - 直接提供柱状图数据
+        self.macd = bt.indicators.MACDHisto(
+            self.data, 
+            period_me1=self.p.macd_fast,
+            period_me2=self.p.macd_slow, 
+            period_signal=self.p.macd_signal
+        )
+        
+        # 添加KDJ指标
+        self.kdj = KDJBundle(
+            self.data,
+            period=self.p.kdj_period,
+            period_dfast=self.p.kdj_fast,
+            period_dslow=self.p.kdj_slow
+        )
+        
         # 策略组件初始化
         self.signal_generator = SignalGenerator({
             'rsi_overbought': self.p.rsi_overbought,
             'rsi_oversold': self.p.rsi_oversold,
+            'kdj_overbought': self.p.kdj_overbought,
+            'kdj_oversold': self.p.kdj_oversold,
             'magic_count': self.p.magic_count,
             'enable_short': self.p.enable_short
         })
@@ -65,6 +92,7 @@ class MagicNineStrategy(bt.Strategy):
         })
         
         logger.info(f"策略初始化完成 - 双向交易神奇九转模式 (比较周期:{self.p.magic_period}, 信号触发计数:{self.p.magic_count})")
+        logger.info(f"添加MACD直方图和KDJ指标作为信号确认")
         logger.info(f"避开开盘后{self.p.avoid_open_minutes}分钟和收盘前{self.p.avoid_close_minutes}分钟的交易")
     
     def notify_order(self, order):
@@ -155,6 +183,11 @@ class MagicNineStrategy(bt.Strategy):
             'rsi': self.rsi[0],
             'ema20': self.ema20[0],
             'ema50': self.ema50[0],
+            # 直接使用MACDHisto的histo线而不是计算差值
+            'macd_histo': self.macd.lines.histo[0],  # 直接获取直方图数据
+            'kdj_k': self.kdj.lines.K[0],
+            'kdj_d': self.kdj.lines.D[0],
+            'kdj_j': self.kdj.lines.J[0],
             'current_position': 1 if self.position.size > 0 else (-1 if self.position.size < 0 else 0),
             'price': current_price,
             'time_info': market_time_info
