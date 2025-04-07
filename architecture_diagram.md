@@ -23,6 +23,7 @@
    - [回测流程](#1-回测流程)
    - [参数优化流程](#2-参数优化流程)
    - [实盘交易流程](#3-实盘交易流程)
+   - [数据加载流程](#4-数据加载流程)
    - [流程说明](#流程说明)
 
 4. [分层架构类图](#分层架构类图)
@@ -344,7 +345,9 @@ sequenceDiagram
     participant Indicator
     participant Analyzer
     participant PandasData
+    participant DataStoreBase
     participant TigerStore
+    participant TigerClient
     participant Logger
     participant EventManager
     participant Config
@@ -360,8 +363,12 @@ sequenceDiagram
     Strategy->>Indicator: 初始化技术指标
     BacktestEngine->>Strategy: 添加策略
     BacktestScript->>PandasData: 创建数据源
-    PandasData->>TigerStore: 获取历史数据
-    TigerStore-->>PandasData: 返回历史数据
+    PandasData->>DataStoreBase: 请求历史数据
+    DataStoreBase->>TigerStore: 获取数据
+    TigerStore->>TigerClient: 请求历史数据
+    TigerClient-->>TigerStore: 返回数据
+    TigerStore-->>DataStoreBase: 返回数据
+    DataStoreBase-->>PandasData: 返回数据
     BacktestEngine->>PandasData: 添加数据源
     BacktestScript->>Analyzer: 添加分析器
     BacktestEngine->>Analyzer: 注册分析器
@@ -406,8 +413,9 @@ sequenceDiagram
     participant Indicator
     participant Analyzer
     participant PandasData
-    participant BacktestBroker
+    participant DataStoreBase
     participant TigerStore
+    participant TigerClient
     participant Logger
     participant EventManager
     participant Config
@@ -423,11 +431,13 @@ sequenceDiagram
     Strategy->>Indicator: 配置指标参数
     OptimizeEngine->>Strategy: 添加策略
     OptimizeScript->>PandasData: 创建数据源
-    PandasData->>TigerStore: 获取历史数据
-    TigerStore-->>PandasData: 返回历史数据
+    PandasData->>DataStoreBase: 请求历史数据
+    DataStoreBase->>TigerStore: 获取数据
+    TigerStore->>TigerClient: 请求历史数据
+    TigerClient-->>TigerStore: 返回数据
+    TigerStore-->>DataStoreBase: 返回数据
+    DataStoreBase-->>PandasData: 返回数据
     OptimizeEngine->>PandasData: 添加数据源
-    OptimizeScript->>BacktestBroker: 创建回测Broker
-    OptimizeEngine->>BacktestBroker: 设置Broker
     OptimizeScript->>Analyzer: 添加分析器
     OptimizeEngine->>Analyzer: 注册分析器
     OptimizeEngine->>EventManager: 注册事件监听
@@ -450,8 +460,8 @@ sequenceDiagram
             RiskManager-->>Strategy: 返回风险评估
             Strategy->>PositionSizer: 计算目标仓位
             PositionSizer-->>Strategy: 返回仓位大小
-            Strategy->>BacktestBroker: 提交订单
-            BacktestBroker-->>Strategy: 返回订单状态
+            Strategy->>OptimizeEngine: 提交订单
+            OptimizeEngine-->>Strategy: 返回订单状态
             Strategy->>Analyzer: 更新分析数据
             EventManager->>Logger: 记录交易日志
         end
@@ -482,8 +492,8 @@ sequenceDiagram
     participant Indicator
     participant Analyzer
     participant TigerRealtimeData
-    participant TigerBroker
     participant TigerStore
+    participant TigerClient
     participant Logger
     participant EventManager
     participant Config
@@ -499,22 +509,28 @@ sequenceDiagram
     Strategy->>Indicator: 配置技术指标
     LiveEngine->>Strategy: 添加策略
     TradeScript->>TigerStore: 连接Tiger服务器
+    TigerStore->>TigerClient: 初始化连接
+    TigerClient-->>TigerStore: 返回连接状态
     TigerStore-->>TradeScript: 返回连接状态
     TradeScript->>TigerRealtimeData: 创建实时数据源
     TigerRealtimeData->>TigerStore: 订阅实时数据
+    TigerStore->>TigerClient: 订阅数据
+    TigerClient-->>TigerStore: 确认订阅
     TigerStore-->>TigerRealtimeData: 确认订阅
     LiveEngine->>TigerRealtimeData: 添加数据源
-    TradeScript->>TigerBroker: 创建Tiger交易接口
-    TigerBroker->>TigerStore: 初始化交易连接
-    TigerStore-->>TigerBroker: 返回账户信息
-    LiveEngine->>TigerBroker: 设置Broker
+    TradeScript->>TigerStore: 创建交易接口
+    TigerStore->>TigerClient: 初始化交易
+    TigerClient-->>TigerStore: 返回账户信息
+    TigerStore-->>TradeScript: 返回账户信息
+    LiveEngine->>TigerStore: 设置交易接口
     TradeScript->>Analyzer: 添加分析器
     LiveEngine->>Analyzer: 注册分析器
     LiveEngine->>EventManager: 注册事件监听
     LiveEngine->>Logger: 开始交易
 
     loop 实时交易循环
-        TigerStore->>TigerRealtimeData: 推送实时数据
+        TigerClient->>TigerStore: 推送实时数据
+        TigerStore->>TigerRealtimeData: 推送数据
         TigerRealtimeData->>Strategy: next()
         Strategy->>Indicator: 计算技术指标
         Indicator-->>Strategy: 返回指标值
@@ -526,10 +542,10 @@ sequenceDiagram
         PositionSizer-->>Strategy: 返回仓位大小
         
         alt 需要交易
-            Strategy->>TigerBroker: 提交订单
-            TigerBroker->>TigerStore: 发送订单请求
-            TigerStore-->>TigerBroker: 返回订单状态
-            TigerBroker-->>Strategy: 更新订单状态
+            Strategy->>TigerStore: 提交订单
+            TigerStore->>TigerClient: 发送订单请求
+            TigerClient-->>TigerStore: 返回订单状态
+            TigerStore-->>Strategy: 更新订单状态
             Strategy->>Analyzer: 更新分析数据
             EventManager->>Logger: 记录交易日志
         end
@@ -541,490 +557,180 @@ sequenceDiagram
         end
 
         opt 错误处理
-            TigerStore-->>TigerBroker: 推送错误信息
-            TigerBroker->>EventManager: 触发错误事件
+            TigerClient-->>TigerStore: 推送错误信息
+            TigerStore->>EventManager: 触发错误事件
             EventManager->>Logger: 记录错误信息
             EventManager->>Strategy: 通知策略
         end
     end
 
-    TradeScript->>TigerBroker: 关闭连接
-    TigerBroker->>TigerStore: 断开连接
+    TradeScript->>TigerStore: 关闭连接
+    TigerStore->>TigerClient: 断开连接
     TradeScript->>Logger: 记录交易结果
     TradeScript-->>ScriptManager: 返回执行结果
     ScriptManager-->>Main: 展示交易结果
 ```
 
+### 4. 数据加载流程
+
+```mermaid
+sequenceDiagram
+    participant App as Main
+    participant Script as BacktestScript
+    participant Engine as BacktestEngine
+    participant Data as PandasData
+    participant Store as DataStoreBase
+    participant TigerStore
+    participant Client as TigerClient
+    participant Cache as CSVData
+    participant Strategy as MagicNineStrategy
+
+    App->>Script: 创建回测脚本
+    Script->>Engine: 创建回测引擎
+    Script->>Data: 创建数据源
+    Data->>Store: 请求历史数据
+    Store->>TigerStore: 获取数据
+    Note over TigerStore: 参数：<br/>- symbol: str<br/>- start_date: datetime<br/>- end_date: datetime<br/>- interval: str
+
+    alt 检查本地缓存
+        TigerStore->>Cache: 查询CSV文件
+        Cache-->>TigerStore: 返回缓存数据
+    else 缓存未命中
+        TigerStore->>Client: 请求历史数据
+        Note over Client: 分段获取数据<br/>- 每段最多5天<br/>- 分钟级数据
+        Client-->>TigerStore: 返回数据
+        TigerStore->>Cache: 保存为CSV
+    end
+
+    TigerStore-->>Store: 返回数据
+    Store-->>Data: 返回DataFrame
+    Note over Data: 数据格式：<br/>- 时间索引<br/>- OHLCV数据<br/>- UTC时间
+
+    Data->>Engine: 添加数据源
+    Engine->>Strategy: 初始化策略
+    Note over Strategy: 数据验证：<br/>- 完整性检查<br/>- 连续性检查<br/>- 数据点数量检查
+```
+
+数据加载流程说明：
+1. **初始化阶段**
+   - `Main`创建`BacktestScript`实例
+   - `BacktestScript`创建`BacktestEngine`和`PandasData`实例
+   - `PandasData`通过`TigerStore`请求历史数据
+
+2. **数据获取阶段**
+   - `TigerStore`首先检查本地CSV缓存
+   - 如果缓存未命中，则通过`TigerClient`从API获取数据
+   - 采用分段获取策略，每段最多5天
+   - 获取的数据保存为CSV文件
+
+3. **数据处理阶段**
+   - `TigerStore`将数据转换为DataFrame格式
+   - 数据包含时间索引和OHLCV数据
+   - 时间使用UTC格式
+
+4. **数据验证阶段**
+   - `MagicNineStrategy`对数据进行验证
+   - 检查数据完整性（每个交易日390个数据点）
+   - 检查数据连续性（1分钟间隔）
+   - 检查数据点数量（允许90%的完整度）
+
+5. **数据使用阶段**
+   - 数据加载完成后，`BacktestEngine`将数据源添加到回测引擎
+   - `MagicNineStrategy`使用加载的数据进行回测
+   - 策略在回测过程中可以访问完整的历史数据
+
 ## 流程说明
 
-### 1. 回测流程说明
-1. **初始化阶段**
-   - 加载回测配置
-   - 创建回测引擎
-   - 初始化策略组件（信号生成器、仓位管理器、风险管理器、技术指标）
-   - 加载历史数据
-   - 注册分析器和事件监听
+1. 回测数据加载流程：
+   - `PandasData/GenericCSVData` 调用 `DataStoreBase` 的 `get_historical_data` 方法
+   - `DataStoreBase` 将请求转发给 `TigerStore`
+   - `TigerStore` 首先检查缓存
+   - 如果缓存存在，直接返回缓存数据
+   - 如果缓存不存在，通过 `TigerClient` 从 API 获取数据
+   - 获取到数据后保存到缓存并返回
 
-2. **回测执行阶段**
-   - 遍历每个交易日数据
-   - 计算技术指标
-   - 生成交易信号
-   - 进行风险评估
-   - 计算交易仓位
-   - 执行交易指令
-   - 记录交易日志
-   - 更新分析数据
+2. 实盘数据加载流程：
+   - `PandasData/GenericCSVData` 调用 `DataStoreBase` 的 `get_realtime_quotes` 方法
+   - `DataStoreBase` 将请求转发给 `TigerStore`
+   - `TigerStore` 通过 `TigerClient` 订阅实时行情
+   - `TigerClient` 从 API 获取实时行情并返回
 
-3. **结果分析阶段**
-   - 生成回测报告
-   - 计算性能指标
-   - 输出分析结果
-
-### 2. 参数优化流程说明
-1. **初始化阶段**
-   - 加载优化配置
-   - 设置参数优化范围
-   - 创建优化引擎
-   - 准备数据和分析器
-
-2. **优化执行阶段**
-   - 遍历每组参数组合
-   - 使用当前参数执行回测
-   - 收集性能指标
-   - 记录优化过程
-
-3. **结果处理阶段**
-   - 选择最优参数组合
-   - 生成优化报告
-   - 保存优化结果
-
-### 3. 实盘交易流程说明
-1. **初始化阶段**
-   - 加载交易配置
-   - 连接券商接口
-   - 初始化策略组件
-   - 订阅实时数据
-   - 设置风险控制
-
-2. **交易执行阶段**
-   - 接收实时行情
-   - 实时计算指标
-   - 生成交易信号
-   - 风险评估
-   - 发送交易指令
-   - 处理成交回报
-   - 记录交易日志
-
-3. **监控和维护**
-   - 异常处理机制
-   - 风险控制措施
-   - 定期状态分析
-   - 实时监控告警
+3. 数据流向：
+   - 回测数据流：`PandasData/GenericCSVData -> DataStoreBase -> TigerStore -> TigerClient -> API`
+   - 实盘数据流：`PandasData/GenericCSVData -> DataStoreBase -> TigerStore -> TigerClient -> API`
+   - 缓存管理：`TigerStore` 负责缓存的管理，包括检查、保存和读取
 
 ## 分层架构类图
 
 ```mermaid
 classDiagram
-    %% 数据源基类
+    %% 接口层
     class DataStoreBase {
         <<abstract>>
-        +start()
-        +stop()
-        +get_data()
-        +get_realtime_quotes()
         +get_historical_data()
+        +get_realtime_quotes()
+        +get_account_info()
     }
-
-    %% Backtrader核心类
-    class BTBroker {
-        <<abstract>>
-        +__init__()
-        +submit_order()
-        +cancel_order()
-        +get_cash()
-        +get_value()
-        +get_position()
+    
+    class TigerStore {
+        -config: TigerConfig
+        -client: TigerClient
+        +get_historical_data()
+        +get_realtime_quotes()
+        +get_account_info()
     }
+    
+    class IBStore {
+        -config: IBConfig
+        -client: IBClient
+        +get_historical_data()
+        +get_realtime_quotes()
+        +get_account_info()
+    }
+    
+    %% 数据源层
     class BTDataBase {
         <<abstract>>
-        +start()
-        +stop()
-        +_load()*
-        +haslivedata()
-        +put_notification()
+        -_store: DataStoreBase
+        +get_data()
     }
-    class BTStrategy {
-        <<abstract>>
-        +__init__()
-        +next()*
-        +notify_order()
-        +notify_trade()
-    }
-    class BTIndicator {
-        <<abstract>>
-        +__init__()
-        +next()*
-    }
-    class BTAnalyzer {
-        <<abstract>>
-        +__init__()
-        +next()*
-        +get_analysis()
-    }
-    class BTSizer {
-        <<abstract>>
-        +__init__()
-        +_getsizing()*
-    }
-
-    %% 数据源类
+    
     class PandasData {
-        +__init__(dataname: DataFrame)
-        +start()
-        +_load()
+        +get_data()
     }
+    
     class GenericCSVData {
-        +__init__(dataname: str)
-        +start()
-        +_load()
+        +get_data()
     }
+    
     class TigerRealtimeData {
-        +__init__()
-        +start()
-        +_load()
-        -last_time
-        -market_open
-        -contract
-    }
-
-    %% 数据存储类
-    class TigerStore {
-        +start()
-        +stop()
         +get_data()
-        +get_realtime_quotes()
-        +get_historical_data()
-        -_connect_api()
-        -_handle_response()
     }
-    class IBStore {
-        +start()
-        +stop()
-        +get_data()
-        +get_realtime_quotes()
-        +get_historical_data()
-        -_connect_api()
-        -_handle_response()
-    }
-
-    %% Broker类
-    class BacktestBroker {
-        +__init__()
-        +submit_order()
-        +cancel_order()
-        +get_cash()
-        +get_value()
-        +get_position()
-        -_process_order()
-        -_update_position()
-    }
-    class TigerBroker {
-        +__init__()
-        +submit_order()
-        +cancel_order()
-        +get_cash()
-        +get_value()
-        +get_position()
-        -_connect_api()
-        -_handle_response()
-    }
-    class IBBroker {
-        +__init__()
-        +submit_order()
-        +cancel_order()
-        +get_cash()
-        +get_value()
-        +get_position()
-        -_connect_api()
-        -_handle_response()
-    }
-
-    %% 事件处理类
-    class EventHandler {
-        <<abstract>>
-        +handle_event()
-        +process_event()
-    }
-    class TradeEventHandler {
-        +handle_event()
-        +process_event()
-        -_process_trade()
-    }
-    class RiskEventHandler {
-        +handle_event()
-        +process_event()
-        -_process_risk()
-    }
-    class DataEventHandler {
-        +handle_event()
-        +process_event()
-        -_process_data()
-    }
-
-    %% 应用层
-    class Main {
-        +run()
-        +initialize()
-        +shutdown()
-    }
-    class ScriptManager {
-        +create_script()
-        +run_script()
-        +stop_script()
-    }
-    class ScriptFactory {
-        +create_backtest_script()
-        +create_optimize_script()
-        +create_trade_script()
-    }
-    class BacktestScript {
-        +run()
-        +stop()
-        +analyze()
-    }
-    class OptimizeScript {
-        +run()
-        +stop()
-        +optimize()
-    }
-    class TradeScript {
-        +run()
-        +stop()
-        +trade()
-    }
-
-    %% 业务层
-    class MagicNineStrategy {
-        +__init__()
-        +next()
-        +notify_order()
-        +notify_trade()
-        +generate_signals()
-        +manage_position()
-    }
-    class SignalGenerator {
-        +generate_signal()
-        +update_signal()
-        +clear_signal()
-    }
-    class PositionSizer {
-        +__init__()
-        +_getsizing()
-        +update_position()
-    }
-    class RiskManager {
-        +__init__()
-        +next()
-        +get_analysis()
-        +check_risk()
-    }
-    class CustomIndicator {
-        +__init__()
-        +next()
-        +calculate()
-    }
-    class PerformanceAnalyzer {
-        +__init__()
-        +next()
-        +get_analysis()
-    }
-    class BacktestEngine {
-        +run()
-        +stop()
-        +analyze()
-    }
-    class OptimizeEngine {
-        +run()
-        +stop()
-        +optimize()
-    }
-    class LiveEngine {
-        +run()
-        +stop()
-        +trade()
-    }
-
-    %% 基础设施层
-    class Logger {
-        +log_info()
-        +log_warning()
-        +log_error()
-    }
-    class Config {
-        +load_config()
-        +save_config()
-        +validate_config()
-    }
-    class EventManager {
-        +register_event()
-        +unregister_event()
-        +trigger_event()
-        -_process_event()
-    }
-
-    %% 继承关系
+    
+    %% 关系
     DataStoreBase <|-- TigerStore
     DataStoreBase <|-- IBStore
-    BTBroker <|-- BacktestBroker
-    BTBroker <|-- TigerBroker
-    BTBroker <|-- IBBroker
-    BTStrategy <|-- MagicNineStrategy
-    BTSizer <|-- PositionSizer
-    BTAnalyzer <|-- RiskManager
-    BTAnalyzer <|-- PerformanceAnalyzer
-    BTIndicator <|-- CustomIndicator
     BTDataBase <|-- PandasData
     BTDataBase <|-- GenericCSVData
     BTDataBase <|-- TigerRealtimeData
-    EventHandler <|-- TradeEventHandler
-    EventHandler <|-- RiskEventHandler
-    EventHandler <|-- DataEventHandler
-
-    %% 应用层关系
-    Main --> ScriptManager
-    ScriptManager --> ScriptFactory
-    ScriptFactory --> BacktestScript
-    ScriptFactory --> OptimizeScript
-    ScriptFactory --> TradeScript
-
-    %% 业务层关系
-    MagicNineStrategy --> SignalGenerator
-    MagicNineStrategy --> PositionSizer
-    MagicNineStrategy --> RiskManager
-    MagicNineStrategy --> CustomIndicator
-    MagicNineStrategy --> PerformanceAnalyzer
-    BacktestScript --> BacktestEngine
-    OptimizeScript --> OptimizeEngine
-    TradeScript --> LiveEngine
-
-    %% 数据流关系
-    BacktestScript ..> PandasData
-    BacktestScript ..> GenericCSVData
-    BacktestScript ..> MagicNineStrategy
-    TradeScript ..> TigerRealtimeData
-    TradeScript ..> MagicNineStrategy
-    TigerRealtimeData ..> TigerStore
-    PandasData ..> TigerStore
-    GenericCSVData ..> TigerStore
-
-    %% 事件处理关系
-    EventManager --> EventHandler
-    EventManager --> Logger
-    EventManager --> MagicNineStrategy
-    EventManager --> TigerBroker
-    EventManager --> TigerRealtimeData
-
-    %% 基础设施层关系
-    Logger --> EventManager
-    Config --> EventManager
+    BTDataBase --> DataStoreBase
+    TigerStore --> TigerClient
+    IBStore --> IBClient
 ```
 
 ## 类关系说明
 
-### 1. 数据源体系
-- **DataStoreBase**: 数据存储基类，定义标准接口
-  - **TigerStore**: 老虎证券数据存储实现
-  - **IBStore**: Interactive Brokers数据存储实现
-- **BTDataBase**: backtrader框架的抽象数据源基类
-  - **PandasData**: 用于回测的DataFrame数据源
-  - **GenericCSVData**: 用于回测的CSV文件数据源
-  - **TigerRealtimeData**: 用于实盘的Tiger实时数据源
+1. 数据存储层：
+   - `DataStoreBase` 是数据存储的抽象基类，位于 `src/interface/store/` 目录
+   - 定义了数据存储的接口规范
+   - `TigerStore` 和 `IBStore` 继承自 `DataStoreBase`，实现具体的数据存储逻辑
 
-### 2. 引擎体系
-- **BacktestEngine**: 回测引擎
-  - 管理回测流程
-  - 控制数据回放
-  - 处理交易执行
-  - 收集回测结果
-- **OptimizeEngine**: 优化引擎
-  - 管理参数优化流程
-  - 控制参数组合生成
-  - 评估策略性能
-  - 选择最优参数
-- **LiveEngine**: 实盘引擎
-  - 管理实时交易流程
-  - 控制数据订阅
-  - 处理实时交易
-  - 监控系统状态
+2. 数据源层：
+   - `BTDataBase` 是数据源的抽象基类
+   - 包含 `_store` 属性，用于访问数据存储
+   - `PandasData`、`GenericCSVData` 和 `TigerRealtimeData` 继承自 `BTDataBase`
 
-### 3. 事件处理体系
-- **EventManager**: 事件管理器
-  - 注册事件处理器
-  - 分发事件
-  - 管理事件优先级
-  - 处理异常事件
-- **EventHandler**: 事件处理器基类
-  - **TradeEventHandler**: 处理交易相关事件
-  - **RiskEventHandler**: 处理风险相关事件
-  - **DataEventHandler**: 处理数据相关事件
-
-### 4. 配置管理体系
-- **Config**: 配置管理器
-  - 加载配置文件
-  - 管理配置项
-  - 验证配置有效性
-  - 支持配置热更新
-- 配置分类：
-  - 系统配置
-  - 策略配置
-  - 数据源配置
-  - 交易配置
-  - 风险配置
-
-### 5. 日志管理体系
-- **Logger**: 日志管理器
-  - 日志级别管理
-  - 日志格式控制
-  - 日志文件管理
-  - 日志轮转策略
-- 日志分类：
-  - 系统日志
-  - 交易日志
-  - 错误日志
-  - 性能日志
-
-### 6. 错误处理机制
-- 错误分类：
-  - 系统错误
-  - 交易错误
-  - 数据错误
-  - 网络错误
-- 错误处理策略：
-  - 自动重试
-  - 降级处理
-  - 告警通知
-  - 错误恢复
-
-### 7. 性能监控体系
-- 监控指标：
-  - 系统资源使用
-  - 交易执行性能
-  - 数据处理性能
-  - 网络延迟
-- 告警机制：
-  - 阈值告警
-  - 趋势告警
-  - 异常检测
-  - 告警通知
-
-### 8. 测试支持体系
-- 测试类型：
-  - 单元测试
-  - 集成测试
-  - 回测验证
-  - 实盘模拟
-- 测试工具：
-  - 测试框架
-  - 数据生成器
-  - 性能分析器
-  - 覆盖率工具 
+3. 数据流向：
+   - 回测数据流：`PandasData/GenericCSVData -> DataStoreBase -> TigerStore -> TigerClient -> API`
+   - 实盘数据流：`PandasData/GenericCSVData -> DataStoreBase -> TigerStore -> TigerClient -> API`
+   - 经纪商数据流：`TigerBroker -> TigerStore -> TigerClient -> API` 和 `IBBroker -> IBStore -> IBClient -> API`
