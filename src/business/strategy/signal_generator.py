@@ -34,8 +34,8 @@ class SignalGenerator:
                 magic_nine_buy: MagicNine买入计数
                 magic_nine_sell: MagicNine卖出计数
                 rsi: RSI指标值
-                ema20: 20周期EMA
-                ema50: 50周期EMA
+                ema_fast: 快速EMA
+                ema_slow: 慢速EMA
                 macd_histo: MACD直方图值
                 kdj_k: KDJ指标K值
                 kdj_d: KDJ指标D值
@@ -53,8 +53,8 @@ class SignalGenerator:
         
         # 获取RSI和EMA指标
         rsi = data.get('rsi', 50)
-        ema20 = data.get('ema20', 0)
-        ema50 = data.get('ema50', 0)
+        ema_fast = data.get('ema_fast', 0)
+        ema_slow = data.get('ema_slow', 0)
         
         # 获取MACD和KDJ指标
         macd_histo = data.get('macd_histo', 0)
@@ -108,10 +108,10 @@ class SignalGenerator:
                     self.logger.info(f"买入信号被过滤: 确认指标不支持 (MACD柱状图={macd_histo:.2f}, KDJ_J={kdj_j:.1f})")
         
         else:  # 无持仓，检查开仓信号
-            # 多头信号条件：买入计数达标且EMA20>EMA50（上升趋势）且RSI不超买
+            # 多头信号条件：买入计数达标且EMA快线>EMA慢线（上升趋势）且RSI不超买
             if not np.isnan(magic_nine_buy) and magic_nine_buy >= magic_count:
-                # 确认趋势方向 (EMA20 > EMA50 为上升趋势)
-                trend_up = ema20 > ema50
+                # 确认趋势方向 (EMA快线 > EMA慢线 为上升趋势)
+                trend_up = ema_fast > ema_slow
                 
                 # RSI不在超买区域 (避免在高点买入)
                 rsi_ok = rsi < rsi_overbought
@@ -127,10 +127,10 @@ class SignalGenerator:
                 else:
                     self.logger.info(f"买入信号被过滤: 确认指标不支持 (趋势={trend_up}, RSI={rsi:.1f}, MACD={macd_confirm}, KDJ={kdj_confirm})")
             
-            # 空头信号条件：卖出计数达标且EMA20<EMA50（下降趋势）且RSI不超卖
+            # 空头信号条件：卖出计数达标且EMA快线<EMA慢线（下降趋势）且RSI不超卖
             elif enable_short and not np.isnan(magic_nine_sell) and magic_nine_sell >= magic_count:
-                # 确认趋势方向 (EMA20 < EMA50 为下降趋势)
-                trend_down = ema20 < ema50
+                # 确认趋势方向 (EMA快线 < EMA慢线 为下降趋势)
+                trend_down = ema_fast < ema_slow
                 
                 # RSI不在超卖区域 (避免在低点卖空)
                 rsi_ok = rsi > rsi_oversold

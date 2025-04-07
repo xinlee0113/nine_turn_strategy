@@ -24,6 +24,8 @@ class MagicNineStrategy(bt.Strategy):
         ('kdj_slow', 3),        # KDJ慢速线周期
         ('kdj_overbought', 80), # KDJ超买值
         ('kdj_oversold', 20),   # KDJ超卖值
+        ('ema_fast', 20),       # EMA快线周期
+        ('ema_slow', 50),       # EMA慢线周期
         ('macd_fast', 12),      # MACD快线周期
         ('macd_slow', 26),      # MACD慢线周期
         ('macd_signal', 9),     # MACD信号线周期
@@ -50,8 +52,8 @@ class MagicNineStrategy(bt.Strategy):
         # 指标初始化
         self.magic_nine = MagicNine(self.data, period=self.p.magic_period)
         self.rsi = bt.indicators.RSI(self.data, period=self.p.rsi_period)
-        self.ema20 = bt.indicators.EMA(self.data, period=20)
-        self.ema50 = bt.indicators.EMA(self.data, period=50)
+        self.ema_fast = bt.indicators.EMA(self.data, period=self.p.ema_fast)
+        self.ema_slow = bt.indicators.EMA(self.data, period=self.p.ema_slow)
         
         # 使用MACDHisto指标替换MACD - 直接提供柱状图数据
         self.macd = bt.indicators.MACDHisto(
@@ -181,8 +183,8 @@ class MagicNineStrategy(bt.Strategy):
             'magic_nine_buy': self.magic_nine.lines.buy_setup[0],
             'magic_nine_sell': self.magic_nine.lines.sell_setup[0],
             'rsi': self.rsi[0],
-            'ema20': self.ema20[0],
-            'ema50': self.ema50[0],
+            'ema_fast': self.ema_fast[0],
+            'ema_slow': self.ema_slow[0],
             # 直接使用MACDHisto的histo线而不是计算差值
             'macd_histo': self.macd.lines.histo[0],  # 直接获取直方图数据
             'kdj_k': self.kdj.lines.K[0],
