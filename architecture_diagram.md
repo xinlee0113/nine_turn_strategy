@@ -419,6 +419,7 @@ sequenceDiagram
     participant ScriptManager
     participant OptimizeScript
     participant OptimizeEngine
+    participant ParamSearchStrategy
     participant Strategy
     participant SignalGenerator
     participant PositionSizer
@@ -426,10 +427,11 @@ sequenceDiagram
     participant MagicNineIndicator
     participant BtIndicators
     participant Analyzer
+    participant ResultVisualizer
     participant PandasData
     participant DataStoreBase
     participant TigerStore
-    participant TigerClient
+    participant ParamStore
     participant Logger
     participant EventManager
     participant Config
@@ -437,38 +439,47 @@ sequenceDiagram
     Main->>ScriptManager: 创建优化脚本
     ScriptManager->>OptimizeScript: 初始化优化脚本
     OptimizeScript->>Config: 加载优化配置
+    
+    %% 参数搜索策略选择
+    OptimizeScript->>ParamSearchStrategy: 选择参数搜索策略
+    Note over ParamSearchStrategy: 多种搜索策略选择:<br/>1. 网格搜索 (Grid Search)<br/>2. 随机搜索 (Random Search)<br/>3. 贝叶斯优化 (Bayesian Optimization)<br/>4. 遗传算法 (Genetic Algorithm)
+    ParamSearchStrategy->>OptimizeScript: 返回搜索策略
+    
+    %% 参数空间定义
+    OptimizeScript->>ParamSearchStrategy: 设定参数空间
+    Note over ParamSearchStrategy: 定义参数搜索范围:<br/>- 神奇九转参数<br/>- RSI参数<br/>- EMA参数<br/>- MACD参数<br/>- KDJ参数<br/>- 止损参数<br/>- 仓位参数
+    
     OptimizeScript->>OptimizeEngine: 创建优化引擎
-    OptimizeScript->>Strategy: 设置参数范围
-    Strategy->>SignalGenerator: 配置信号参数
-    Strategy->>PositionSizer: 配置仓位参数
-    Strategy->>RiskManager: 配置风险参数
-    Strategy->>MagicNineIndicator: 配置连续K线指标参数
-    Strategy->>BtIndicators: 配置技术指标参数
-    OptimizeEngine->>Strategy: 添加策略
+    OptimizeScript->>Analyzer: 设置评估指标
+    Note over Analyzer: 多目标优化指标:<br/>1. 收益率 (Return)<br/>2. 夏普比率 (Sharpe)<br/>3. 最大回撤 (Drawdown)<br/>4. 胜率 (Win Rate)<br/>5. 盈亏比 (Profit/Loss Ratio)
+    
     OptimizeScript->>PandasData: 创建数据源
     PandasData->>DataStoreBase: 请求历史数据
     DataStoreBase->>TigerStore: 获取数据
-    TigerStore->>TigerClient: 请求历史数据
-    TigerClient-->>TigerStore: 返回数据
     TigerStore-->>DataStoreBase: 返回数据
     DataStoreBase-->>PandasData: 返回数据
     OptimizeEngine->>PandasData: 添加数据源
-    OptimizeScript->>Analyzer: 添加分析器
+    
+    OptimizeEngine->>Strategy: 添加策略类
     OptimizeEngine->>Analyzer: 注册分析器
     OptimizeEngine->>EventManager: 注册事件监听
-    OptimizeEngine->>Logger: 开始优化
-
-    loop 每组参数
-        OptimizeEngine->>Strategy: 设置当前参数组合
-        Strategy->>SignalGenerator: 更新信号参数
-        Strategy->>PositionSizer: 更新仓位参数
-        Strategy->>RiskManager: 更新风险参数
-        Strategy->>MagicNineIndicator: 更新连续K线指标参数
-        Strategy->>BtIndicators: 更新技术指标参数
+    OptimizeEngine->>Logger: 开始优化流程
+    
+    %% 参数优化主循环
+    loop 参数搜索迭代
+        ParamSearchStrategy->>OptimizeEngine: 生成参数组合
         
+        OptimizeEngine->>Strategy: 创建策略实例
+        Strategy->>SignalGenerator: 配置信号参数
+        Strategy->>PositionSizer: 配置仓位参数
+        Strategy->>RiskManager: 配置风险参数
+        Strategy->>MagicNineIndicator: 配置神奇九转指标参数
+        Strategy->>BtIndicators: 配置技术指标参数
+        
+        %% 回测特定参数组合
         loop 每个交易日
             PandasData->>Strategy: next()
-            Strategy->>MagicNineIndicator: 计算连续K线指标
+            Strategy->>MagicNineIndicator: 计算神奇九转指标
             MagicNineIndicator-->>Strategy: 返回指标值
             Strategy->>BtIndicators: 计算技术指标
             BtIndicators-->>Strategy: 返回指标值
@@ -481,18 +492,42 @@ sequenceDiagram
             Strategy->>OptimizeEngine: 提交订单
             OptimizeEngine-->>Strategy: 返回订单状态
             Strategy->>Analyzer: 更新分析数据
-            EventManager->>Logger: 记录交易日志
         end
 
+        %% 性能评估与记录
         OptimizeEngine->>Analyzer: 分析当前参数结果
         Analyzer-->>OptimizeEngine: 返回性能指标
-        OptimizeEngine->>Logger: 记录参数组合结果
+        OptimizeEngine->>Logger: 记录参数组合性能
+        OptimizeEngine->>ParamSearchStrategy: 提供结果反馈
+        
+        alt 自适应参数搜索
+            ParamSearchStrategy->>ParamSearchStrategy: 根据性能调整搜索方向
+            Note over ParamSearchStrategy: 贝叶斯优化或遗传算法<br/>会根据历史结果调整搜索
+        end
     end
 
-    OptimizeEngine->>OptimizeScript: 返回最优参数
-    OptimizeScript->>Logger: 记录优化结果
-    OptimizeScript-->>ScriptManager: 返回优化结果
+    %% 结果处理与可视化
+    OptimizeEngine->>Analyzer: 汇总所有参数组合结果
+    Analyzer->>OptimizeEngine: 返回优化统计数据
+    OptimizeEngine->>ParamSearchStrategy: 请求最优参数组合
+    ParamSearchStrategy->>OptimizeEngine: 返回最优参数集
+    
+    OptimizeEngine->>ResultVisualizer: 生成优化结果可视化
+    Note over ResultVisualizer: 创建多种可视化:<br/>1. 参数敏感度分析<br/>2. 参数热力图<br/>3. 性能分布图<br/>4. Pareto最优前沿
+
+    OptimizeEngine->>ParamStore: 保存最优参数集
+    OptimizeEngine->>OptimizeScript: 返回优化结果
+    
+    OptimizeScript->>Config: 更新策略配置文件
+    OptimizeScript->>Logger: 生成优化报告
+    OptimizeScript-->>ScriptManager: 返回优化结果及报告
+    
     ScriptManager-->>Main: 展示优化结果
+    
+    alt 验证最优参数
+        Main->>ScriptManager: 使用最优参数运行回测
+        Note over ScriptManager: 验证优化效果<br/>并进行跨周期验证
+    end
 ```
 
 ### 3. 实盘交易流程
