@@ -20,7 +20,7 @@ class TigerClient:
         """初始化客户端"""
         self.logger = logging.getLogger(__name__)
         self.connected = False
-        self._api_client: QuoteClient = None
+        self._api_client = None
         self._initialize_api_client()
 
     def _get_config_paths(self) -> tuple[str, str]:
@@ -168,26 +168,45 @@ class TigerClient:
             raise ConnectionError("客户端未连接")
 
         try:
-            # 修正：获取实时行情应该使用 get_real_time_quotes 而不是 get_market_status
-            quotes_data = self._api_client.get_real_time_quotes(symbols=symbols)
+            # 使用正确的Tiger API方法获取实时行情
+            quotes_data = {}
+            for symbol in symbols:
+                try:
+                    # 使用get_stock_briefs方法获取行情数据
+                    briefs_df = self._api_client.get_stock_briefs(symbols=[symbol])
+                    
+                    # 正确处理DataFrame返回值
+                    if briefs_df is not None and not briefs_df.empty:
+                        # 从DataFrame提取第一行
+                        brief = briefs_df.iloc[0]
+                        quotes_data[symbol] = {
+                            'symbol': symbol,
+                            'last_price': float(brief.get('latest_price', 0)),
+                            'volume': int(brief.get('volume', 0)) if 'volume' in brief else 0,
+                            'open': float(brief.get('open', 0)) if 'open' in brief else 0,
+                            'high': float(brief.get('high', 0)) if 'high' in brief else 0,
+                            'low': float(brief.get('low', 0)) if 'low' in brief else 0,
+                            'timestamp': datetime.now(),
+                            'change': float(brief.get('change', 0)) if 'change' in brief else 0,
+                            'change_rate': float(brief.get('change_rate', 0)) if 'change_rate' in brief else 0
+                        }
+                        self.logger.info(f"成功获取 {symbol} 的实时行情")
+                except Exception as e:
+                    self.logger.warning(f"获取 {symbol} 的实时行情失败: {str(e)}")
+                    # 尝试使用备用方法：market_status
+                    try:
+                        status = self._api_client.get_market_status(symbol=symbol)
+                        if status and symbol in status:
+                            quotes_data[symbol] = {
+                                'symbol': symbol,
+                                'status': status.get(symbol),
+                                'timestamp': datetime.now(),
+                            }
+                            self.logger.info(f"使用市场状态方法获取 {symbol} 的状态: {status.get(symbol)}")
+                    except Exception as ex:
+                        self.logger.warning(f"备用方法获取 {symbol} 的状态也失败: {str(ex)}")
 
-            if not quotes_data:  # 检查返回是否为空列表
-                return {}
-
-            # quotes_data 是一个 list of dicts
-            result = {}
-            for quote in quotes_data:
-                symbol = quote.get('symbol')
-                if symbol:
-                    result[symbol] = {
-                        'symbol': symbol,
-                        'last_price': quote.get('latest_price'),
-                        'volume': quote.get('volume'),
-                        # 注意：时间戳字段名可能需要确认，这里假设是 'timestamp' 或类似字段
-                        # 'timestamp': quote.get('timestamp') 
-                        'timestamp': quote.get('latest_time')  # 根据API文档或实际返回调整
-                    }
-            return result
+            return quotes_data
 
         except Exception as e:
             self.logger.error(f"获取实时行情失败: {str(e)}")
