@@ -25,7 +25,7 @@ class TestTigerStore(unittest.TestCase):
         cls.store = TigerStore(cls.client)
         
         # 设置测试参数 - 使用过去30天的数据（使用NYC时区，与美股交易时间一致）
-        cls.symbol = "US.AAPL"
+        cls.symbol = "AAPL"
         ny_tz = pytz.timezone('America/New_York')
         cls.end_time = datetime.now(ny_tz)
         cls.start_time = cls.end_time - timedelta(days=10)  # 减少为10天，加快测试速度
