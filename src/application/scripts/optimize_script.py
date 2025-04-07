@@ -3,7 +3,7 @@
 负责参数优化流程的控制
 """
 from src.business.engines.optimize.optimize_engine import OptimizeEngine
-from src.business.strategy.magic_nine import MagicNineStrategy
+from src.business.strategy import MagicNineStrategy
 from src.interface.data.pandas_data import PandasData
 from src.interface.broker.backtest_broker import BacktestBroker
 from src.infrastructure.config.strategy_config import StrategyConfig

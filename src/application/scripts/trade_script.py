@@ -3,7 +3,7 @@
 负责实盘交易流程的控制
 """
 from src.business.engines.live.live_engine import LiveEngine
-from src.business.strategy.magic_nine import MagicNineStrategy
+from src.business.strategy import MagicNineStrategy
 from src.interface.data.tiger_realtime_data import TigerRealtimeData
 from src.interface.broker.tiger.tiger_broker import TigerBroker
 from src.interface.store.tiger_store import TigerStore

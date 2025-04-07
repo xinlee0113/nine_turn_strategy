@@ -284,7 +284,7 @@ class TigerStore(DataStoreBase):
         # 检查是否有额外的列需要删除
         columns_to_drop = []
         for col in result_df.columns:
-            if col not in required_columns and col != 'datetime':
+            if col not in required_columns and col != 'time' and col != 'datetime':
                 columns_to_drop.append(col)
                 
         # 删除额外的列
@@ -294,7 +294,9 @@ class TigerStore(DataStoreBase):
         
         # 确保 datetime 是索引
         if 'time' in result_df.columns:
-            self.logger.info(f"将 'time' 列设置为索引")
+            self.logger.info(f"将 'time' 列转换为datetime并设置为索引")
+            # 确保time列是datetime类型
+            result_df['time'] = pd.to_datetime(result_df['time'])
             result_df.set_index('time', inplace=True)
             result_df.index.name = 'datetime'
         

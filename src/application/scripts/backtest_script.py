@@ -8,9 +8,9 @@ import pytz
 import pandas as pd
 
 from src.business.engines.backtest.backtest_engine import BacktestEngine
-from src.business.strategy.magic_nine import MagicNineStrategy
 from src.business.analyzers.performance_analyzer import PerformanceAnalyzer
 from src.business.analyzers.risk_analyzer import RiskAnalyzer
+from src.business.strategy import MagicNineStrategy
 from src.interface.data.pandas_data import PandasData
 from src.interface.broker.backtest_broker import BacktestBroker
 from src.infrastructure.config.data_config import DataConfig
