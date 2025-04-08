@@ -6,6 +6,7 @@ import pytz
 
 from src.business.indicators import MagicNine
 from src.business.strategy.risk_manager import RiskManager
+from src.business.strategy.signal_generator import SignalGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,15 @@ class MagicNineStrategy(bt.Strategy):
             'short_min_profit_pct': self.p.short_min_profit_pct
         }
         self.risk_manager = RiskManager(risk_params)
+        
+        # 初始化信号生成器
+        signal_params = {
+            'magic_count': self.p.magic_count,
+            'rsi_overbought': self.p.rsi_overbought,
+            'rsi_oversold': self.p.rsi_oversold,
+            'enable_short': self.p.enable_short
+        }
+        self.signal_generator = SignalGenerator(signal_params)
 
         # 指标初始化
         self.magic_nine = MagicNine(self.data, period=self.p.magic_period)
@@ -212,60 +222,55 @@ class MagicNineStrategy(bt.Strategy):
         # 获取当前价格
         current_price = self.data.close[0]
 
+        # 计算当前持仓状态用于信号生成
+        current_position = 0
+        if self.position.size > 0:
+            current_position = 1
+        elif self.position.size < 0:
+            current_position = -1
+
+        # 使用信号生成器获取交易信号
+        signal, signal_desc = self.signal_generator.generate_signal(
+            self.magic_nine, self.rsi, self.ema20, self.ema50, current_position
+        )
+
         # 检查是否有仓位
         if not self.position:
             # 没有仓位，检查买入或卖空信号
+            if signal == 1 and is_safe_trading_time and not is_near_close:
+                # 多头开仓信号
+                # 计算仓位大小
+                value = self.broker.get_value()
+                size = int(value * self.p.position_size / current_price)
 
-            # 多头信号条件：买入计数达标且EMA20>EMA50（上升趋势）且RSI不超买
-            if self.magic_nine.lines.buy_setup[0] >= self.p.magic_count:
-                # 确认趋势方向 (EMA20 > EMA50 为上升趋势)
-                trend_up = self.ema20[0] > self.ema50[0]
+                if size > 0:
+                    logger.info(
+                        f'{self.data.datetime.datetime(0).isoformat()} 买入信号! 计数: {self.magic_nine.buy_count}, '
+                        f'价格: {current_price:.2f}, 数量: {size}, RSI: {self.rsi[0]:.2f}')
 
-                # RSI不在超买区域 (避免在高点买入)
-                rsi_ok = self.rsi[0] < self.p.rsi_overbought
+                    # 下买入订单
+                    self.order = self.buy(size=size)
+                    self.position_size = size
+                    self.is_short = False
 
-                # 同时满足条件时买入，但不在收盘前建立新仓位，同时避开开盘和收盘的30分钟
-                if trend_up and rsi_ok and is_safe_trading_time and not is_near_close:
-                    # 计算仓位大小
-                    value = self.broker.get_value()
-                    size = int(value * self.p.position_size / current_price)
+            elif signal == -1 and is_safe_trading_time and not is_near_close:
+                # 空头开仓信号
+                # 计算仓位大小
+                value = self.broker.get_value()
+                size = int(value * self.p.position_size / current_price)
 
-                    if size > 0:
-                        logger.info(
-                            f'{self.data.datetime.datetime(0).isoformat()} 买入信号! 计数: {self.magic_nine.buy_count}, '
-                            f'价格: {current_price:.2f}, 数量: {size}, RSI: {self.rsi[0]:.2f}')
+                if size > 0:
+                    logger.info(
+                        f'{self.data.datetime.datetime(0).isoformat()} 卖空信号! 计数: {self.magic_nine.sell_count}, '
+                        f'价格: {current_price:.2f}, 数量: {size}, RSI: {self.rsi[0]:.2f}')
 
-                        # 下买入订单
-                        self.order = self.buy(size=size)
-                        self.position_size = size
-                        self.is_short = False
+                    # 下卖空订单
+                    self.order = self.sell(size=size)
+                    self.position_size = size
+                    self.is_short = True
 
-            # 空头信号条件：卖出计数达标且EMA20<EMA50（下降趋势）且RSI不超卖
-            elif self.magic_nine.lines.sell_setup[0] >= self.p.magic_count and self.p.enable_short:
-                # 确认趋势方向 (EMA20 < EMA50 为下降趋势)
-                trend_down = self.ema20[0] < self.ema50[0]
-
-                # RSI不在超卖区域 (避免在低点卖空)
-                rsi_ok = self.rsi[0] > self.p.rsi_oversold
-
-                # 同时满足条件时卖空，但不在收盘前建立新仓位，同时避开开盘和收盘的30分钟
-                if trend_down and rsi_ok and is_safe_trading_time and not is_near_close:
-                    # 计算仓位大小
-                    value = self.broker.get_value()
-                    size = int(value * self.p.position_size / current_price)
-
-                    if size > 0:
-                        logger.info(
-                            f'{self.data.datetime.datetime(0).isoformat()} 卖空信号! 计数: {self.magic_nine.sell_count}, '
-                            f'价格: {current_price:.2f}, 数量: {size}, RSI: {self.rsi[0]:.2f}')
-
-                        # 下卖空订单
-                        self.order = self.sell(size=size)
-                        self.position_size = size
-                        self.is_short = True
-
-                        # 使用风险管理器设置卖空止损价格
-                        self.risk_manager.stop_loss = self.risk_manager.calculate_short_stop_loss(current_price)
+                    # 使用风险管理器设置卖空止损价格
+                    self.risk_manager.stop_loss = self.risk_manager.calculate_short_stop_loss(current_price)
 
         else:
             # 已有仓位，检查止损或平仓条件
@@ -289,8 +294,8 @@ class MagicNineStrategy(bt.Strategy):
                     self.risk_manager.reset()
                     return
 
-                # 3. 检查卖出信号作为多头平仓条件
-                if self.magic_nine.lines.sell_setup[0] >= self.p.magic_count:
+                # 3. 检查多头平仓信号
+                if signal == 0 and self.signal_generator.check_long_exit_signal(self.magic_nine):
                     logger.info(
                         f'{self.data.datetime.datetime(0).isoformat()} 卖出信号! 计数: {self.magic_nine.sell_count}, '
                         f'价格: {current_price:.2f}, 数量: {self.position_size}')
@@ -321,8 +326,8 @@ class MagicNineStrategy(bt.Strategy):
                     self.is_short = False
                     return
 
-                # 4. 检查买入信号作为空头平仓条件
-                if self.magic_nine.lines.buy_setup[0] >= self.p.magic_count:
+                # 4. 检查空头平仓信号
+                if signal == 0 and self.signal_generator.check_short_exit_signal(self.magic_nine):
                     logger.info(
                         f'{self.data.datetime.datetime(0).isoformat()} 买入信号! 计数: {self.magic_nine.buy_count}, '
                         f'价格: {current_price:.2f}, 数量: {self.position_size}')
