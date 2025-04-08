@@ -8,6 +8,7 @@ from src.business.strategy.signal_generator import SignalGenerator
 from src.business.strategy.position_sizer import PositionSizer
 from src.business.strategy.order_manager import OrderManager
 from src.business.strategy.time_manager import TimeManager
+from src.business.strategy.position_manager import PositionManager
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ class MagicNineStrategy(bt.Strategy):
             'atr_period': self.p.atr_period,
             'atr_multiplier': self.p.atr_multiplier,
             'short_atr_multiplier': self.p.short_atr_multiplier,
-            'volatility_adjust': self.p.volatility_adjust  # 恢复原始参数，但实际不会激活功能
+            'volatility_adjust': self.p.volatility_adjust
         }
         self.position_sizer = PositionSizer(position_params)
         
@@ -88,6 +89,11 @@ class MagicNineStrategy(bt.Strategy):
             'close_approach_minutes': 15  # 接近收盘的分钟数，默认为15分钟
         }
         self.time_manager = TimeManager(time_params)
+        
+        # 初始化持仓管理器
+        self.position_manager = PositionManager(
+            self, self.order_manager, self.position_sizer, self.risk_manager
+        )
 
         # 初始化指标
         self._init_indicators()
@@ -113,151 +119,6 @@ class MagicNineStrategy(bt.Strategy):
         """交易结果通知回调"""
         # 委托给订单管理器处理
         self.order_manager.notify_trade(trade)
-        
-    def _get_current_position_type(self):
-        """获取当前持仓类型
-        
-        Returns:
-            int: 1表示多头, -1表示空头, 0表示无持仓
-        """
-        if self.position.size > 0:
-            return 1
-        elif self.position.size < 0:
-            return -1
-        return 0
-        
-    def _handle_close_approaching(self, current_time, time_info):
-        """处理接近收盘时的强制平仓
-        
-        Args:
-            current_time: 当前时间
-            time_info: 时间信息字典
-            
-        Returns:
-            bool: 是否执行了平仓操作
-        """
-        if not self.time_manager.is_near_close(time_info) or not self.position:
-            return False
-            
-        if self.position.size > 0:  # 多头持仓
-            self._force_close_position(current_time, time_info, is_long=True)
-            return True
-        elif self.position.size < 0:  # 空头持仓
-            self._force_close_position(current_time, time_info, is_long=False)
-            return True
-            
-        return False
-        
-    def _force_close_position(self, current_time, time_info, is_long=True):
-        """强制平仓
-        """
-        position_type = "多头" if is_long else "空头"
-        logger.info(
-            f'{current_time.isoformat()} 收盘前强制平仓{position_type}! 价格: {self.data.close[0]:.2f}, '
-            f'ET时间约: {time_info["et_hour"]}:{time_info["et_minute"]:02d}')
-            
-        # 使用订单管理器平仓
-        if is_long:
-            self.order_manager.close_long("收盘前强制平仓")
-        else:
-            self.order_manager.close_short("收盘前强制平仓")
-            
-        self.risk_manager.reset()
-        
-    def _handle_position_sizing(self, is_long=True):
-        """计算仓位大小
-        """
-        current_price = self.data.close[0]
-        value = self.broker.get_value()
-        
-        if is_long:
-            size = self.position_sizer.calculate_long_position_size(value, current_price)
-        else:
-            size = self.position_sizer.calculate_short_position_size(value, current_price)
-            
-        # 波动率调整部分
-        if self.p.volatility_adjust:
-            size = self.position_sizer.adjust_position_size_by_volatility(
-                size, self.atr[0], is_short=(not is_long))
-                
-        return size
-        
-    def _handle_long_position(self, current_price):
-        """处理多头持仓的止损和平仓
-        """
-        # 更新移动止损价格
-        self.risk_manager.update_long_trailing_stop(current_price, self.order_manager.get_buy_price())
-
-        # 1. 多头止损检查
-        if self.risk_manager.check_long_stop_loss(current_price):
-            self.order_manager.close_long("多头止损触发")
-            self.risk_manager.reset()
-            return True
-
-        # 2. 获利目标检查
-        if self.risk_manager.check_long_profit_target(current_price, self.order_manager.get_buy_price()):
-            self.order_manager.close_long("达到多头利润目标")
-            self.risk_manager.reset()
-            return True
-            
-        return False
-        
-    def _handle_short_position(self, current_price):
-        """处理空头持仓的止损和平仓
-        """
-        # 1. 空头止损检查
-        if self.risk_manager.check_short_stop_loss(current_price):
-            self.order_manager.close_short("空头止损触发")
-            self.risk_manager.reset()
-            return True
-
-        # 2. 移动止损更新
-        self.risk_manager.update_short_trailing_stop(current_price, self.order_manager.get_buy_price())
-
-        # 3. 检查空头利润目标
-        if self.risk_manager.check_short_profit_target(current_price, self.order_manager.get_buy_price()):
-            self.order_manager.close_short("达到空头利润目标")
-            self.risk_manager.reset()
-            return True
-            
-        return False
-        
-    def _handle_signal_exit(self, signal, position_type):
-        """处理信号平仓
-        """
-        if signal != 0:
-            return False
-            
-        if position_type == 1 and self.signal_generator.check_long_exit_signal(self.magic_nine):
-            self.order_manager.close_long("多头平仓信号")
-            self.risk_manager.reset()
-            return True
-        elif position_type == -1 and self.signal_generator.check_short_exit_signal(self.magic_nine):
-            self.order_manager.close_short("空头平仓信号")
-            self.risk_manager.reset()
-            return True
-            
-        return False
-        
-    def _execute_long_entry(self, size):
-        """执行多头开仓
-        """
-        if size <= 0:
-            return False
-            
-        self.order_manager.buy_long(size)
-        return True
-        
-    def _execute_short_entry(self, size, current_price):
-        """执行空头开仓
-        """
-        if size <= 0:
-            return False
-            
-        self.order_manager.sell_short(size)
-        # 设置卖空止损价格
-        self.risk_manager.stop_loss = self.risk_manager.calculate_short_stop_loss(current_price)
-        return True
 
     def next(self):
         """主策略逻辑"""
@@ -265,8 +126,9 @@ class MagicNineStrategy(bt.Strategy):
         if self.order_manager.has_pending_order():
             return
 
-        # 获取当前时间
+        # 获取当前时间和价格
         current_time = self.data.datetime.datetime(0)
+        current_price = self.data.close[0]
         
         # 使用时间管理器分析当前时间
         time_info = self.time_manager.analyze_time(current_time)
@@ -275,14 +137,12 @@ class MagicNineStrategy(bt.Strategy):
         self.time_manager.log_time_info(current_time, time_info, log_interval=100, counter=len(self))
         
         # 处理接近收盘时的强制平仓
-        if self._handle_close_approaching(current_time, time_info):
-            return
-
-        # 获取当前价格
-        current_price = self.data.close[0]
+        if self.time_manager.is_near_close(time_info):
+            if self.position_manager.force_close_at_end_of_day(current_time, time_info):
+                return
 
         # 计算当前持仓状态用于信号生成
-        current_position = self._get_current_position_type()
+        current_position = self.position_manager.get_position_type()
 
         # 使用信号生成器获取交易信号
         signal, signal_desc = self.signal_generator.generate_signal(
@@ -290,31 +150,25 @@ class MagicNineStrategy(bt.Strategy):
         )
 
         # 检查是否有仓位
-        if not self.position:
+        if not self.position_manager.has_position():
             # 没有仓位，检查买入或卖空信号
             if signal == 1 and self.time_manager.is_safe_trading_time(time_info) and not self.time_manager.is_near_close(time_info):
                 # 多头开仓信号
-                size = self._handle_position_sizing(is_long=True)
-                self._execute_long_entry(size)
+                self.position_manager.open_long(current_price, "多头信号")
 
             elif signal == -1 and self.time_manager.is_safe_trading_time(time_info) and not self.time_manager.is_near_close(time_info):
                 # 空头开仓信号
-                size = self._handle_position_sizing(is_long=False)
-                self._execute_short_entry(size, current_price)
+                self.position_manager.open_short(current_price, "空头信号")
         else:
             # 已有仓位，检查止损或平仓条件
-            if current_position == 1:  # 多头持仓
-                # 处理多头止损和获利目标
-                if self._handle_long_position(current_price):
+            
+            # 1. 处理止损和获利目标
+            if self.position_manager.is_long():
+                if self.position_manager.handle_long_position(current_price):
+                    return
+            elif self.position_manager.is_short():
+                if self.position_manager.handle_short_position(current_price):
                     return
                     
-                # 检查多头平仓信号
-                self._handle_signal_exit(signal, current_position)
-                
-            elif current_position == -1:  # 空头持仓
-                # 处理空头止损和获利目标
-                if self._handle_short_position(current_price):
-                    return
-                    
-                # 检查空头平仓信号
-                self._handle_signal_exit(signal, current_position)
+            # 2. 检查信号平仓
+            self.position_manager.handle_signal_exit(signal, self.magic_nine)
