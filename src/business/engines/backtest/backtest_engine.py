@@ -34,13 +34,15 @@ class BacktestEngine(BaseEngine):
         self.data = None
         self.broker = None
 
-        # 分析器
+        # 分析器列表
         self.analyzers = []
-        self.performance_analyzer = PerformanceAnalyzer()
-        self.risk_analyzer = RiskAnalyzer()
-        self.trade_analyzer = TradeAnalyzer()
-        self.position_analyzer = PositionAnalyzer()
-        self.analyzers.extend([self.performance_analyzer, self.risk_analyzer, self.trade_analyzer, self.position_analyzer])
+        self.analyzer_classes = [
+            PerformanceAnalyzer,
+            RiskAnalyzer,
+            TradeAnalyzer,
+            PositionAnalyzer,
+            CustomDrawDown
+        ]
 
         # 回测状态
         self.is_running = False
@@ -117,16 +119,34 @@ class BacktestEngine(BaseEngine):
         self.cerebro.broker.setcash(initial_capital)
         self.cerebro.broker.setcommission(commission=commission)
 
-    def add_analyzer(self, analyzer) -> None:
-        """添加分析器"""
-        if analyzer not in self.analyzers:
-            self.analyzers.append(analyzer)
-            self.logger.info(f"添加分析器: {analyzer.__class__.__name__}")
+    def add_analyzer(self, analyzer_class) -> None:
+        """添加分析器类
+        
+        Args:
+            analyzer_class: 分析器类（不是实例）
+        """
+        if analyzer_class not in self.analyzer_classes:
+            self.analyzer_classes.append(analyzer_class)
+            self.logger.info(f"添加分析器类: {analyzer_class.__name__}")
 
     def _add_bt_analyzers(self):
-        """添加backtrader内置分析器"""
+        """添加backtrader分析器 - 在策略添加后调用"""
+        # 确保策略已经添加
+        if not hasattr(self, 'strategy') or self.strategy is None:
+            self.logger.warning("策略未设置，无法添加分析器")
+            return
+
+        # 添加自定义分析器类
+        for analyzer_class in self.analyzer_classes:
+            analyzer_name = analyzer_class.__name__.lower()
+            try:
+                self.cerebro.addanalyzer(analyzer_class, _name=analyzer_name)
+                self.logger.info(f"添加自定义分析器: {analyzer_class.__name__}")
+            except Exception as e:
+                self.logger.error(f"添加分析器 {analyzer_class.__name__} 失败: {e}")
+
+        # 添加backtrader内置分析器
         self.cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
-        self.cerebro.addanalyzer(CustomDrawDown, _name='drawdown')  # 使用自定义回撤分析器
         self.cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
         
         # 添加交易分析器，但保留内置的交易分析器以保持兼容性
@@ -142,8 +162,6 @@ class BacktestEngine(BaseEngine):
             self.logger.info("成功添加自定义索提诺比率分析器")
         except Exception as e:
             self.logger.warning(f"无法添加索提诺比率分析器: {e}")
-        
-        # 不在这里添加交易观察器，避免重复
 
     def set_plot_options(self, enabled=True, **kwargs):
         """设置绘图选项
@@ -168,9 +186,6 @@ class BacktestEngine(BaseEngine):
             self.is_running = False
             return {}
 
-        # 添加backtrader内置分析器
-        self._add_bt_analyzers()
-
         # 设置cerebro选项，控制标准观察器（解决双重Trades问题）
         show_trades = self.plot_options.get('show_trades', False) # 默认不显示交易观察器
         if not show_trades:
@@ -189,6 +204,9 @@ class BacktestEngine(BaseEngine):
             strategy_params = {}
 
         self.cerebro.addstrategy(self.strategy, **strategy_params)
+        
+        # 添加分析器 - 必须在添加策略后调用
+        self._add_bt_analyzers()
 
         # 运行回测
         self.logger.info("开始执行backtrader回测")
@@ -239,8 +257,17 @@ class BacktestEngine(BaseEngine):
         # 获取夏普比率
         sharpe = strategy.analyzers.sharpe.get_analysis()
 
-        # 获取回撤
-        drawdown = strategy.analyzers.drawdown.get_analysis()
+        # 获取自定义分析器结果
+        for analyzer_class in self.analyzer_classes:
+            analyzer_name = analyzer_class.__name__.lower()
+            if hasattr(strategy.analyzers, analyzer_name):
+                analyzer = getattr(strategy.analyzers, analyzer_name)
+                try:
+                    analyzer_results = analyzer.get_analysis()
+                    results[analyzer_name] = analyzer_results
+                    self.logger.info(f"获取分析器 {analyzer_name} 结果成功")
+                except Exception as e:
+                    self.logger.error(f"获取分析器 {analyzer_name} 结果失败: {e}")
 
         # 获取交易分析
         trades = strategy.analyzers.trade_analyzer.get_analysis()
@@ -250,100 +277,29 @@ class BacktestEngine(BaseEngine):
         try:
             sqn_result = strategy.analyzers.sqn.get_analysis()
         except Exception as e:
-            self.logger.warning(f"提取SQN分析结果失败: {e}")
-            
-        # 获取索提诺比率
+            self.logger.warning(f"获取SQN分析结果失败: {e}")
+
+        # 获取Sortino比率
         sortino_result = {}
         try:
             sortino_result = strategy.analyzers.sortino.get_analysis()
-            self.logger.info(f"成功提取索提诺比率: {sortino_result.get('sortinoratio', 0)}")
         except Exception as e:
-            self.logger.warning(f"提取索提诺比率分析结果失败: {e}")
-        
-        # 处理交易记录，用于自定义持仓分析
-        try:
-            # 提取策略中的交易记录
-            trade_list = strategy.trades
-            # 将交易记录传递给持仓分析器
-            for trade in trade_list:
-                trade_dict = {
-                    'action': trade.status == 0 and 'buy' or trade.status == 1 and 'sell' or trade.status == 2 and 'short' or 'cover',
-                    'symbol': trade.data._name if hasattr(trade.data, '_name') else 'unknown',
-                    'size': trade.size,
-                    'price': trade.price,
-                    'timestamp': trade.dtopen if hasattr(trade, 'dtopen') else datetime.now(),
-                    'baropen': trade.baropen if hasattr(trade, 'baropen') else 0,
-                    'barclose': trade.barclose if hasattr(trade, 'barclose') else 0,
-                    'pnl': trade.pnl if hasattr(trade, 'pnl') else 0,
-                    'pnlcomm': trade.pnlcomm if hasattr(trade, 'pnlcomm') else 0,
-                }
-                self.position_analyzer.on_trade(trade_dict)
-        except Exception as e:
-            self.logger.warning(f"处理交易记录失败: {e}")
+            self.logger.warning(f"获取Sortino比率分析结果失败: {e}")
 
-        # 整理性能指标
-        performance = {
-            'total_return': returns.get('rtot', 0),
-            'annual_return': returns.get('rnorm', 0),
-            'sharpe_ratio': sharpe.get('sharperatio', 0) if hasattr(sharpe, 'get') else 0,
-        }
-        
-        # 添加索提诺比率
-        if sortino_result and 'sortinoratio' in sortino_result:
-            performance['sortino_ratio'] = sortino_result.get('sortinoratio', 0)
-        else:
-            performance['sortino_ratio'] = 0
-        
-        # 添加SQN
-        if sqn_result and 'sqn' in sqn_result:
-            performance['sqn'] = sqn_result.get('sqn', 0)
+        # 组织结果
+        results.update({
+            'returns': returns,
+            'sharpe': sharpe,
+            'trades': self._extract_trade_stats(trades),
+            'sqn': sqn_result,
+            'sortino': sortino_result
+        })
 
-        # 整理风险指标
-        risk = {
-            'max_drawdown': drawdown.get('max', {}).get('drawdown', 0),
-            'max_drawdown_length': 0,  # 初始化为0
-            'volatility': 0,  # 需要另外计算
-        }
-        
-        # 直接使用回撤分析器提供的天数
-        if 'days' in drawdown.get('max', {}):
-            risk['max_drawdown_length'] = drawdown['max']['days']
-        # 如果没有天数信息，则使用原始数据点数
-        elif 'len' in drawdown.get('max', {}):
-            risk['max_drawdown_length'] = drawdown['max']['len']
-            self.logger.info(f"使用原始数据点数作为回撤持续时间: {drawdown['max']['len']}个数据点")
-        
-        # 记录回撤的起止日期
-        if 'start_date' in drawdown.get('max', {}) and 'end_date' in drawdown.get('max', {}):
-            risk['max_drawdown_start'] = drawdown['max']['start_date']
-            risk['max_drawdown_end'] = drawdown['max']['end_date']
-            
-        # 添加回撤历史记录
-        if 'drawdowns' in drawdown:
-            risk['drawdowns'] = drawdown['drawdowns']
-            self.logger.info(f"回撤历史记录: {len(drawdown['drawdowns'])}个回撤周期")
-        
-        # 添加总数据点数
-        if 'total_points' in drawdown:
-            risk['total_points'] = drawdown['total_points']
-
-        # 整理交易统计
-        trade_stats = self._extract_trade_stats(trades)
-        
-        # 获取持仓分析结果
-        position_stats = {}
-        try:
-            position_stats = self.position_analyzer.get_results()
-        except Exception as e:
-            self.logger.warning(f"获取持仓分析结果失败: {e}")
-
-        results['performance'] = performance
-        results['risk'] = risk
-        results['trades'] = trade_stats
-        results['positions'] = position_stats
+        # 记录摘要信息
+        self._log_summary(returns, sharpe, trades, sqn_result, sortino_result)
 
         return results
-        
+
     def _extract_trade_stats(self, trades) -> Dict[str, Any]:
         """从交易分析结果中提取详细的交易统计"""
         # 基础交易统计
@@ -418,7 +374,7 @@ class BacktestEngine(BaseEngine):
         self.logger.info("分析回测结果")
         return self.results
 
-    def _log_summary(self) -> None:
+    def _log_summary(self, returns, sharpe, trades, sqn_result, sortino_result) -> None:
         """记录回测摘要"""
         if not self.results:
             self.logger.warning("没有回测结果可记录")
@@ -429,27 +385,23 @@ class BacktestEngine(BaseEngine):
         self.logger.info("=" * 30)
 
         # 提取关键指标
-        if 'performance' in self.results:
-            perf = self.results['performance']
+        if 'returns' in self.results:
+            perf = self.results['returns']
             self.logger.info("性能指标:")
             # 确保值不为None再进行格式化
-            total_return = perf.get('total_return', 0) or 0
-            annual_return = perf.get('annual_return', 0) or 0
-            sharpe_ratio = perf.get('sharpe_ratio', 0) or 0
+            total_return = perf.get('rtot', 0) or 0
+            annual_return = perf.get('rnorm', 0) or 0
 
             self.logger.info(f"- 总收益率: {total_return * 100:.2f}%")
             self.logger.info(f"- 年化收益率: {annual_return * 100:.2f}%")
-            self.logger.info(f"- 夏普比率: {sharpe_ratio:.4f}")
 
-        if 'risk' in self.results:
-            risk = self.results['risk']
+        if 'sharpe' in self.results:
+            risk = self.results['sharpe']
             self.logger.info("风险指标:")
             # 确保值不为None再进行格式化
-            max_drawdown = risk.get('max_drawdown', 0) or 0
-            max_drawdown_length = risk.get('max_drawdown_length', 0) or 0
+            sharpe_ratio = risk.get('sharperatio', 0) or 0
 
-            self.logger.info(f"- 最大回撤: {max_drawdown * 100:.2f}%")
-            self.logger.info(f"- 最大回撤期: {max_drawdown_length} 天")
+            self.logger.info(f"- 夏普比率: {sharpe_ratio:.4f}")
 
         if 'trades' in self.results:
             trades = self.results['trades']
@@ -468,6 +420,22 @@ class BacktestEngine(BaseEngine):
             self.logger.info(f"- 胜率: {win_rate * 100:.2f}%")
             self.logger.info(f"- 平均收益: {pnl_avg:.4f}")
             self.logger.info(f"- 总净利润: {pnl_net:.4f}")
+
+        if 'sqn' in self.results:
+            sqn = self.results['sqn']
+            self.logger.info("SQN指标:")
+            # 确保值不为None再进行格式化
+            sqn_value = sqn.get('sqn', 0) or 0
+
+            self.logger.info(f"- SQN: {sqn_value}")
+
+        if 'sortino' in self.results:
+            sortino = self.results['sortino']
+            self.logger.info("Sortino比率:")
+            # 确保值不为None再进行格式化
+            sortino_value = sortino.get('sortinoratio', 0) or 0
+
+            self.logger.info(f"- Sortino比率: {sortino_value:.4f}")
 
         self.logger.info("=" * 30)
 

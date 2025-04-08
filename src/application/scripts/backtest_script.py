@@ -182,6 +182,7 @@ class BacktestScript:
                     self.logger.info(f"数据完整度: {completeness:.2f}% (获取 {len(data)}/{expected_total} 个数据点)")
             except Exception as e:
                 self.logger.warning(f"处理数据统计信息时出错: {str(e)}")
+                # 继续执行，不要因为统计信息错误而中断回测
         except Exception as e:
             self.logger.error(f"加载数据失败: {str(e)}")
             return False
@@ -192,9 +193,15 @@ class BacktestScript:
 
         # 6. 添加分析器
         self.logger.info("6. 添加分析器")
-        self.analyzer = PerformanceAnalyzer()
-        risk_analyzer = RiskAnalyzer()
-        self.analyzers = [self.analyzer, risk_analyzer]
+        from src.business.analyzers.performance_analyzer import PerformanceAnalyzer
+        from src.business.analyzers.risk_analyzer import RiskAnalyzer
+        
+        # 添加分析器类（而不是实例）
+        self.engine.add_analyzer(PerformanceAnalyzer)
+        self.engine.add_analyzer(RiskAnalyzer)
+        
+        # 记录
+        self.logger.info("成功添加基本分析器")
 
         # 7. 设置引擎组件
         self.logger.info("7. 向回测引擎添加组件")
@@ -204,9 +211,6 @@ class BacktestScript:
         self.engine.set_data(data)
         # 设置Broker
         self.engine.set_broker(self.broker)
-        # 注册分析器
-        for analyzer in self.analyzers:
-            self.engine.add_analyzer(analyzer)
             
         # 设置绘图选项
         if enable_plot:
@@ -247,7 +251,20 @@ class BacktestScript:
 
             # 10. 分析回测结果
             self.logger.info("10. 分析回测结果")
-            analysis_results = self.analyzer.analyze(results)
+            
+            # 由于已经在引擎中完成了分析，直接使用结果即可
+            # 检查结果中是否包含所需的分析数据
+            if not results:
+                self.logger.warning("回测引擎返回空结果")
+                analysis_results = {}
+            else:
+                # 构建分析结果字典
+                analysis_results = {
+                    'performance': results.get('performanceanalyzer', {}),
+                    'risk': results.get('riskanalyzer', {}),
+                    'trades': results.get('trades', {})
+                }
+                self.logger.info(f"已从回测引擎中提取分析结果: {analysis_results.keys()}")
 
             # 11. 记录回测报告
             self.logger.info("11. 生成回测报告")
@@ -257,6 +274,8 @@ class BacktestScript:
             return analysis_results
         except Exception as e:
             self.logger.error(f"回测执行失败: {str(e)}")
+            import traceback
+            self.logger.error(f"错误详情: {traceback.format_exc()}")
             return False
 
     def _log_results(self, results):
