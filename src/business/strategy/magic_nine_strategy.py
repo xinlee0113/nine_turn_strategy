@@ -7,6 +7,7 @@ import pytz
 from src.business.indicators import MagicNine
 from src.business.strategy.risk_manager import RiskManager
 from src.business.strategy.signal_generator import SignalGenerator
+from src.business.strategy.position_sizer import PositionSizer
 
 logger = logging.getLogger(__name__)
 
@@ -73,12 +74,24 @@ class MagicNineStrategy(bt.Strategy):
             'enable_short': self.p.enable_short
         }
         self.signal_generator = SignalGenerator(signal_params)
+        
+        # 初始化仓位计算器
+        position_params = {
+            'position_size': self.p.position_size,
+            'atr_period': self.p.atr_period,
+            'atr_multiplier': self.p.atr_multiplier,
+            'short_atr_multiplier': self.p.short_atr_multiplier,
+            'volatility_adjust': self.p.volatility_adjust  # 恢复原始参数，但实际不会激活功能
+        }
+        self.position_sizer = PositionSizer(position_params)
 
         # 指标初始化
         self.magic_nine = MagicNine(self.data, period=self.p.magic_period)
         self.rsi = bt.indicators.RSI(self.data, period=self.p.rsi_period)
         self.ema20 = bt.indicators.EMA(self.data, period=20)
         self.ema50 = bt.indicators.EMA(self.data, period=50)
+        # 恢复 ATR 指标，因为原始代码有这个参数
+        self.atr = bt.indicators.ATR(self.data, period=self.p.atr_period)
 
         logger.info(
             f"策略初始化完成 - 双向交易神奇九转模式 (比较周期:{self.p.magic_period}, 信号触发计数:{self.p.magic_count})")
@@ -239,9 +252,13 @@ class MagicNineStrategy(bt.Strategy):
             # 没有仓位，检查买入或卖空信号
             if signal == 1 and is_safe_trading_time and not is_near_close:
                 # 多头开仓信号
-                # 计算仓位大小
+                # 使用仓位计算器计算仓位大小
                 value = self.broker.get_value()
-                size = int(value * self.p.position_size / current_price)
+                size = self.position_sizer.calculate_long_position_size(value, current_price)
+                
+                # 波动率调整部分 - 暂时不会影响仓位大小
+                if self.p.volatility_adjust:
+                    size = self.position_sizer.adjust_position_size_by_volatility(size, self.atr[0], is_short=False)
 
                 if size > 0:
                     logger.info(
@@ -255,9 +272,13 @@ class MagicNineStrategy(bt.Strategy):
 
             elif signal == -1 and is_safe_trading_time and not is_near_close:
                 # 空头开仓信号
-                # 计算仓位大小
+                # 使用仓位计算器计算仓位大小
                 value = self.broker.get_value()
-                size = int(value * self.p.position_size / current_price)
+                size = self.position_sizer.calculate_short_position_size(value, current_price)
+                
+                # 波动率调整部分 - 暂时不会影响仓位大小
+                if self.p.volatility_adjust:
+                    size = self.position_sizer.adjust_position_size_by_volatility(size, self.atr[0], is_short=True)
 
                 if size > 0:
                     logger.info(
