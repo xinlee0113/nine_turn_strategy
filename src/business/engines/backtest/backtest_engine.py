@@ -276,8 +276,23 @@ class BacktestEngine(BaseEngine):
                     analyzer_results = analyzer.get_analysis()
                     results[analyzer_name] = analyzer_results
                     self.logger.info(f"获取分析器 {analyzer_name} 结果成功")
+                    
+                    # 特别检查TradeAnalyzer的结果
+                    if analyzer_name == 'tradeanalyzer':
+                        self.logger.info(f"TradeAnalyzer结果: {analyzer_results}")
+                        # 检查结果的类型和结构
+                        self.logger.info(f"TradeAnalyzer结果类型: {type(analyzer_results)}")
+                        if isinstance(analyzer_results, dict):
+                            # 检查是否包含trades键
+                            if 'trades' in analyzer_results:
+                                self.logger.info(f"trades内容: {analyzer_results['trades']}")
+                                # 检查是否包含avg_trades_per_day
+                                if 'avg_trades_per_day' in analyzer_results['trades']:
+                                    self.logger.info(f"找到avg_trades_per_day: {analyzer_results['trades']['avg_trades_per_day']}")
                 except Exception as e:
                     self.logger.error(f"获取分析器 {analyzer_name} 结果失败: {e}")
+                    import traceback
+                    self.logger.error(f"错误详情: {traceback.format_exc()}")
 
         # 获取交易分析
         trades = strategy.analyzers.trade_analyzer.get_analysis()
@@ -334,7 +349,6 @@ class BacktestEngine(BaseEngine):
             'lost': trades.get('lost', {}).get('total', 0),
             'pnl_net': trades.get('pnl', {}).get('net', {}).get('total', 0),
             'pnl_avg': trades.get('pnl', {}).get('net', {}).get('average', 0),
-            'avg_trades_per_day': trades.get('avg_trades_per_day', 0),  # 添加平均每天交易次数
         }
         
         # 计算胜率

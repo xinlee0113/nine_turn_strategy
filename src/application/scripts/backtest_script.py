@@ -280,10 +280,10 @@ class BacktestScript:
                     if 'trades' not in analysis_results:
                         analysis_results['trades'] = {}
                     
-                    # 直接从tradeanalyzer获取avg_trades_per_day
-                    if 'avg_trades_per_day' in trade_analyzer_results:
-                        analysis_results['trades']['avg_trades_per_day'] = trade_analyzer_results['avg_trades_per_day']
-                        self.logger.info(f"从tradeanalyzer获取平均每天交易次数: {trade_analyzer_results['avg_trades_per_day']}")
+                    # 从tradeanalyzer中获取平均每天交易次数
+                    if 'trades' in trade_analyzer_results and 'avg_trades_per_day' in trade_analyzer_results['trades']:
+                        analysis_results['trades']['avg_trades_per_day'] = trade_analyzer_results['trades']['avg_trades_per_day']
+                        self.logger.info(f"从tradeanalyzer.trades获取平均每天交易次数: {trade_analyzer_results['trades']['avg_trades_per_day']}")
                 
                 self.logger.info(f"已从回测引擎中提取分析结果: {analysis_results.keys()}")
 
@@ -390,6 +390,11 @@ class BacktestScript:
             self.logger.info(f"- 盈利交易: {won}")
             self.logger.info(f"- 亏损交易: {lost}")
             self.logger.info(f"- 胜率: {win_rate * 100:.2f}%")
+            
+            # 如果有平均每天交易次数，输出它
+            if 'avg_trades_per_day' in trades:
+                avg_trades_per_day = trades.get('avg_trades_per_day', 0) or 0
+                self.logger.info(f"- 平均每天交易次数: {avg_trades_per_day:.2f}")
             
             # 如果有更多高级指标，也输出它们
             if 'avg_profit' in trades and 'avg_loss' in trades:
@@ -511,6 +516,16 @@ class BacktestScript:
             # 周期
             period_str = getattr(self, 'period', '1m')
             
+            # 从trades数据中获取平均每天交易次数
+            avg_trades_per_day = results.get('trades', {}).get('avg_trades_per_day', 0)
+            if not avg_trades_per_day and 'trades' in results and 'total' in results['trades']:
+                # 如果avg_trades_per_day为0或不存在，但有交易总数，则计算平均每天交易次数
+                if hasattr(self, 'start_date') and hasattr(self, 'end_date') and self.start_date and self.end_date:
+                    delta = self.end_date - self.start_date
+                    days = max(1, delta.days + 1)  # 加1是为了包括开始日期
+                    avg_trades_per_day = results['trades']['total'] / days
+                    self.logger.info(f"计算得到平均每天交易次数: {avg_trades_per_day:.2f}")
+            
             # 提取关键指标并保留3位小数
             formatted_results = {
                 "performance": {
@@ -534,7 +549,7 @@ class BacktestScript:
                     "max_consecutive_wins": results.get('trades', {}).get('max_consecutive_wins', 0),
                     "max_consecutive_losses": results.get('trades', {}).get('max_consecutive_losses', 0),
                     "total_net_profit": round(results.get('trades', {}).get('pnl_net', 0) or 0, 3),
-                    "avg_trades_per_day": round(results.get('trades', {}).get('avg_trades_per_day', 0) or 0, 3),
+                    "avg_trades_per_day": round(avg_trades_per_day, 3),  # 使用计算或获取的avg_trades_per_day值
                 }
             }
             

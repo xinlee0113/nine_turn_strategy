@@ -152,7 +152,19 @@ class TradeAnalyzer(BaseAnalyzer):
         # 记录交易日期
         if 'timestamp' in trade and trade['timestamp'] is not None:
             trade_timestamp = trade['timestamp']
-            trade_date = trade_timestamp.date() if hasattr(trade_timestamp, 'date') else None
+            
+            # 尝试获取日期部分
+            trade_date = None
+            if hasattr(trade_timestamp, 'date'):
+                trade_date = trade_timestamp.date()
+            else:
+                # 如果timestamp不是datetime对象，尝试转换
+                try:
+                    from datetime import datetime
+                    if isinstance(trade_timestamp, str):
+                        trade_date = datetime.strptime(trade_timestamp, "%Y-%m-%d").date()
+                except Exception as e:
+                    self.logger.error(f"转换交易日期失败: {e}")
             
             if trade_date:
                 # 记录交易发生的日期
@@ -263,11 +275,15 @@ class TradeAnalyzer(BaseAnalyzer):
             # 计算实际交易的天数
             actual_trading_days = len(self.trading_days)
             
+            # 确保交易天数至少为1，避免除零错误
+            trading_period = max(trading_period, 1)
+            actual_trading_days = max(actual_trading_days, 1)
+            
             # 计算平均每个交易日的交易次数
-            avg_trades_per_trading_day = self.total_trades / max(actual_trading_days, 1)
+            avg_trades_per_trading_day = self.total_trades / actual_trading_days
             
             # 计算平均每天交易次数(包括非交易日)
-            self.avg_trades_per_day = self.total_trades / max(trading_period, 1)
+            self.avg_trades_per_day = self.total_trades / trading_period
             
             self.logger.info(f"交易时段: {self.first_trade_date} 至 {self.last_trade_date}, "
                            f"持续{trading_period}天, 其中{actual_trading_days}个交易日")
