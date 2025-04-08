@@ -7,6 +7,8 @@ from datetime import datetime
 
 import backtrader as bt
 import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 from src.infrastructure.constants.const import DEFAULT_INITIAL_CAPITAL, DEFAULT_COMMISSION_RATE
 from ..base_engine import BaseEngine
@@ -224,10 +226,28 @@ class BacktestEngine(BaseEngine):
                 # 过滤掉非绘图相关的选项
                 plot_options = {k: v for k, v in self.plot_options.items() 
                               if k not in ['show_trades']}
+                
+                # 手动设置matplotlib图形尺寸
+                figsize = plot_options.pop('figsize', (20, 10))
+                width = plot_options.pop('width', 16)
+                height = plot_options.pop('height', 9)
+                dpi = plot_options.pop('dpi', 100)
+                
+                # 如果figsize定义了，优先使用figsize
+                if not figsize:
+                    figsize = (width, height)
+                
+                # 使用mpl.rcParams统一设置
+                mpl.rcParams['figure.figsize'] = figsize
+                mpl.rcParams['figure.dpi'] = dpi
+                
+                # 绘图
                 self.cerebro.plot(**plot_options)
-                self.logger.info("图表生成成功")
+                self.logger.info(f"图表生成成功，尺寸: {figsize}, DPI: {dpi}")
             except Exception as e:
-                self.logger.error(f"图表生成失败: {e}")
+                self.logger.error(f"图表生成失败: {str(e)}")
+                import traceback
+                self.logger.error(f"错误详情: {traceback.format_exc()}")
 
         # 完成回测
         self.is_running = False

@@ -219,17 +219,13 @@ class BacktestScript:
                 'volume': True,     # 默认显示成交量
                 'plotname': f"{symbol} {period} {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
                 'show': True,       # 立即显示图表
-                'width': 16,        # 图表宽度
-                'height': 9,        # 图表高度
-                'dpi': 100,         # 分辨率
+                'figsize': (20, 10),  # 图表尺寸设置为更大值
+                'dpi': 100,         # 分辨率150DPI
                 'use': None,        # 使用指定的绘图后端，None表示自动选择
-                'plotdist': 0.0,    # 子图之间的间距
                 'barup': '#27A59A', # 上涨柱状图颜色
                 'bardown': '#EF534F',  # 下跌柱状图颜色
+                'plotdist': 0.0,    # 子图之间的间距
                 'linevalues': True,    # 显示线条数值
-                'fmt_x_data': None,    # x轴数据格式
-                'fmt_y_data': None,    # y轴数据格式
-                'plotobservercols': True,  # 默认绘制观察者列
                 'show_trades': True,       # 默认显示交易观察器
                 'show_broker': True,       # 默认显示资金曲线
                 'show_buysell': True,      # 默认显示买卖点标记
