@@ -1,14 +1,13 @@
 import logging
-from datetime import datetime, timedelta
 
 import backtrader as bt
-import pytz
 
 from src.business.indicators import MagicNine
 from src.business.strategy.risk_manager import RiskManager
 from src.business.strategy.signal_generator import SignalGenerator
 from src.business.strategy.position_sizer import PositionSizer
 from src.business.strategy.order_manager import OrderManager
+from src.business.strategy.time_manager import TimeManager
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +80,14 @@ class MagicNineStrategy(bt.Strategy):
             'volatility_adjust': self.p.volatility_adjust  # 恢复原始参数，但实际不会激活功能
         }
         self.position_sizer = PositionSizer(position_params)
+        
+        # 初始化时间管理器
+        time_params = {
+            'avoid_open_minutes': self.p.avoid_open_minutes,
+            'avoid_close_minutes': self.p.avoid_close_minutes,
+            'close_approach_minutes': 15  # 接近收盘的分钟数，默认为15分钟
+        }
+        self.time_manager = TimeManager(time_params)
 
         # 指标初始化
         self.magic_nine = MagicNine(self.data, period=self.p.magic_period)
@@ -112,79 +119,27 @@ class MagicNineStrategy(bt.Strategy):
 
         # 获取当前时间
         current_time = self.data.datetime.datetime(0)
-
-        # 时区判断与转换 - 证券交易时间处理
-        # 美股正常交易时间是美东时间(ET)的9:30-16:00
-
-        # 使用pytz准确判断是否是夏令时
-        eastern = pytz.timezone('US/Eastern')
-        # 使用当前日期构建一个aware datetime对象
-        # backtrader提供的datetime对象是naive的，我们需要假设它是UTC时间
-        # 然后验证当前时间对应的美东时间是否在夏令时
-        utc_time = pytz.utc.localize(datetime(
-            current_time.year, current_time.month, current_time.day,
-            current_time.hour, current_time.minute, current_time.second
-        ))
-        et_time = utc_time.astimezone(eastern)
-        is_dst = et_time.dst() != timedelta(0)
-
-        # 初始假设时间是美东时间
-        et_hour = current_time.hour
-        et_minute = current_time.minute
-        is_utc_time = False
-
-        # 判断是否可能是UTC时间格式，根据交易时间合理性判断
-        # UTC时间对应美股交易时间：
-        # 美东标准时(EST)：UTC-5，交易时间是UTC 14:30-21:00
-        # 美东夏令时(EDT)：UTC-4，交易时间是UTC 13:30-20:00
-        if is_dst:  # 夏令时
-            # 如果时间在UTC交易范围内，可能是UTC时间
-            if 13 <= current_time.hour <= 20:
-                is_utc_time = True
-                et_hour = (current_time.hour - 4) % 24  # UTC-4
-        else:  # 标准时
-            # 如果时间在UTC交易范围内，可能是UTC时间
-            if 14 <= current_time.hour <= 21:
-                is_utc_time = True
-                et_hour = (current_time.hour - 5) % 24  # UTC-5
-
-        # 计算开盘和收盘时间
-        market_open_hour = 9
-        market_open_minute = 30
-        market_close_hour = 16
-        market_close_minute = 0
-
-        # 计算交易时间分钟数（相对于开盘时间）
-        minutes_since_open = (et_hour - market_open_hour) * 60 + (et_minute - market_open_minute)
-        minutes_before_close = (market_close_hour - et_hour) * 60 + (market_close_minute - et_minute)
-
-        # 判断是否在交易时段 (美东时间9:30-16:00)，并避开开盘和收盘的30分钟
-        is_trading_time = (9 < et_hour < 16) or (et_hour == 9 and et_minute >= 30) or (et_hour == 16 and et_minute == 0)
-        is_safe_trading_time = is_trading_time and minutes_since_open >= self.p.avoid_open_minutes and minutes_before_close >= self.p.avoid_close_minutes
-
-        # 判断是否接近美股收盘时间 (美东时间15:45-16:00)
-        is_near_close = (et_hour == 15 and et_minute >= 45) or et_hour == 16
-
-        # 记录详细的时间信息用于调试
-        if len(self) % 100 == 0 or is_near_close:  # 每100个bar记录一次或接近收盘时记录
-            time_format = "UTC" if is_utc_time else "ET"
-            logger.info(f"时间检查: 原始时间={current_time.isoformat()}, 计算为美东时间:{et_hour}:{et_minute:02d}, "
-                        f"时间格式:{time_format}, 交易时段:{is_trading_time}, 安全交易时段:{is_safe_trading_time}, "
-                        f"开盘后分钟数:{minutes_since_open}, 收盘前分钟数:{minutes_before_close}, "
-                        f"接近收盘:{is_near_close}, 夏令时:{is_dst}")
-
+        
+        # 使用时间管理器分析当前时间
+        time_info = self.time_manager.analyze_time(current_time)
+        
+        # 每100个bar记录一次时间信息或在接近收盘时记录
+        self.time_manager.log_time_info(current_time, time_info, log_interval=100, counter=len(self))
+        
         # 如果接近收盘且有持仓，强制平仓
-        if is_near_close and self.position:
+        if self.time_manager.is_near_close(time_info) and self.position:
             if self.position.size > 0:  # 多头持仓
                 logger.info(
-                    f'{current_time.isoformat()} 收盘前强制平仓多头! 价格: {self.data.close[0]:.2f}, ET时间约: {et_hour}:{et_minute:02d}')
+                    f'{current_time.isoformat()} 收盘前强制平仓多头! 价格: {self.data.close[0]:.2f}, '
+                    f'ET时间约: {time_info["et_hour"]}:{time_info["et_minute"]:02d}')
                 # 使用订单管理器平仓
                 self.order_manager.close_long("收盘前强制平仓")
                 self.risk_manager.reset()
                 return
             elif self.position.size < 0:  # 空头持仓
                 logger.info(
-                    f'{current_time.isoformat()} 收盘前强制平仓空头! 价格: {self.data.close[0]:.2f}, ET时间约: {et_hour}:{et_minute:02d}')
+                    f'{current_time.isoformat()} 收盘前强制平仓空头! 价格: {self.data.close[0]:.2f}, '
+                    f'ET时间约: {time_info["et_hour"]}:{time_info["et_minute"]:02d}')
                 # 使用订单管理器平仓
                 self.order_manager.close_short("收盘前强制平仓")
                 self.risk_manager.reset()
@@ -208,7 +163,7 @@ class MagicNineStrategy(bt.Strategy):
         # 检查是否有仓位
         if not self.position:
             # 没有仓位，检查买入或卖空信号
-            if signal == 1 and is_safe_trading_time and not is_near_close:
+            if signal == 1 and self.time_manager.is_safe_trading_time(time_info) and not self.time_manager.is_near_close(time_info):
                 # 多头开仓信号
                 # 使用仓位计算器计算仓位大小
                 value = self.broker.get_value()
@@ -222,7 +177,7 @@ class MagicNineStrategy(bt.Strategy):
                 if size > 0:
                     self.order_manager.buy_long(size)
 
-            elif signal == -1 and is_safe_trading_time and not is_near_close:
+            elif signal == -1 and self.time_manager.is_safe_trading_time(time_info) and not self.time_manager.is_near_close(time_info):
                 # 空头开仓信号
                 # 使用仓位计算器计算仓位大小
                 value = self.broker.get_value()
