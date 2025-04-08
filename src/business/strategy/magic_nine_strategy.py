@@ -9,6 +9,7 @@ from src.business.strategy.position_sizer import PositionSizer
 from src.business.strategy.order_manager import OrderManager
 from src.business.strategy.time_manager import TimeManager
 from src.business.strategy.position_manager import PositionManager
+from src.business.strategy.indicator_manager import IndicatorManager
 
 logger = logging.getLogger(__name__)
 
@@ -94,21 +95,38 @@ class MagicNineStrategy(bt.Strategy):
         self.position_manager = PositionManager(
             self, self.order_manager, self.position_sizer, self.risk_manager
         )
-
-        # 初始化指标
-        self._init_indicators()
+        
+        # 初始化指标管理器
+        self.indicators = IndicatorManager(self)
 
         logger.info(
             f"策略初始化完成 - 双向交易神奇九转模式 (比较周期:{self.p.magic_period}, 信号触发计数:{self.p.magic_count})")
         logger.info(f"避开开盘后{self.p.avoid_open_minutes}分钟和收盘前{self.p.avoid_close_minutes}分钟的交易")
-
-    def _init_indicators(self):
-        """初始化指标"""
-        self.magic_nine = MagicNine(self.data, period=self.p.magic_period)
-        self.rsi = bt.indicators.RSI(self.data, period=self.p.rsi_period)
-        self.ema20 = bt.indicators.EMA(self.data, period=20)
-        self.ema50 = bt.indicators.EMA(self.data, period=50)
-        self.atr = bt.indicators.ATR(self.data, period=self.p.atr_period)
+        
+    @property
+    def magic_nine(self):
+        """获取神奇九转指标"""
+        return self.indicators.get_magic_nine()
+        
+    @property
+    def rsi(self):
+        """获取RSI指标"""
+        return self.indicators.get_rsi()
+        
+    @property
+    def ema20(self):
+        """获取20周期EMA指标"""
+        return self.indicators.get_ema20()
+        
+    @property
+    def ema50(self):
+        """获取50周期EMA指标"""
+        return self.indicators.get_ema50()
+        
+    @property
+    def atr(self):
+        """获取ATR指标"""
+        return self.indicators.get_atr()
 
     def notify_order(self, order):
         """订单状态通知回调"""
