@@ -8,6 +8,7 @@ from src.business.indicators import MagicNine
 from src.business.strategy.risk_manager import RiskManager
 from src.business.strategy.signal_generator import SignalGenerator
 from src.business.strategy.position_sizer import PositionSizer
+from src.business.strategy.order_manager import OrderManager
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +47,8 @@ class MagicNineStrategy(bt.Strategy):
 
     def __init__(self):
         """初始化策略"""
-        # 订单和仓位跟踪
-        self.order = None
-        self.buy_price = None
-        self.buy_comm = None
-        self.position_size = 0
-        self.is_short = False  # 标记当前是否为空头仓位
+        # 初始化订单管理器
+        self.order_manager = OrderManager(self)
 
         # 初始化风险管理器
         risk_params = {
@@ -99,56 +96,18 @@ class MagicNineStrategy(bt.Strategy):
 
     def notify_order(self, order):
         """订单状态通知回调"""
-        if order.status in [order.Submitted, order.Accepted]:
-            # 订单已提交或已接受 - 无需操作
-            return
-
-        # 检查订单是否已完成
-        if order.status in [order.Completed]:
-            if order.isbuy():
-                logger.info(
-                    f'{self.data.datetime.datetime(0).isoformat()} 买入执行，价格: {order.executed.price:.2f}, '
-                    f'成本: {order.executed.value:.2f}, 手续费: {order.executed.comm:.2f}'
-                )
-                self.buy_price = order.executed.price
-                self.buy_comm = order.executed.comm
-            else:  # 卖出
-                if self.is_short:
-                    logger.info(
-                        f'{self.data.datetime.datetime(0).isoformat()} 卖空执行，价格: {order.executed.price:.2f}, '
-                        f'成本: {order.executed.value:.2f}, 手续费: {order.executed.comm:.2f}'
-                    )
-                    self.buy_price = order.executed.price  # 记录卖空价格
-                    self.buy_comm = order.executed.comm
-                else:
-                    logger.info(
-                        f'{self.data.datetime.datetime(0).isoformat()} 卖出执行，价格: {order.executed.price:.2f}, '
-                        f'成本: {order.executed.value:.2f}, 手续费: {order.executed.comm:.2f}'
-                    )
-        elif order.status in [order.Canceled, order.Margin, order.Rejected]:
-            logger.warning(f'{self.data.datetime.datetime(0).isoformat()} 订单取消/保证金不足/拒绝')
-
-        # 重置订单引用
-        self.order = None
+        # 委托给订单管理器处理
+        self.order_manager.notify_order(order)
 
     def notify_trade(self, trade):
         """交易结果通知回调"""
-        if trade.isclosed:
-            if self.is_short:
-                # 计算空头交易利润
-                profit = (self.buy_price - trade.price) * trade.size
-                profit_pct = (self.buy_price / trade.price - 1) * 100
-                logger.info(
-                    f'{self.data.datetime.datetime(0).isoformat()} 空头交易利润: {profit:.2f}, 收益率: {profit_pct:.2f}%')
-                self.is_short = False
-
-            logger.info(
-                f'{self.data.datetime.datetime(0).isoformat()} 交易利润, 毛利润: {trade.pnl:.2f}, 净利润: {trade.pnlcomm:.2f}')
+        # 委托给订单管理器处理
+        self.order_manager.notify_trade(trade)
 
     def next(self):
         """主策略逻辑"""
         # 如果有未完成的订单，不进行操作
-        if self.order:
+        if self.order_manager.has_pending_order():
             return
 
         # 获取当前时间
@@ -219,17 +178,16 @@ class MagicNineStrategy(bt.Strategy):
             if self.position.size > 0:  # 多头持仓
                 logger.info(
                     f'{current_time.isoformat()} 收盘前强制平仓多头! 价格: {self.data.close[0]:.2f}, ET时间约: {et_hour}:{et_minute:02d}')
-                self.order = self.sell(size=self.position_size)
-                self.position_size = 0
+                # 使用订单管理器平仓
+                self.order_manager.close_long("收盘前强制平仓")
                 self.risk_manager.reset()
                 return
             elif self.position.size < 0:  # 空头持仓
                 logger.info(
                     f'{current_time.isoformat()} 收盘前强制平仓空头! 价格: {self.data.close[0]:.2f}, ET时间约: {et_hour}:{et_minute:02d}')
-                self.order = self.buy(size=self.position_size)
-                self.position_size = 0
+                # 使用订单管理器平仓
+                self.order_manager.close_short("收盘前强制平仓")
                 self.risk_manager.reset()
-                self.is_short = False
                 return
 
         # 获取当前价格
@@ -260,15 +218,9 @@ class MagicNineStrategy(bt.Strategy):
                 if self.p.volatility_adjust:
                     size = self.position_sizer.adjust_position_size_by_volatility(size, self.atr[0], is_short=False)
 
+                # 使用订单管理器执行买入操作
                 if size > 0:
-                    logger.info(
-                        f'{self.data.datetime.datetime(0).isoformat()} 买入信号! 计数: {self.magic_nine.buy_count}, '
-                        f'价格: {current_price:.2f}, 数量: {size}, RSI: {self.rsi[0]:.2f}')
-
-                    # 下买入订单
-                    self.order = self.buy(size=size)
-                    self.position_size = size
-                    self.is_short = False
+                    self.order_manager.buy_long(size)
 
             elif signal == -1 and is_safe_trading_time and not is_near_close:
                 # 空头开仓信号
@@ -280,16 +232,9 @@ class MagicNineStrategy(bt.Strategy):
                 if self.p.volatility_adjust:
                     size = self.position_sizer.adjust_position_size_by_volatility(size, self.atr[0], is_short=True)
 
+                # 使用订单管理器执行卖空操作
                 if size > 0:
-                    logger.info(
-                        f'{self.data.datetime.datetime(0).isoformat()} 卖空信号! 计数: {self.magic_nine.sell_count}, '
-                        f'价格: {current_price:.2f}, 数量: {size}, RSI: {self.rsi[0]:.2f}')
-
-                    # 下卖空订单
-                    self.order = self.sell(size=size)
-                    self.position_size = size
-                    self.is_short = True
-
+                    self.order_manager.sell_short(size)
                     # 使用风险管理器设置卖空止损价格
                     self.risk_manager.stop_loss = self.risk_manager.calculate_short_stop_loss(current_price)
 
@@ -299,62 +244,43 @@ class MagicNineStrategy(bt.Strategy):
             # 检查多头仓位
             if self.position.size > 0:
                 # 使用风险管理器更新移动止损价格
-                self.risk_manager.update_long_trailing_stop(current_price, self.buy_price)
+                self.risk_manager.update_long_trailing_stop(current_price, self.order_manager.get_buy_price())
 
                 # 1. 多头止损检查
                 if self.risk_manager.check_long_stop_loss(current_price):
-                    self.order = self.sell(size=self.position_size)
-                    self.position_size = 0
+                    self.order_manager.close_long("多头止损触发")
                     self.risk_manager.reset()
                     return
 
                 # 2. 获利目标检查
-                if self.risk_manager.check_long_profit_target(current_price, self.buy_price):
-                    self.order = self.sell(size=self.position_size)
-                    self.position_size = 0
+                if self.risk_manager.check_long_profit_target(current_price, self.order_manager.get_buy_price()):
+                    self.order_manager.close_long("达到多头利润目标")
                     self.risk_manager.reset()
                     return
 
                 # 3. 检查多头平仓信号
                 if signal == 0 and self.signal_generator.check_long_exit_signal(self.magic_nine):
-                    logger.info(
-                        f'{self.data.datetime.datetime(0).isoformat()} 卖出信号! 计数: {self.magic_nine.sell_count}, '
-                        f'价格: {current_price:.2f}, 数量: {self.position_size}')
-
-                    # 下卖出订单
-                    self.order = self.sell(size=self.position_size)
-                    self.position_size = 0
+                    self.order_manager.close_long("多头平仓信号")
                     self.risk_manager.reset()
 
             # 检查空头仓位
             elif self.position.size < 0:
                 # 1. 空头止损检查
                 if self.risk_manager.check_short_stop_loss(current_price):
-                    self.order = self.buy(size=self.position_size)
-                    self.position_size = 0
+                    self.order_manager.close_short("空头止损触发")
                     self.risk_manager.reset()
-                    self.is_short = False
                     return
 
                 # 2. 移动止损更新
-                self.risk_manager.update_short_trailing_stop(current_price, self.buy_price)
+                self.risk_manager.update_short_trailing_stop(current_price, self.order_manager.get_buy_price())
 
                 # 3. 检查空头利润目标
-                if self.risk_manager.check_short_profit_target(current_price, self.buy_price):
-                    self.order = self.buy(size=self.position_size)
-                    self.position_size = 0
+                if self.risk_manager.check_short_profit_target(current_price, self.order_manager.get_buy_price()):
+                    self.order_manager.close_short("达到空头利润目标")
                     self.risk_manager.reset()
-                    self.is_short = False
                     return
 
                 # 4. 检查空头平仓信号
                 if signal == 0 and self.signal_generator.check_short_exit_signal(self.magic_nine):
-                    logger.info(
-                        f'{self.data.datetime.datetime(0).isoformat()} 买入信号! 计数: {self.magic_nine.buy_count}, '
-                        f'价格: {current_price:.2f}, 数量: {self.position_size}')
-
-                    # 下买入订单平空头仓位
-                    self.order = self.buy(size=self.position_size)
-                    self.position_size = 0
+                    self.order_manager.close_short("空头平仓信号")
                     self.risk_manager.reset()
-                    self.is_short = False
