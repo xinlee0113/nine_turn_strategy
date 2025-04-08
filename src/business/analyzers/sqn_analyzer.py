@@ -104,10 +104,15 @@ class SQNAnalyzer(BaseAnalyzer):
         mean_pnl = np.mean(trades_array)
         std_pnl = np.std(trades_array, ddof=1)  # 使用样本标准差
         
+        self.logger.info(f"SQN计算中间值: 交易次数={len(self.trades)}, 平均盈亏={mean_pnl:.4f}, 标准差={std_pnl:.4f}")
+        
         # 避免除以0
         if std_pnl > 0:
             self.sqn = np.sqrt(len(self.trades)) * (mean_pnl / std_pnl)
             results['sqn'] = self.sqn
+            self.logger.info(f"SQN计算: sqrt({len(self.trades)}) * ({mean_pnl:.4f} / {std_pnl:.4f}) = {self.sqn:.4f}")
+        else:
+            self.logger.warning(f"无法计算SQN: 标准差为0, 交易次数={len(self.trades)}, 平均盈亏={mean_pnl:.4f}")
         
         self.logger.info(f"SQN: {self.sqn:.4f}, 基于{len(self.trades)}笔交易")
         return results 

@@ -297,8 +297,14 @@ class TradeAnalyzer(BaseAnalyzer):
         pnl_values = [t['pnl'] for t in self.trades]
         if len(pnl_values) > 1:
             pnl_std = np.std(pnl_values)
+            self.logger.info(f"TradeAnalyzer SQN计算: 交易次数={len(pnl_values)}, 平均盈亏={self.avg_trade:.4f}, 标准差={pnl_std:.4f}")
             if pnl_std > 0:
                 self.sqn = np.sqrt(self.total_trades) * (self.avg_trade / pnl_std)
+                self.logger.info(f"TradeAnalyzer SQN计算结果: {self.sqn:.4f}")
+            else:
+                self.logger.warning(f"TradeAnalyzer 无法计算SQN: 标准差为0")
+        else:
+            self.logger.warning("TradeAnalyzer 交易记录不足，无法计算SQN")
         
         # 构建结果字典
         results = {

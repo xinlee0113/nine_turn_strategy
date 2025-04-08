@@ -63,6 +63,7 @@ def save_backtest_results(results: Dict[str, Any], symbol: str, strategy_name: s
         "最大连续亏损次数": results.get("trades", {}).get("max_consecutive_losses", 0),
         "总净利润": results.get("trades", {}).get("total_net_profit", 0),
         "平均每天交易次数": results.get("trades", {}).get("avg_trades_per_day", 0),
+        "系统质量指标(SQN)": results.get("trades", {}).get("sqn", 0),
     }
     
     # 保存详细结果（纵向排列）

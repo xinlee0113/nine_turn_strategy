@@ -550,6 +550,7 @@ class BacktestScript:
                     "max_consecutive_losses": results.get('trades', {}).get('max_consecutive_losses', 0),
                     "total_net_profit": round(results.get('trades', {}).get('pnl_net', 0) or 0, 3),
                     "avg_trades_per_day": round(avg_trades_per_day, 3),  # 使用计算或获取的avg_trades_per_day值
+                    "sqn": round(results.get('trades', {}).get('sqn', 0) or 0, 3),  # 添加SQN指标
                 }
             }
             

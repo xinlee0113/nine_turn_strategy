@@ -273,6 +273,7 @@ class BacktestEngine(BaseEngine):
         sortino_result = {}
         try:
             sqn_result = strategy.analyzers.sqn.get_analysis()
+            self.logger.info(f"从backtrader获取的SQN结果: {sqn_result}")
             sortino_result = strategy.analyzers.sortino.get_analysis()
         except Exception as e:
             self.logger.warning(f"获取SQN或Sortino分析结果失败: {e}")
@@ -280,15 +281,30 @@ class BacktestEngine(BaseEngine):
         # 提取基本交易统计
         trade_stats = self._extract_trade_stats(trades)
         
-        # 从自定义交易分析器中获取平均每天交易次数
+        # 从自定义交易分析器中获取平均每天交易次数和SQN
         if 'tradeanalyzer' in results:
             tradeanalyzer_results = results['tradeanalyzer']
+            self.logger.info(f"自定义交易分析器结果: {tradeanalyzer_results}")
+            
             # 检查自定义交易分析器结果中是否包含avg_trades_per_day
             if 'avg_trades_per_day' in tradeanalyzer_results:
                 trade_stats['avg_trades_per_day'] = tradeanalyzer_results['avg_trades_per_day']
             # 如果自定义分析器结果嵌套在trades字段中
             elif 'trades' in tradeanalyzer_results and 'avg_trades_per_day' in tradeanalyzer_results['trades']:
                 trade_stats['avg_trades_per_day'] = tradeanalyzer_results['trades']['avg_trades_per_day']
+                
+            # 获取SQN值
+            if 'sqn' in tradeanalyzer_results:
+                trade_stats['sqn'] = tradeanalyzer_results['sqn']
+                self.logger.info(f"从自定义分析器获取SQN: {trade_stats['sqn']}")
+            elif 'trades' in tradeanalyzer_results and 'sqn' in tradeanalyzer_results['trades']:
+                trade_stats['sqn'] = tradeanalyzer_results['trades']['sqn']
+                self.logger.info(f"从自定义分析器trades字段获取SQN: {trade_stats['sqn']}")
+            
+        # 如果从backtrader获取到了SQN值，将其添加到trade_stats中
+        if sqn_result and 'sqn' in sqn_result and sqn_result['sqn'] != 0:
+            trade_stats['sqn'] = sqn_result['sqn']
+            self.logger.info(f"使用backtrader的SQN值: {trade_stats['sqn']}")
 
         # 组织结果
         results.update({
