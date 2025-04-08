@@ -12,6 +12,7 @@ import matplotlib as mpl
 
 from src.infrastructure.constants.const import DEFAULT_INITIAL_CAPITAL, DEFAULT_COMMISSION_RATE
 from ..base_engine import BaseEngine
+from ...analyzers.calmar_ratio import CalmarRatio
 from ...analyzers.performance_analyzer import PerformanceAnalyzer
 from ...analyzers.risk_analyzer import RiskAnalyzer
 from ...analyzers.custom_drawdown import CustomDrawDown
@@ -43,7 +44,8 @@ class BacktestEngine(BaseEngine):
             RiskAnalyzer,
             TradeAnalyzer,
             PositionAnalyzer,
-            CustomDrawDown
+            CustomDrawDown,
+            CalmarRatio
         ]
 
         # 回测状态

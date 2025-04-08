@@ -17,6 +17,7 @@ from src.infrastructure.config.strategy_config import StrategyConfig
 from src.infrastructure.constants.const import TimeInterval, TimeZone, US_MARKET_MINUTES_PER_DAY, MAX_1MIN_DATA_DAYS
 from src.infrastructure.event.event_manager import EventManager
 from src.infrastructure.logging.logger import Logger
+from src.infrastructure.utils.file_utils import save_backtest_results
 from src.interface.broker.backtest_broker import BacktestBroker
 from src.interface.data.pandas_data import PandasData
 
@@ -72,6 +73,7 @@ class BacktestScript:
         self.logger.info("开始回测流程")
 
         # 保存开始和结束日期，用于后续计算
+        self.symbol = symbol
         self.start_date = start_date
         self.end_date = end_date
         self.period = period
@@ -469,6 +471,61 @@ class BacktestScript:
                         self.logger.info(f"  - {percentile}%的持仓时间小于: {value:.0f}分钟 ({hours:.2f}小时, {days:.2f}天)")
 
         self.logger.info("=" * 50)
+        
+        # 保存回测结果到文件
+        try:
+            # 准备保存回测结果需要的参数
+            symbol = getattr(self, 'symbol', 'unknown')
+            strategy_name = "MagicNine"
+            
+            # 格式化日期
+            start_date_str = self.start_date.strftime('%Y%m%d') if hasattr(self, 'start_date') and self.start_date else 'unknown'
+            end_date_str = self.end_date.strftime('%Y%m%d') if hasattr(self, 'end_date') and self.end_date else 'unknown'
+            
+            # 周期
+            period_str = getattr(self, 'period', '1m')
+            
+            # 提取关键指标并保留3位小数
+            formatted_results = {
+                "performance": {
+                    "total_return": round(results.get('performance', {}).get('total_return', 0) or 0, 3),
+                    "annual_return": round(results.get('performance', {}).get('annual_return', 0) or 0, 3),
+                    "sharpe_ratio": round(results.get('performance', {}).get('sharpe_ratio', 0) or 0, 3),
+                },
+                "risk": {
+                    "max_drawdown": round(results.get('risk', {}).get('max_drawdown', 0) or 0, 3),
+                    "volatility": round(results.get('risk', {}).get('volatility', 0) or 0, 3),
+                    "calmar_ratio": round(results.get('risk', {}).get('calmar_ratio', 0) or 0, 3),
+                },
+                "trades": {
+                    "total_trades": results.get('trades', {}).get('total', 0),
+                    "profitable_trades": results.get('trades', {}).get('won', 0),
+                    "losing_trades": results.get('trades', {}).get('lost', 0),
+                    "win_rate": round(results.get('trades', {}).get('win_rate', 0) or 0, 3),
+                    "profit_loss_ratio": round(results.get('trades', {}).get('win_loss_ratio', 0) or 0, 3),
+                    "profit_factor": round(results.get('trades', {}).get('profit_factor', 0) or 0, 3),
+                    "expected_payoff": round(results.get('trades', {}).get('expectancy', 0) or 0, 3),
+                    "max_consecutive_wins": results.get('trades', {}).get('max_consecutive_wins', 0),
+                    "max_consecutive_losses": results.get('trades', {}).get('max_consecutive_losses', 0),
+                    "total_net_profit": round(results.get('trades', {}).get('pnl_net', 0) or 0, 3),
+                }
+            }
+            
+            # 保存回测结果
+            result_file = save_backtest_results(
+                formatted_results, 
+                symbol, 
+                strategy_name, 
+                start_date_str, 
+                end_date_str, 
+                period_str
+            )
+            self.logger.info(f"回测结果已保存到文件: {result_file}")
+            
+        except Exception as e:
+            self.logger.error(f"保存回测结果失败: {str(e)}")
+            import traceback
+            self.logger.error(f"错误详情: {traceback.format_exc()}")
 
     def stop(self):
         """
