@@ -13,6 +13,7 @@ from .risk_manager import RiskManager
 from .signal_generator import SignalGenerator
 from .time_manager import TimeManager
 from .order_manager import OrderManager
+from .position_manager import PositionManager
 
 __all__ = [
     'BaseStrategy',
@@ -21,5 +22,6 @@ __all__ = [
     'RiskManager',
     'MagicNineStrategy',
     'TimeManager',
-    'OrderManager'
+    'OrderManager',
+    'PositionManager'
 ]
