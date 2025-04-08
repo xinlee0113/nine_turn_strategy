@@ -11,11 +11,15 @@ from .position_sizer import PositionSizer
 from .risk_manager import RiskManager
 # 导入具体策略组件
 from .signal_generator import SignalGenerator
+from .time_manager import TimeManager
+from .order_manager import OrderManager
 
 __all__ = [
     'BaseStrategy',
     'SignalGenerator',
     'PositionSizer',
     'RiskManager',
-    'MagicNineStrategy'
+    'MagicNineStrategy',
+    'TimeManager',
+    'OrderManager'
 ]
