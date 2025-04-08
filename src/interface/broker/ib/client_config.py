@@ -4,12 +4,13 @@ Created on 2018/10/31
 
 @author: gaoan
 """
-from tigeropen.common.consts import Language
-from tigeropen.tiger_open_config import TigerOpenClientConfig
-from tigeropen.common.util.signature_utils import read_private_key
-from typing import Dict, Any, Optional
 import os
+from typing import Dict, Any, Optional
+
 import yaml
+from tigeropen.common.consts import Language
+from tigeropen.common.util.signature_utils import read_private_key
+from tigeropen.tiger_open_config import TigerOpenClientConfig
 
 
 def get_client_config():
@@ -33,7 +34,7 @@ def get_client_config():
 
 class IBClientConfig:
     """Interactive Brokers客户端配置类"""
-    
+
     def __init__(self, config_path: Optional[str] = None):
         """
         初始化配置
@@ -45,15 +46,15 @@ class IBClientConfig:
             os.path.dirname(__file__), '../../../../configs/ib/config.yaml'
         )
         self.config = self._load_config()
-    
+
     def _load_config(self) -> Dict[str, Any]:
         """加载配置文件"""
         if not os.path.exists(self.config_path):
             return self._get_default_config()
-        
+
         with open(self.config_path, 'r', encoding='utf-8') as f:
             return yaml.safe_load(f)
-    
+
     def _get_default_config(self) -> Dict[str, Any]:
         """获取默认配置"""
         return {
@@ -74,18 +75,18 @@ class IBClientConfig:
             'log_level': 'INFO',
             'log_file': 'logs/ib/trading.log'
         }
-    
+
     def save_config(self, config: Dict[str, Any]) -> None:
         """保存配置到文件"""
         os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
         with open(self.config_path, 'w', encoding='utf-8') as f:
             yaml.safe_dump(config, f)
         self.config = config
-    
+
     def get_config(self) -> Dict[str, Any]:
         """获取当前配置"""
         return self.config.copy()
-    
+
     def update_config(self, **kwargs) -> None:
         """更新配置"""
         self.config.update(kwargs)

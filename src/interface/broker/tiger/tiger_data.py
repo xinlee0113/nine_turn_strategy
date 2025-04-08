@@ -1,13 +1,16 @@
 """
 老虎证券数据类
 """
-from datetime import datetime
-from typing import Dict, List, Optional
-import pandas as pd
 from dataclasses import dataclass
-from src.interface.data.base_data import BaseData
-from src.interface.broker.tiger.tiger_client import TigerClient
+from datetime import datetime
+from typing import Dict, List
+
+import pandas as pd
+
 from src.infrastructure.constants.const import TimeInterval
+from src.interface.broker.tiger.tiger_client import TigerClient
+from src.interface.data.base_data import BaseData
+
 
 @dataclass
 class BarData:
@@ -19,6 +22,7 @@ class BarData:
     close: float
     volume: float
     datetime: datetime
+
 
 @dataclass
 class TickData:
@@ -32,26 +36,27 @@ class TickData:
     ask_price_1: float = 0.0
     ask_volume_1: float = 0.0
 
+
 class TigerData(BaseData):
     """老虎证券数据类"""
-    
+
     def __init__(self, client: TigerClient):
         super().__init__()
         self.client = client
-        
+
     def start(self) -> bool:
         """启动数据源"""
         return self.client.connect()
-        
+
     def stop(self) -> bool:
         """停止数据源"""
         return self.client.disconnect()
-        
-    def get_historical_data(self, symbol: str, start_date: datetime, 
-                          end_date: datetime, interval: str = TimeInterval.ONE_MINUTE.value) -> pd.DataFrame:
+
+    def get_historical_data(self, symbol: str, start_date: datetime,
+                            end_date: datetime, interval: str = TimeInterval.ONE_MINUTE.value) -> pd.DataFrame:
         """获取历史数据"""
         return self.client.get_historical_data(symbol, start_date, end_date, interval)
-        
+
     def get_realtime_quotes(self, symbols: List[str]) -> Dict[str, Dict]:
         """获取实时行情"""
-        return self.client.get_realtime_quotes(symbols) 
+        return self.client.get_realtime_quotes(symbols)

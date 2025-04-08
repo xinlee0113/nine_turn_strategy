@@ -1,11 +1,14 @@
-import os
-import pandas as pd
-from datetime import datetime
-from typing import Dict, List, Optional
 import logging
+import os
+from datetime import datetime
+from typing import Dict, Optional
+
+import pandas as pd
+
 from .tiger_client import TigerClient
 from .tiger_config import TigerConfig
 from ..store.base_store import DataStoreBase
+
 
 class TigerStore(DataStoreBase):
     def __init__(self, config: TigerConfig):
@@ -32,8 +35,8 @@ class TigerStore(DataStoreBase):
             self.logger.error(f"停止数据存储失败: {str(e)}")
             return False
 
-    def _check_cache(self, symbol: str, start_date: datetime, 
-                    end_date: datetime, interval: str) -> Optional[pd.DataFrame]:
+    def _check_cache(self, symbol: str, start_date: datetime,
+                     end_date: datetime, interval: str) -> Optional[pd.DataFrame]:
         """
         检查缓存是否存在
         
@@ -54,8 +57,8 @@ class TigerStore(DataStoreBase):
                 self.logger.warning(f"读取缓存文件失败: {str(e)}")
         return None
 
-    def _save_to_cache(self, data: pd.DataFrame, symbol: str, 
-                      start_date: datetime, end_date: datetime, interval: str):
+    def _save_to_cache(self, data: pd.DataFrame, symbol: str,
+                       start_date: datetime, end_date: datetime, interval: str):
         """
         保存数据到缓存
         
@@ -70,8 +73,8 @@ class TigerStore(DataStoreBase):
         os.makedirs(os.path.dirname(cache_file), exist_ok=True)
         data.to_csv(cache_file)
 
-    def _get_cache_file_path(self, symbol: str, start_date: datetime, 
-                           end_date: datetime, interval: str) -> str:
+    def _get_cache_file_path(self, symbol: str, start_date: datetime,
+                             end_date: datetime, interval: str) -> str:
         """
         获取缓存文件路径
         
@@ -88,8 +91,8 @@ class TigerStore(DataStoreBase):
         filename = f"{symbol}_{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}_{interval}.csv"
         return os.path.join(cache_dir, filename)
 
-    def get_historical_data(self, symbol: str, start_date: datetime, 
-                          end_date: datetime) -> Optional[pd.DataFrame]:
+    def get_historical_data(self, symbol: str, start_date: datetime,
+                            end_date: datetime) -> Optional[pd.DataFrame]:
         """
         获取历史数据
         
@@ -109,10 +112,10 @@ class TigerStore(DataStoreBase):
 
             # 从API获取数据
             data = self.client.get_historical_data(symbol, start_date, end_date, "1m")
-            
+
             # 保存到缓存
             self._save_to_cache(data, symbol, start_date, end_date, "1m")
-            
+
             return data
         except Exception as e:
             self.logger.error(f"获取历史数据失败: {str(e)}")
@@ -148,8 +151,8 @@ class TigerStore(DataStoreBase):
             self.logger.error(f"获取账户信息失败: {str(e)}")
             raise
 
-    def place_order(self, symbol: str, quantity: int, order_type: str, 
-                   price: float, side: str) -> str:
+    def place_order(self, symbol: str, quantity: int, order_type: str,
+                    price: float, side: str) -> str:
         """
         下单
         
@@ -199,4 +202,4 @@ class TigerStore(DataStoreBase):
             return self.client.get_order_status(order_id)
         except Exception as e:
             self.logger.error(f"获取订单状态失败: {str(e)}")
-            raise 
+            raise

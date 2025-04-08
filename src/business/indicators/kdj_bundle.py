@@ -1,5 +1,6 @@
 import backtrader as bt
 
+
 class KDJBundle(bt.Indicator):
     """
     KDJ指标组合
@@ -22,12 +23,12 @@ class KDJBundle(bt.Indicator):
         ('period_dfast', 3),
         ('period_dslow', 3),
     )
-    
+
     def __init__(self):
         # 创建标准化指标
         high_period = bt.indicators.Highest(self.data.high, period=self.p.period)
         low_period = bt.indicators.Lowest(self.data.low, period=self.p.period)
-        
+
         # 计算原始K值
         self.rawK = 100.0 * (self.data.close - low_period) / (high_period - low_period)
         # 计算K值 (SMA平滑)
@@ -36,9 +37,9 @@ class KDJBundle(bt.Indicator):
         self.D = bt.indicators.SMA(self.K, period=self.p.period_dslow)
         # 计算J值 (3*K - 2*D)
         self.J = 3.0 * self.K - 2.0 * self.D
-        
+
     def next(self):
         # 将计算出的值赋给输出线
         self.lines.K[0] = self.K[0]
         self.lines.D[0] = self.D[0]
-        self.lines.J[0] = self.J[0] 
+        self.lines.J[0] = self.J[0]

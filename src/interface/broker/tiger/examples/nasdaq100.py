@@ -4,14 +4,12 @@ import sys
 import time
 
 import pandas as pd
-
+from src.brokers.tiger.examples.client_config import get_client_config
 from tigeropen.common.consts import BarPeriod, SecurityType, Market, Currency
 from tigeropen.common.util.contract_utils import stock_contract
 from tigeropen.common.util.order_utils import limit_order
 from tigeropen.quote.quote_client import QuoteClient
 from tigeropen.trade.trade_client import TradeClient
-
-from src.brokers.tiger.examples.client_config import get_client_config
 
 client_logger = logging.getLogger('client')
 client_logger.setLevel(logging.WARNING)

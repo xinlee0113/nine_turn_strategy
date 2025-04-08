@@ -85,6 +85,7 @@ def test_gat_bars_by_page():
     bars['us_date'] = pd.to_datetime(bars['time'], unit='ms').dt.tz_localize('UTC').dt.tz_convert('US/Eastern')
     print(bars)
 
+
 def test_gat_bars_by_page_30days_1min_kline():
     days = 30
     end_time = pytz.timezone('US/Eastern').localize(datetime.now())  # 模拟当前时间：2025-02-10 13:57 EDT
@@ -102,6 +103,7 @@ def test_gat_bars_by_page_30days_1min_kline():
     bars['us_date'] = pd.to_datetime(bars['time'], unit='ms').dt.tz_localize('UTC').dt.tz_convert('US/Eastern')
     bars['utc_date'] = pd.to_datetime(bars['time'], unit='ms').dt.tz_localize('UTC').dt.tz_convert('UTC')
     print(bars)
+
 
 def get_option_quote():
     symbol = 'AAPL'

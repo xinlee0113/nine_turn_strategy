@@ -10,4 +10,4 @@ __all__ = [
     'BaseAnalyzer',
     'PerformanceAnalyzer',
     'RiskAnalyzer'
-] 
+]

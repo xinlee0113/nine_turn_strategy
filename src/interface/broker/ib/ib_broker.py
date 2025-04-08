@@ -2,14 +2,16 @@
 Interactive Brokers接口实现
 """
 from typing import Dict, Any, Optional
-from ..base_broker import BaseBroker
+
 from .client import IBClient
-from .order import IBOrder
 from .config import IBConfig
+from .order import IBOrder
+from ..base_broker import BaseBroker
+
 
 class IBBroker(BaseBroker):
     """Interactive Brokers接口类"""
-    
+
     def __init__(self, config: IBConfig):
         """初始化IB接口
         
@@ -21,7 +23,7 @@ class IBBroker(BaseBroker):
         self.client = IBClient(config)
         self.connected = False
         self.order = IBOrder(self.client)
-        
+
     def connect(self) -> bool:
         """连接到IB服务器
         
@@ -36,7 +38,7 @@ class IBBroker(BaseBroker):
         except Exception as e:
             print(f"连接失败: {str(e)}")
             return False
-            
+
     def disconnect(self) -> bool:
         """断开连接
         
@@ -51,9 +53,9 @@ class IBBroker(BaseBroker):
         except Exception as e:
             print(f"断开连接失败: {str(e)}")
             return False
-            
-    def place_order(self, order_type: str, quantity: int, 
-                   action: str, price: float = 0.0) -> Optional[Dict[str, Any]]:
+
+    def place_order(self, order_type: str, quantity: int,
+                    action: str, price: float = 0.0) -> Optional[Dict[str, Any]]:
         """下单
         
         Args:
@@ -72,7 +74,7 @@ class IBBroker(BaseBroker):
         except Exception as e:
             print(f"下单失败: {str(e)}")
             return None
-            
+
     def cancel_order(self, order_id: str) -> bool:
         """撤单
         
@@ -90,7 +92,7 @@ class IBBroker(BaseBroker):
         except Exception as e:
             print(f"撤单失败: {str(e)}")
             return False
-            
+
     def get_position(self, symbol: str) -> Optional[Dict[str, Any]]:
         """获取持仓
         
@@ -108,7 +110,7 @@ class IBBroker(BaseBroker):
         except Exception as e:
             print(f"获取持仓失败: {str(e)}")
             return None
-            
+
     def get_account(self) -> Dict[str, Any]:
         """获取账户信息
         
@@ -122,4 +124,4 @@ class IBBroker(BaseBroker):
             return {}
         except Exception as e:
             print(f"获取账户信息失败: {str(e)}")
-            return {} 
+            return {}

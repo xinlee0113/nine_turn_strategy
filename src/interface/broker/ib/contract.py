@@ -2,12 +2,15 @@
 Interactive Brokers合约实现
 """
 from typing import Dict, Any, List
+
 from ibapi.contract import Contract
+
 from .client import IBClient
+
 
 class IBContract:
     """Interactive Brokers合约类"""
-    
+
     def __init__(self, client: IBClient):
         """
         初始化合约管理
@@ -17,7 +20,7 @@ class IBContract:
         """
         self.client = client
         self.contract_cache = {}
-    
+
     def get_contract_info(self, symbol: str) -> Dict[str, Any]:
         """
         获取合约信息
@@ -30,13 +33,13 @@ class IBContract:
         """
         if symbol in self.contract_cache:
             return self.contract_cache[symbol]
-        
+
         contract = self._create_contract(symbol)
         contract_info = self.client.get_contract_details(contract)
-        
+
         self.contract_cache[symbol] = contract_info
         return contract_info
-    
+
     def get_contract_list(self) -> List[Dict[str, Any]]:
         """
         获取合约列表
@@ -45,7 +48,7 @@ class IBContract:
             合约列表
         """
         return self.client.get_contract_list()
-    
+
     def get_contract_specs(self, symbol: str) -> Dict[str, Any]:
         """
         获取合约规格
@@ -58,7 +61,7 @@ class IBContract:
         """
         contract_info = self.get_contract_info(symbol)
         return contract_info['specs']
-    
+
     def get_margin_requirements(self, symbol: str) -> Dict[str, Any]:
         """
         获取保证金要求
@@ -71,7 +74,7 @@ class IBContract:
         """
         contract_info = self.get_contract_info(symbol)
         return contract_info['margin_requirements']
-    
+
     def get_commission_rates(self, symbol: str) -> Dict[str, Any]:
         """
         获取佣金费率
@@ -84,7 +87,7 @@ class IBContract:
         """
         contract_info = self.get_contract_info(symbol)
         return contract_info['commission_rates']
-    
+
     def get_option_chain(self, symbol: str) -> Dict[str, Any]:
         """
         获取期权链
@@ -97,7 +100,7 @@ class IBContract:
         """
         contract_info = self.get_contract_info(symbol)
         return contract_info['option_chain']
-    
+
     def _create_contract(self, symbol: str) -> Contract:
         """创建合约对象"""
         contract = Contract()
@@ -105,4 +108,4 @@ class IBContract:
         contract.secType = 'STK'
         contract.exchange = 'SMART'
         contract.currency = 'USD'
-        return contract 
+        return contract

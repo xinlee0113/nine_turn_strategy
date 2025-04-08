@@ -5,14 +5,12 @@
 
 # 导入策略基类
 from .base_strategy import BaseStrategy
-
-# 导入具体策略组件
-from .signal_generator import SignalGenerator
+# 导入具体策略实现
+from .magic_nine_strategy import MagicNineStrategy
 from .position_sizer import PositionSizer
 from .risk_manager import RiskManager
-
-# 导入具体策略实现
-from .magic_nine import MagicNineStrategy
+# 导入具体策略组件
+from .signal_generator import SignalGenerator
 
 __all__ = [
     'BaseStrategy',
@@ -20,4 +18,4 @@ __all__ = [
     'PositionSizer',
     'RiskManager',
     'MagicNineStrategy'
-] 
+]

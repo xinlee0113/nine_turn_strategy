@@ -1,5 +1,6 @@
 import backtrader as bt
 
+
 class RSIBundle(bt.Indicator):
     """
     RSI指标组合(6,12,24)
@@ -22,15 +23,15 @@ class RSIBundle(bt.Indicator):
         ('period2', 12),
         ('period3', 24),
     )
-    
+
     def __init__(self):
         # 创建三个不同周期的RSI指标
         self.rsi1 = bt.indicators.RSI(self.data, period=self.p.period1)
         self.rsi2 = bt.indicators.RSI(self.data, period=self.p.period2)
         self.rsi3 = bt.indicators.RSI(self.data, period=self.p.period3)
-    
+
     def next(self):
         # 更新lines值
         self.lines.rsi6[0] = self.rsi1.lines.rsi[0]
         self.lines.rsi12[0] = self.rsi2.lines.rsi[0]
-        self.lines.rsi24[0] = self.rsi3.lines.rsi[0] 
+        self.lines.rsi24[0] = self.rsi3.lines.rsi[0]

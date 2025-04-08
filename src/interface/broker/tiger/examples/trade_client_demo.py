@@ -8,6 +8,7 @@ import logging
 import traceback
 import unittest
 
+from src.brokers.tiger.examples.client_config import get_client_config
 from tigeropen.common.consts import Currency, SecurityType, OrderSortBy
 from tigeropen.common.request import OpenApiRequest
 from tigeropen.common.response import TigerResponse
@@ -19,8 +20,6 @@ from tigeropen.tiger_open_client import TigerOpenClient
 from tigeropen.trade.domain.order import OrderStatus
 from tigeropen.trade.request.model import AccountsParams
 from tigeropen.trade.trade_client import TradeClient
-
-from src.brokers.tiger.examples.client_config import get_client_config
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s %(message)s',
@@ -248,7 +247,7 @@ class TestTradeClient(unittest.TestCase):
         """获取账户交易"""
         accounts = self.trade_client.get_managed_accounts()
         account = accounts[0]
-        transactions = self.trade_client.get_transactions(account.account,symbol='AAPL')
+        transactions = self.trade_client.get_transactions(account.account, symbol='AAPL')
         print(transactions)
 
     def test_get_account_funds(self):
@@ -269,7 +268,7 @@ class TestTradeClient(unittest.TestCase):
         """获取账户资金"""
         accounts = self.trade_client.get_managed_accounts()
         account = accounts[0]
-        segments = self.trade_client.get_segment_fund_available(from_segment='SEC',currency=Currency.USD)
+        segments = self.trade_client.get_segment_fund_available(from_segment='SEC', currency=Currency.USD)
         print(segments)
 
 

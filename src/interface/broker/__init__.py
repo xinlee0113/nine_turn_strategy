@@ -3,8 +3,8 @@
 用于对接不同券商的交易接口。
 """
 
-from .base_broker import BaseBroker
 from .backtest_broker import BacktestBroker
+from .base_broker import BaseBroker
 from .ib.ib_broker import IBBroker
 from .tiger.tiger_broker import TigerBroker
 
@@ -13,4 +13,4 @@ __all__ = [
     'BacktestBroker',
     'IBBroker',
     'TigerBroker'
-] 
+]

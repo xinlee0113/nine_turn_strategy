@@ -1,5 +1,6 @@
 from .event_handler import EventHandler
 
+
 class RiskEventHandler(EventHandler):
     """风险事件处理器"""
 
@@ -15,4 +16,4 @@ class RiskEventHandler(EventHandler):
     def _process_risk(self, event):
         """处理具体的风险"""
         # 具体的风险处理逻辑
-        pass 
+        pass

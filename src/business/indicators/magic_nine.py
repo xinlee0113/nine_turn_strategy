@@ -1,6 +1,7 @@
 import backtrader as bt
 import numpy as np
 
+
 class MagicNine(bt.Indicator):
     """
     神奇九转指标
@@ -23,12 +24,12 @@ class MagicNine(bt.Indicator):
         ('period', 2),  # 比较周期，默认为2
         ('signal_threshold', 5),  # 信号阈值，当计数达到此值时触发信号
     )
-    
+
     def __init__(self):
         # 初始化计数器和信号
         self.buy_count = 0
         self.sell_count = 0
-    
+
     def next(self):
         # 计算买入序列
         if self.data.close[0] < self.data.close[-self.p.period]:
@@ -42,11 +43,11 @@ class MagicNine(bt.Indicator):
             # 价格相等，重置计数
             self.buy_count = 0
             self.sell_count = 0
-        
+
         # 更新序列值
         self.lines.buy_setup[0] = self.buy_count if self.buy_count > 0 else np.nan
         self.lines.sell_setup[0] = self.sell_count if self.sell_count > 0 else np.nan
-        
+
         # 生成信号
         self.lines.buy_signal[0] = 1 if self.buy_count >= self.p.signal_threshold else 0
-        self.lines.sell_signal[0] = 1 if self.sell_count >= self.p.signal_threshold else 0 
+        self.lines.sell_signal[0] = 1 if self.sell_count >= self.p.signal_threshold else 0

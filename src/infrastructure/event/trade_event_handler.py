@@ -1,5 +1,6 @@
 from .event_handler import EventHandler
 
+
 class TradeEventHandler(EventHandler):
     """交易事件处理器"""
 
@@ -15,4 +16,4 @@ class TradeEventHandler(EventHandler):
     def _process_trade(self, event):
         """处理具体的交易"""
         # 具体的交易处理逻辑
-        pass 
+        pass

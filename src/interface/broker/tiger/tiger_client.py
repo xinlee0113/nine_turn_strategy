@@ -1,16 +1,17 @@
 """
 老虎证券客户端实现
 """
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
-import pandas as pd
 import logging
-import time
 import os
-from tigeropen.tiger_open_config import TigerOpenClientConfig
-from tigeropen.quote.quote_client import QuoteClient
-from tigeropen.common.consts import Language, BarPeriod, Market
+from datetime import datetime
+from typing import Dict, List
+
+import pandas as pd
+from tigeropen.common.consts import Language, BarPeriod
 from tigeropen.common.util.signature_utils import read_private_key
+from tigeropen.quote.quote_client import QuoteClient
+from tigeropen.tiger_open_config import TigerOpenClientConfig
+
 from src.infrastructure.constants.const import TimeInterval, TimeZone, MAX_1MIN_DATA_DAYS, DATA_REQUIRED_COLUMNS
 
 
@@ -111,24 +112,25 @@ class TigerClient:
             # 转换为pandas Timestamp并确保具有时区信息
             start_date_ts = pd.Timestamp(start_date)
             end_date_ts = pd.Timestamp(end_date)
-            
+
             # 如果没有时区信息，则添加UTC时区
             if start_date_ts.tz is None:
                 start_date_ts = start_date_ts.tz_localize(TimeZone.UTC.value)
             if end_date_ts.tz is None:
                 end_date_ts = end_date_ts.tz_localize(TimeZone.UTC.value)
-                
+
             # 确保都是同一个时区
             start_date_eastern = start_date_ts.tz_convert(TimeZone.US_EASTERN.value)
             end_date_eastern = end_date_ts.tz_convert(TimeZone.US_EASTERN.value)
-            
+
             # 计算日期差异时使用tz-aware的时间戳
             date_diff = (end_date_eastern - start_date_eastern).days
-            
+
             # 对于1分钟K线，老虎证券API限制最多只能获取30天数据
             if interval == TimeInterval.ONE_MINUTE.value and date_diff > MAX_1MIN_DATA_DAYS:
                 self.logger.warning(f"1分钟K线只能获取最近{MAX_1MIN_DATA_DAYS}天的数据，当前请求时间范围：{date_diff}天")
-                self.logger.warning(f"将起始日期从 {start_date_eastern} 调整为 {end_date_eastern - pd.Timedelta(days=MAX_1MIN_DATA_DAYS)}")
+                self.logger.warning(
+                    f"将起始日期从 {start_date_eastern} 调整为 {end_date_eastern - pd.Timedelta(days=MAX_1MIN_DATA_DAYS)}")
                 start_date_eastern = end_date_eastern - pd.Timedelta(days=MAX_1MIN_DATA_DAYS)
 
             time_interval = 2  # 每次数据的时间间隔
@@ -143,8 +145,10 @@ class TigerClient:
                 return pd.DataFrame()
 
             # 添加中国时间、美国东部时间和UTC时间
-            data['cn_date'] = pd.to_datetime(data['time'], unit='ms').dt.tz_localize(TimeZone.UTC.value).dt.tz_convert(TimeZone.CHINA.value)
-            data['us_date'] = pd.to_datetime(data['time'], unit='ms').dt.tz_localize(TimeZone.UTC.value).dt.tz_convert(TimeZone.US_EASTERN.value)
+            data['cn_date'] = pd.to_datetime(data['time'], unit='ms').dt.tz_localize(TimeZone.UTC.value).dt.tz_convert(
+                TimeZone.CHINA.value)
+            data['us_date'] = pd.to_datetime(data['time'], unit='ms').dt.tz_localize(TimeZone.UTC.value).dt.tz_convert(
+                TimeZone.US_EASTERN.value)
             data['utc_date'] = pd.to_datetime(data['time'], unit='ms').dt.tz_localize(TimeZone.UTC.value)
 
             # 数据清洗和格式化
@@ -189,7 +193,7 @@ class TigerClient:
                 try:
                     # 使用get_stock_briefs方法获取行情数据
                     briefs_df = self._api_client.get_stock_briefs(symbols=[symbol])
-                    
+
                     # 正确处理DataFrame返回值
                     if briefs_df is not None and not briefs_df.empty:
                         # 从DataFrame提取第一行

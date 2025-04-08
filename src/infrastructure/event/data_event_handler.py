@@ -1,5 +1,6 @@
 from .event_handler import EventHandler
 
+
 class DataEventHandler(EventHandler):
     """数据事件处理器"""
 
@@ -15,4 +16,4 @@ class DataEventHandler(EventHandler):
     def _process_data(self, event):
         """处理具体的数据"""
         # 具体的数据处理逻辑
-        pass 
+        pass

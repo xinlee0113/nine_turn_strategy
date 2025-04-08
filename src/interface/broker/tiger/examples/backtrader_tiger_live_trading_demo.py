@@ -119,7 +119,8 @@ class MarketStatus:
             days = wait_seconds // 86400
             hours = (wait_seconds % 86400) // 3600
             minutes = (wait_seconds % 3600) // 60
-            logging.info(f"市场休市中，下次开盘时间: {next_open_time}，需等待: {days:.0f}天{hours:.0f}小时{minutes:.0f}分钟")
+            logging.info(
+                f"市场休市中，下次开盘时间: {next_open_time}，需等待: {days:.0f}天{hours:.0f}小时{minutes:.0f}分钟")
 
             # 等待时间太长，休眠一小时后重新检查
             if wait_seconds > 7200:  # 超过2小时
@@ -131,7 +132,8 @@ class MarketStatus:
             hours = wait_seconds // 3600
             minutes = (wait_seconds % 3600) // 60
             seconds = wait_seconds % 60
-            logging.info(f"市场休市中，下次开盘时间: {next_open_time}，需等待: {hours:.0f}小时{minutes:.0f}分钟{seconds:.0f}秒")
+            logging.info(
+                f"市场休市中，下次开盘时间: {next_open_time}，需等待: {hours:.0f}小时{minutes:.0f}分钟{seconds:.0f}秒")
 
             # 30分钟内开盘，直接等待到开盘
             if wait_seconds <= 1800:  # 30分钟 = 1800秒

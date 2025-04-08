@@ -2,8 +2,9 @@
 老虎证券订单类
 """
 from datetime import datetime
-from typing import Optional
 from enum import Enum
+from typing import Optional
+
 
 class OrderStatus(Enum):
     """订单状态枚举"""
@@ -13,6 +14,7 @@ class OrderStatus(Enum):
     CANCELLED = "cancelled"
     REJECTED = "rejected"
 
+
 class OrderType(Enum):
     """订单类型枚举"""
     MARKET = "market"
@@ -20,15 +22,17 @@ class OrderType(Enum):
     STOP = "stop"
     STOP_LIMIT = "stop_limit"
 
+
 class OrderSide(Enum):
     """订单方向枚举"""
     BUY = "buy"
     SELL = "sell"
 
+
 class TigerOrder:
     """老虎证券订单类"""
-    
-    def __init__(self, 
+
+    def __init__(self,
                  symbol: str,
                  quantity: int,
                  side: OrderSide,
@@ -53,23 +57,23 @@ class TigerOrder:
         self.filled_at = filled_at
         self.filled_price = filled_price
         self.filled_quantity = filled_quantity
-        
+
     def __str__(self) -> str:
         return (f"TigerOrder(symbol={self.symbol}, quantity={self.quantity}, "
                 f"side={self.side.value}, type={self.order_type.value}, "
                 f"price={self.price}, status={self.status.value})")
-                
+
     def __repr__(self) -> str:
         return self.__str__()
-        
+
     def is_filled(self) -> bool:
         """检查订单是否已完全成交"""
         return self.status == OrderStatus.FILLED and self.filled_quantity == self.quantity
-        
+
     def is_cancelled(self) -> bool:
         """检查订单是否已取消"""
         return self.status == OrderStatus.CANCELLED
-        
+
     def is_rejected(self) -> bool:
         """检查订单是否被拒绝"""
-        return self.status == OrderStatus.REJECTED 
+        return self.status == OrderStatus.REJECTED

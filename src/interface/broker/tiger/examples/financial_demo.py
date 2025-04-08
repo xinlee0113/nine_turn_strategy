@@ -3,12 +3,9 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 from pandas import DataFrame
-
-from tigeropen.common.consts import Market, Valuation, Balance, Income, CashFlow, FinancialReportPeriodType
-from tigeropen.quote import quote_client
-from tigeropen.quote.quote_client import QuoteClient
-
 from src.brokers.tiger.examples.client_config import get_client_config
+from tigeropen.common.consts import Market, Valuation, Balance, Income, CashFlow, FinancialReportPeriodType
+from tigeropen.quote.quote_client import QuoteClient
 
 pd.set_option('display.max_columns', 500)
 pd.set_option('display.max_rows', 100)

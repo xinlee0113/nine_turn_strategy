@@ -4,14 +4,15 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 
+
 class BaseBroker(ABC):
     """基础经纪商接口"""
-    
+
     @abstractmethod
     def __init__(self):
         """初始化经纪商"""
         pass
-    
+
     @abstractmethod
     def connect(self) -> bool:
         """连接经纪商
@@ -20,7 +21,7 @@ class BaseBroker(ABC):
             连接是否成功
         """
         pass
-    
+
     @abstractmethod
     def disconnect(self) -> bool:
         """断开连接
@@ -29,10 +30,10 @@ class BaseBroker(ABC):
             断开连接是否成功
         """
         pass
-    
+
     @abstractmethod
     def place_order(self, order_type: str, quantity: int,
-                   action: str, price: float = 0.0) -> Optional[Dict[str, Any]]:
+                    action: str, price: float = 0.0) -> Optional[Dict[str, Any]]:
         """下单
         
         Args:
@@ -45,7 +46,7 @@ class BaseBroker(ABC):
             订单信息字典,下单失败返回None
         """
         pass
-    
+
     @abstractmethod
     def cancel_order(self, order_id: str) -> bool:
         """撤单
@@ -57,7 +58,7 @@ class BaseBroker(ABC):
             撤单是否成功
         """
         pass
-    
+
     @abstractmethod
     def get_position(self, symbol: str) -> Optional[Dict[str, Any]]:
         """获取持仓
@@ -69,7 +70,7 @@ class BaseBroker(ABC):
             持仓信息字典,无持仓返回None
         """
         pass
-    
+
     @abstractmethod
     def get_account(self) -> Dict[str, Any]:
         """获取账户信息
@@ -77,4 +78,4 @@ class BaseBroker(ABC):
         Returns:
             账户信息字典
         """
-        pass 
+        pass
