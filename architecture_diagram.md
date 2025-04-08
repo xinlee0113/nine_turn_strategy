@@ -34,17 +34,20 @@
 ```
 nine_turn_strategy/
 ├── architecture_diagram.md
+├── main.py
 ├── src/
 │   ├── application/
 │   │   ├── __init__.py
-│   │   ├── main.py
 │   │   ├── script_manager.py
 │   │   ├── script_factory.py
-│   │   └── scripts/
+│   │   ├── scripts/
+│   │   │   ├── __init__.py
+│   │   │   ├── backtest_script.py
+│   │   │   ├── optimize_script.py
+│   │   │   └── trade_script.py
+│   │   └── ui/
 │   │       ├── __init__.py
-│   │       ├── backtest_script.py
-│   │       ├── optimize_script.py
-│   │       └── trade_script.py
+│   │       └── plot_manager.py
 │   ├── business/
 │   │   ├── __init__.py
 │   │   ├── strategy/
@@ -190,8 +193,9 @@ nine_turn_strategy/
 ### 2. 源代码目录 (src/)
 
 - **application/**: 应用程序模块
-    - main.py: 主程序入口
     - scripts/: 脚本模块
+    - ui/: 用户界面模块
+      - plot_manager.py: 绘图管理器
 - **business/**: 业务模块
     - strategy/: 策略模块
     - indicators/: 技术指标模块

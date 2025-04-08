@@ -10,8 +10,7 @@ from datetime import datetime, timedelta
 
 # 添加项目根目录到Python路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
-root_dir = os.path.dirname(os.path.dirname(current_dir))
-sys.path.append(root_dir)
+sys.path.append(current_dir)
 
 # 导入脚本管理器
 from src.application.script_manager import ScriptManager
@@ -160,4 +159,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main() 
