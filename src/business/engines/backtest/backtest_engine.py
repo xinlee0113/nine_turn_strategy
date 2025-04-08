@@ -86,9 +86,7 @@ class BacktestEngine(BaseEngine):
             data.index = pd.to_datetime(data.index)
 
         # 创建backtrader的数据源
-        # 根据不同版本的backtrader，参数名称可能有所不同
         try:
-            # 尝试使用标准参数
             data_feed = bt.feeds.PandasData(
                 dataname=data,
                 datetime=None,  # 使用索引作为日期时间
@@ -99,12 +97,11 @@ class BacktestEngine(BaseEngine):
                 volume='volume',
                 openinterest=-1  # 不使用持仓量
             )
-        except TypeError as e:
-            self.logger.warning(f"使用标准参数创建PandasData失败: {e}，尝试使用字典方式")
-            # 尝试使用字典方式
-            data_feed = bt.feeds.PandasData(data=data)
-            
-        return data_feed
+            return data_feed
+        except TypeError:
+            # 适配不同版本的backtrader
+            self.logger.info("使用替代方法创建PandasData")
+            return bt.feeds.PandasData(data=data)
 
     def set_broker(self, broker) -> None:
         """设置回测Broker"""
@@ -112,14 +109,18 @@ class BacktestEngine(BaseEngine):
         self.logger.info(f"设置Broker: {broker.__class__.__name__}")
 
         # 设置backtrader的broker参数
-        try:
-            initial_capital = self.config.get_params().get('initial_capital', DEFAULT_INITIAL_CAPITAL)
-            commission = self.config.get_params().get('commission', DEFAULT_COMMISSION_RATE)
-        except AttributeError:
-            # 如果config没有get_params方法，尝试直接获取
+        initial_capital = DEFAULT_INITIAL_CAPITAL
+        commission = DEFAULT_COMMISSION_RATE
+        
+        # 尝试从配置中获取参数
+        if hasattr(self.config, 'get_params'):
+            params = self.config.get_params()
+            initial_capital = params.get('initial_capital', DEFAULT_INITIAL_CAPITAL)
+            commission = params.get('commission', DEFAULT_COMMISSION_RATE)
+        elif isinstance(self.config, dict):
             initial_capital = self.config.get('initial_capital', DEFAULT_INITIAL_CAPITAL)
             commission = self.config.get('commission', DEFAULT_COMMISSION_RATE)
-
+            
         self.cerebro.broker.setcash(initial_capital)
         self.cerebro.broker.setcommission(commission=commission)
 
@@ -145,25 +146,19 @@ class BacktestEngine(BaseEngine):
             analyzer_name = analyzer_class.__name__.lower()
             try:
                 self.cerebro.addanalyzer(analyzer_class, _name=analyzer_name)
-                self.logger.info(f"添加自定义分析器: {analyzer_class.__name__}")
             except Exception as e:
                 self.logger.error(f"添加分析器 {analyzer_class.__name__} 失败: {e}")
 
         # 添加backtrader内置分析器
         self.cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
         self.cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
-        
-        # 添加交易分析器，但保留内置的交易分析器以保持兼容性
         self.cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trade_analyzer')
-        
-        # 添加SQN分析器
         self.cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
         
         # 添加自定义的索提诺比率分析器
         try:
             self.cerebro.addanalyzer(SortinoRatio, _name='sortino', 
-                                    riskfreerate=0.0, annualize=True)
-            self.logger.info("成功添加自定义索提诺比率分析器")
+                                  riskfreerate=0.0, annualize=True)
         except Exception as e:
             self.logger.warning(f"无法添加索提诺比率分析器: {e}")
 
@@ -190,22 +185,18 @@ class BacktestEngine(BaseEngine):
             self.is_running = False
             return {}
 
-        # 设置cerebro选项，控制标准观察器（解决双重Trades问题）
-        show_trades = self.plot_options.get('show_trades', False) # 默认不显示交易观察器
+        # 设置cerebro选项，控制标准观察器
+        show_trades = self.plot_options.get('show_trades', False)
         if not show_trades:
-            # 默认不显示交易观察器，避免重复
             self.cerebro.stdstats = False
-            
             # 手动添加需要的观察器
             self.cerebro.addobserver(bt.observers.Broker)
             self.cerebro.addobserver(bt.observers.BuySell)
 
         # 添加策略到cerebro
-        try:
+        strategy_params = {}
+        if hasattr(self.config, 'get') and callable(self.config.get):
             strategy_params = self.config.get('strategy', {})
-        except Exception as e:
-            self.logger.warning(f"获取策略参数失败: {e}，使用空字典")
-            strategy_params = {}
 
         self.cerebro.addstrategy(self.strategy, **strategy_params)
         
@@ -227,7 +218,7 @@ class BacktestEngine(BaseEngine):
             try:
                 # 过滤掉非绘图相关的选项
                 plot_options = {k: v for k, v in self.plot_options.items() 
-                              if k not in ['show_trades']}
+                             if k not in ['show_trades']}
                 
                 # 使用绘图管理器绘制图表
                 from src.application.ui.plot_manager import PlotManager
@@ -236,8 +227,6 @@ class BacktestEngine(BaseEngine):
                 self.logger.info("图表生成成功")
             except Exception as e:
                 self.logger.error(f"图表生成失败: {str(e)}")
-                import traceback
-                self.logger.error(f"错误详情: {traceback.format_exc()}")
 
         # 完成回测
         self.is_running = False
@@ -261,10 +250,8 @@ class BacktestEngine(BaseEngine):
         """从backtrader策略中提取结果"""
         results = {}
 
-        # 获取收益率
+        # 获取收益率和夏普比率
         returns = strategy.analyzers.returns.get_analysis()
-
-        # 获取夏普比率
         sharpe = strategy.analyzers.sharpe.get_analysis()
 
         # 获取自定义分析器结果
@@ -275,41 +262,20 @@ class BacktestEngine(BaseEngine):
                 try:
                     analyzer_results = analyzer.get_analysis()
                     results[analyzer_name] = analyzer_results
-                    self.logger.info(f"获取分析器 {analyzer_name} 结果成功")
-                    
-                    # 特别检查TradeAnalyzer的结果
-                    if analyzer_name == 'tradeanalyzer':
-                        self.logger.info(f"TradeAnalyzer结果: {analyzer_results}")
-                        # 检查结果的类型和结构
-                        self.logger.info(f"TradeAnalyzer结果类型: {type(analyzer_results)}")
-                        if isinstance(analyzer_results, dict):
-                            # 检查是否包含trades键
-                            if 'trades' in analyzer_results:
-                                self.logger.info(f"trades内容: {analyzer_results['trades']}")
-                                # 检查是否包含avg_trades_per_day
-                                if 'avg_trades_per_day' in analyzer_results['trades']:
-                                    self.logger.info(f"找到avg_trades_per_day: {analyzer_results['trades']['avg_trades_per_day']}")
                 except Exception as e:
                     self.logger.error(f"获取分析器 {analyzer_name} 结果失败: {e}")
-                    import traceback
-                    self.logger.error(f"错误详情: {traceback.format_exc()}")
 
         # 获取交易分析
         trades = strategy.analyzers.trade_analyzer.get_analysis()
         
-        # 获取SQN
+        # 获取SQN和Sortino比率
         sqn_result = {}
-        try:
-            sqn_result = strategy.analyzers.sqn.get_analysis()
-        except Exception as e:
-            self.logger.warning(f"获取SQN分析结果失败: {e}")
-
-        # 获取Sortino比率
         sortino_result = {}
         try:
+            sqn_result = strategy.analyzers.sqn.get_analysis()
             sortino_result = strategy.analyzers.sortino.get_analysis()
         except Exception as e:
-            self.logger.warning(f"获取Sortino比率分析结果失败: {e}")
+            self.logger.warning(f"获取SQN或Sortino分析结果失败: {e}")
 
         # 提取基本交易统计
         trade_stats = self._extract_trade_stats(trades)
@@ -320,11 +286,9 @@ class BacktestEngine(BaseEngine):
             # 检查自定义交易分析器结果中是否包含avg_trades_per_day
             if 'avg_trades_per_day' in tradeanalyzer_results:
                 trade_stats['avg_trades_per_day'] = tradeanalyzer_results['avg_trades_per_day']
-                self.logger.info(f"从自定义交易分析器中获取平均每天交易次数: {tradeanalyzer_results['avg_trades_per_day']}")
             # 如果自定义分析器结果嵌套在trades字段中
             elif 'trades' in tradeanalyzer_results and 'avg_trades_per_day' in tradeanalyzer_results['trades']:
                 trade_stats['avg_trades_per_day'] = tradeanalyzer_results['trades']['avg_trades_per_day']
-                self.logger.info(f"从自定义交易分析器的trades字段中获取平均每天交易次数: {tradeanalyzer_results['trades']['avg_trades_per_day']}")
 
         # 组织结果
         results.update({
