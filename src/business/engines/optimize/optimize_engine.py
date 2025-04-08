@@ -14,39 +14,7 @@ from src.config_system import SymbolConfig
 from src.magic_nine_strategy import MagicNineStrategy
 from src.magic_nine_strategy_with_advanced_stoploss import MagicNineStrategyWithAdvancedStopLoss
 from src.magic_nine_strategy_with_smart_stoploss import MagicNineStrategyWithSmartStopLoss
-
-
-# 自定义回撤分析器
-class CustomDrawDown(bt.Analyzer):
-    """自定义回撤分析器，确保计算正确的回撤值"""
-
-    def __init__(self):
-        self.peak = 0.0
-        self.valley = float('inf')
-        self.max_dd = 0.0
-        self.max_dd_len = 0
-        self.dd_len = 0
-
-    def next(self):
-        # 获取当前资金曲线值
-        value = self.strategy.broker.getvalue()
-
-        # 更新峰值
-        if value > self.peak:
-            self.peak = value
-            self.dd_len = 0
-        else:
-            self.dd_len += 1
-
-        # 计算回撤
-        if self.peak > 0:
-            dd = (self.peak - value) / self.peak
-            if dd > self.max_dd:
-                self.max_dd = dd
-                self.max_dd_len = self.dd_len
-
-    def get_analysis(self):
-        return {'max': {'drawdown': self.max_dd, 'len': self.max_dd_len}}
+from src.business.analyzers.custom_drawdown import CustomDrawDown
 
 
 logger = logging.getLogger(__name__)
@@ -259,8 +227,18 @@ class BaseOptimizer(ABC):
             if not sortino_ratio or not np.isfinite(sortino_ratio):
                 sortino_ratio = 0.0
 
-            # 修复：确保drawdown值只乘以100一次
+            # 获取最大回撤
             max_drawdown = drawdown.get('max', {}).get('drawdown', 0.0) * 100.0
+            
+            # 获取回撤持续时间，优先使用days字段
+            if 'days' in drawdown.get('max', {}):
+                # 使用计算好的天数
+                max_drawdown_days = drawdown['max']['days']
+            else:
+                # 如果是1分钟K线，按每天390个数据点估算
+                points = drawdown.get('max', {}).get('len', 0)
+                max_drawdown_days = max(1, round(points / 390))
+            
             # 添加安全检查，确保max_drawdown在合理范围内
             if max_drawdown > 100.0:
                 logger.warning(f"检测到异常大的回撤值: {max_drawdown}%，可能是计算错误")
@@ -269,6 +247,14 @@ class BaseOptimizer(ABC):
                     # 可能是被错误地乘以了100，将其除以100
                     max_drawdown = max_drawdown / 100.0
                     logger.info(f"已修正回撤值为: {max_drawdown}%")
+
+            # 添加安全检查，确保回撤持续时间在合理范围内
+            if max_drawdown_days > 1000:  # 超过3年的交易日不太可能
+                logger.warning(f"检测到异常大的回撤持续时间: {max_drawdown_days}天，可能是计算错误")
+                # 尝试将数据点转换为天数
+                adjusted_days = max(1, round(max_drawdown_days / 390))
+                logger.info(f"尝试修正回撤持续时间为: {adjusted_days}天")
+                max_drawdown_days = adjusted_days
 
             trade_count = trades.get('total', {}).get('total', 0)
             win_rate = 0.0
@@ -283,6 +269,7 @@ class BaseOptimizer(ABC):
                 'sharpe_ratio': sharpe_ratio,
                 'sortino_ratio': sortino_ratio,
                 'max_drawdown': max_drawdown,
+                'max_drawdown_days': max_drawdown_days,  # 添加回撤持续天数
                 'trade_count': trade_count,
                 'win_rate': win_rate,
                 'sqn': sqn.get('sqn', 0.0)
@@ -319,7 +306,7 @@ class BaseOptimizer(ABC):
         logger.info(f"优化完成! 最优参数: {best_params}")
         logger.info(
             f"最优指标: 收益率 = {best_result['total_return']:.2f}%, 夏普比率 = {best_result['sharpe_ratio']:.4f}, "
-            f"最大回撤 = {best_result['max_drawdown']:.2f}%, 交易次数 = {best_result['trade_count']}, 胜率 = {best_result['win_rate']:.2f}%")
+            f"最大回撤 = {best_result['max_drawdown']:.2f}%, 回撤持续天数 = {best_result['max_drawdown_days']}, 交易次数 = {best_result['trade_count']}, 胜率 = {best_result['win_rate']:.2f}%")
 
         # 更新配置
         best_params_with_strategy = {**best_params, 'strategy_type': strategy_type}
@@ -423,7 +410,7 @@ class BaseOptimizer(ABC):
             logger.info(f"最优策略类型: {best_strategy_type}, 参数: {best_params}")
             logger.info(
                 f"最优指标: 收益率 = {best_metrics['total_return']:.2f}%, 夏普比率 = {best_metrics['sharpe_ratio']:.4f}, "
-                f"最大回撤 = {best_metrics['max_drawdown']:.2f}%, 交易次数 = {best_metrics['trade_count']}, 胜率 = {best_metrics['win_rate']:.2f}%")
+                f"最大回撤 = {best_metrics['max_drawdown']:.2f}%, 回撤持续天数 = {best_metrics['max_drawdown_days']}, 交易次数 = {best_metrics['trade_count']}, 胜率 = {best_metrics['win_rate']:.2f}%")
 
             return best_params_with_strategy
         else:
@@ -535,8 +522,18 @@ class BaseOptimizer(ABC):
         if not sortino_ratio or not np.isfinite(sortino_ratio):
             sortino_ratio = 0.0
 
-        # 修复：确保drawdown值只乘以100一次
+        # 获取最大回撤
         max_drawdown = drawdown.get('max', {}).get('drawdown', 0.0) * 100.0
+        
+        # 获取回撤持续时间，优先使用days字段
+        if 'days' in drawdown.get('max', {}):
+            # 使用计算好的天数
+            max_drawdown_days = drawdown['max']['days']
+        else:
+            # 如果是1分钟K线，按每天390个数据点估算
+            points = drawdown.get('max', {}).get('len', 0)
+            max_drawdown_days = max(1, round(points / 390))
+        
         # 添加安全检查，确保max_drawdown在合理范围内
         if max_drawdown > 100.0:
             logger.warning(f"检测到异常大的回撤值: {max_drawdown}%，可能是计算错误")
@@ -545,6 +542,14 @@ class BaseOptimizer(ABC):
                 # 可能是被错误地乘以了100，将其除以100
                 max_drawdown = max_drawdown / 100.0
                 logger.info(f"已修正回撤值为: {max_drawdown}%")
+
+        # 添加安全检查，确保回撤持续时间在合理范围内
+        if max_drawdown_days > 1000:  # 超过3年的交易日不太可能
+            logger.warning(f"检测到异常大的回撤持续时间: {max_drawdown_days}天，可能是计算错误")
+            # 尝试将数据点转换为天数
+            adjusted_days = max(1, round(max_drawdown_days / 390))
+            logger.info(f"尝试修正回撤持续时间为: {adjusted_days}天")
+            max_drawdown_days = adjusted_days
 
         trade_count = trades.get('total', {}).get('total', 0)
         win_rate = 0.0
@@ -557,6 +562,7 @@ class BaseOptimizer(ABC):
             'sharpe_ratio': sharpe_ratio,
             'sortino_ratio': sortino_ratio,
             'max_drawdown': max_drawdown,
+            'max_drawdown_days': max_drawdown_days,  # 添加回撤持续天数
             'trade_count': trade_count,
             'win_rate': win_rate,
             'sqn': sqn.get('sqn', 0.0)
@@ -695,6 +701,7 @@ class BaseOptimizer(ABC):
                 'sharpe_ratio': result['sharpe_ratio'],
                 'sortino_ratio': result['sortino_ratio'],
                 'max_drawdown': result['max_drawdown'],
+                'max_drawdown_days': result['max_drawdown_days'],
                 'trade_count': result['trade_count'],
                 'win_rate': result['win_rate'],
                 'sqn': result['sqn']

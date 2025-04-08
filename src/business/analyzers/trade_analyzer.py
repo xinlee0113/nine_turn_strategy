@@ -1,11 +1,56 @@
 """
 交易分析器
-用于分析交易数据，生成交易统计
+提供详细的交易统计数据
 """
 import logging
-from typing import Dict, Any
+from datetime import datetime
+from typing import Dict, Any, List, Optional
+
+import numpy as np
 
 from .base_analyzer import BaseAnalyzer
+
+
+class Trade:
+    """交易记录类"""
+
+    def __init__(self, entry_time, entry_price, direction, size):
+        """初始化交易记录"""
+        self.entry_time = entry_time
+        self.entry_price = entry_price
+        self.exit_time = None
+        self.exit_price = None
+        self.direction = direction  # 'long' 或 'short'
+        self.size = size
+        self.pnl = 0.0
+        self.status = 'open'
+        self.duration = 0  # 交易持续时间（分钟）
+
+    def close(self, exit_time, exit_price):
+        """平仓"""
+        self.exit_time = exit_time
+        self.exit_price = exit_price
+        
+        # 计算盈亏
+        if self.direction == 'long':
+            self.pnl = (exit_price - self.entry_price) * self.size
+        else:  # short
+            self.pnl = (self.entry_price - exit_price) * self.size
+            
+        # 计算持续时间
+        if isinstance(exit_time, datetime) and isinstance(self.entry_time, datetime):
+            delta = exit_time - self.entry_time
+            self.duration = delta.total_seconds() // 60  # 分钟
+            
+        self.status = 'closed'
+        
+    def is_win(self):
+        """是否盈利"""
+        return self.pnl > 0
+        
+    def is_loss(self):
+        """是否亏损"""
+        return self.pnl < 0
 
 
 class TradeAnalyzer(BaseAnalyzer):
@@ -18,23 +63,41 @@ class TradeAnalyzer(BaseAnalyzer):
 
     def reset(self):
         """重置分析器状态"""
-        self.trades = []  # 交易列表
-        self.trade_stats = {
-            'total': 0,  # 总交易数
-            'won': 0,  # 盈利交易数
-            'lost': 0,  # 亏损交易数
-            'win_rate': 0.0,  # 胜率
-            'avg_profit': 0.0,  # 平均利润
-            'avg_loss': 0.0,  # 平均亏损
-            'profit_factor': 0.0,  # 利润因子
-            'expectancy': 0.0,  # 期望收益
-            'largest_win': 0.0,  # 最大盈利
-            'largest_loss': 0.0,  # 最大亏损
-            'average_trade': 0.0,  # 平均交易
-            'gross_profit': 0.0,  # 毛利
-            'gross_loss': 0.0,  # 毛损
-            'net_profit': 0.0  # 净利润
-        }
+        self.trades = []  # 交易记录
+        self.current_trade = None  # 当前进行中的交易
+        
+        # 统计指标
+        self.total_trades = 0
+        self.winning_trades = 0
+        self.losing_trades = 0
+        self.break_even_trades = 0
+        self.win_rate = 0.0
+        
+        self.gross_profit = 0.0
+        self.gross_loss = 0.0
+        self.net_profit = 0.0
+        
+        self.avg_profit = 0.0
+        self.avg_loss = 0.0
+        self.avg_trade = 0.0
+        
+        self.profit_factor = 0.0
+        self.win_loss_ratio = 0.0
+        self.expectancy = 0.0
+        
+        self.max_consecutive_wins = 0
+        self.max_consecutive_losses = 0
+        self.current_consecutive_wins = 0
+        self.current_consecutive_losses = 0
+        
+        self.avg_trade_duration = 0  # 平均交易持续时间（分钟）
+        self.max_trade_duration = 0  # 最长交易持续时间（分钟）
+        self.min_trade_duration = float('inf')  # 最短交易持续时间（分钟）
+        
+        self.max_drawdown = 0.0
+        self.max_drawdown_duration = 0
+        
+        self.sqn = 0.0  # 系统质量指标 (System Quality Number)
 
     def initialize(self):
         """初始化分析器"""
@@ -49,21 +112,14 @@ class TradeAnalyzer(BaseAnalyzer):
             strategy: 策略实例
             broker: 经纪商实例
         """
-        # 在这里，我们不做任何事情，因为我们只在有交易时才记录数据
+        # 此方法可在每个bar结束时调用
+        # 可以用于跟踪open trades或者执行实时计算
         pass
 
     def next(self):
         """处理下一个数据点"""
         # 为了兼容旧接口，保留该方法
         pass
-
-    def get_analysis(self):
-        """获取分析结果
-        
-        Returns:
-            Dict: 包含交易统计的字典
-        """
-        return self.get_results()
 
     def addindicator(self, indicator_name, indicator_value):
         """
@@ -86,6 +142,21 @@ class TradeAnalyzer(BaseAnalyzer):
         """
         self.logger.debug(f"收到交易: {trade}")
         self.trades.append(trade)
+        
+        # 更新连续盈亏次数
+        if trade['pnl'] > 0:
+            self.current_consecutive_wins += 1
+            self.current_consecutive_losses = 0
+            if self.current_consecutive_wins > self.max_consecutive_wins:
+                self.max_consecutive_wins = self.current_consecutive_wins
+        elif trade['pnl'] < 0:
+            self.current_consecutive_losses += 1
+            self.current_consecutive_wins = 0
+            if self.current_consecutive_losses > self.max_consecutive_losses:
+                self.max_consecutive_losses = self.current_consecutive_losses
+        else:
+            # 保持不变
+            pass
 
     def analyze(self, results: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -109,66 +180,95 @@ class TradeAnalyzer(BaseAnalyzer):
         self.logger.info("完成交易结果分析")
         return results
 
+    def get_analysis(self):
+        """获取分析结果，兼容Backtrader API
+        
+        Returns:
+            Dict: 包含交易统计的字典
+        """
+        return self.get_results()
+
     def get_results(self) -> Dict[str, Any]:
         """获取交易分析结果
         
         Returns:
             Dict: 包含交易统计的字典
         """
-        results = {}
-
-        # 确保有足够的数据
+        self.logger.info("计算交易统计指标")
+        
+        # 如果没有交易记录，返回空结果
         if not self.trades:
-            self.logger.warning("没有交易数据进行分析")
-            return {'trades': self.trade_stats}
-
-        # 提取交易统计
-        total_trades = len(self.trades)
-        profitable_trades = [t for t in self.trades if t.profit > 0]
-        losing_trades = [t for t in self.trades if t.profit <= 0]
-
-        won = len(profitable_trades)
-        lost = len(losing_trades)
-        win_rate = won / total_trades if total_trades > 0 else 0
-
-        gross_profit = sum(t.profit for t in profitable_trades)
-        gross_loss = sum(t.profit for t in losing_trades)
-        net_profit = gross_profit + gross_loss
-
-        avg_profit = gross_profit / won if won > 0 else 0
-        avg_loss = gross_loss / lost if lost > 0 else 0
-
-        largest_win = max(t.profit for t in profitable_trades) if profitable_trades else 0
-        largest_loss = min(t.profit for t in losing_trades) if losing_trades else 0
-
-        average_trade = net_profit / total_trades if total_trades > 0 else 0
-
-        profit_factor = abs(gross_profit / gross_loss) if gross_loss != 0 else 0
-
-        # 预期收益 = 胜率 * 平均盈利 + (1 - 胜率) * 平均亏损
-        expectancy = (win_rate * avg_profit) + ((1 - win_rate) * avg_loss)
-
-        # 更新交易统计
-        self.trade_stats = {
-            'total': total_trades,
-            'won': won,
-            'lost': lost,
-            'win_rate': win_rate,
-            'avg_profit': avg_profit,
-            'avg_loss': avg_loss,
-            'profit_factor': profit_factor,
-            'expectancy': expectancy,
-            'largest_win': largest_win,
-            'largest_loss': largest_loss,
-            'average_trade': average_trade,
-            'gross_profit': gross_profit,
-            'gross_loss': gross_loss,
-            'net_profit': net_profit
+            self.logger.warning("没有交易记录")
+            return {'trades': {}}
+        
+        # 计算基本指标
+        self.total_trades = len(self.trades)
+        winning_trades = [t for t in self.trades if t['pnl'] > 0]
+        losing_trades = [t for t in self.trades if t['pnl'] < 0]
+        break_even_trades = [t for t in self.trades if t['pnl'] == 0]
+        
+        self.winning_trades = len(winning_trades)
+        self.losing_trades = len(losing_trades)
+        self.break_even_trades = len(break_even_trades)
+        
+        # 计算胜率
+        self.win_rate = self.winning_trades / self.total_trades if self.total_trades > 0 else 0
+        
+        # 计算盈亏金额
+        self.gross_profit = sum(t['pnl'] for t in winning_trades)
+        self.gross_loss = sum(t['pnl'] for t in losing_trades)
+        self.net_profit = self.gross_profit + self.gross_loss
+        
+        # 计算平均盈亏
+        self.avg_profit = self.gross_profit / self.winning_trades if self.winning_trades > 0 else 0
+        self.avg_loss = self.gross_loss / self.losing_trades if self.losing_trades > 0 else 0
+        self.avg_trade = self.net_profit / self.total_trades if self.total_trades > 0 else 0
+        
+        # 计算盈亏比和盈利因子
+        self.win_loss_ratio = abs(self.avg_profit / self.avg_loss) if self.avg_loss != 0 else float('inf')
+        self.profit_factor = abs(self.gross_profit / self.gross_loss) if self.gross_loss != 0 else float('inf')
+        
+        # 计算期望值
+        self.expectancy = (self.win_rate * self.avg_profit) + ((1 - self.win_rate) * self.avg_loss)
+        
+        # 计算系统质量指标 (System Quality Number)
+        pnl_values = [t['pnl'] for t in self.trades]
+        if len(pnl_values) > 1:
+            pnl_std = np.std(pnl_values)
+            if pnl_std > 0:
+                self.sqn = np.sqrt(self.total_trades) * (self.avg_trade / pnl_std)
+        
+        # 构建结果字典
+        results = {
+            'trades': {
+                'total': self.total_trades,
+                'won': self.winning_trades,
+                'lost': self.losing_trades,
+                'even': self.break_even_trades,
+                'win_rate': self.win_rate,
+                
+                'gross_profit': self.gross_profit,
+                'gross_loss': self.gross_loss,
+                'net_profit': self.net_profit,
+                
+                'avg_profit': self.avg_profit,
+                'avg_loss': self.avg_loss,
+                'avg_trade': self.avg_trade,
+                
+                'profit_factor': self.profit_factor,
+                'win_loss_ratio': self.win_loss_ratio,
+                'expectancy': self.expectancy,
+                
+                'max_consecutive_wins': self.max_consecutive_wins,
+                'max_consecutive_losses': self.max_consecutive_losses,
+                
+                'sqn': self.sqn
+            }
         }
-
-        # 记录日志
-        self.logger.info(
-            f"交易分析: 总交易={total_trades}, 盈利={won}, 亏损={lost}, 胜率={win_rate * 100:.2f}%, 利润因子={profit_factor:.2f}")
-
-        results['trades'] = self.trade_stats
+        
+        self.logger.info(f"交易统计: 总交易={self.total_trades}, 盈利={self.winning_trades}, "
+                        f"亏损={self.losing_trades}, 胜率={self.win_rate*100:.2f}%, "
+                        f"盈亏比={self.win_loss_ratio:.2f}, 盈利因子={self.profit_factor:.2f}, "
+                        f"SQN={self.sqn:.4f}")
+        
         return results

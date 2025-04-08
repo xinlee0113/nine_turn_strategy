@@ -3,7 +3,8 @@
 定义策略的接口规范，继承自backtrader的Strategy类
 """
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List
+from datetime import datetime
 
 import backtrader as bt
 
@@ -20,6 +21,7 @@ class BaseStrategy(bt.Strategy):
         self.logger = logging.getLogger(__name__)
         self.position_size = 0  # 仓位大小
         self.params = {}
+        self.trades = []  # 记录所有交易
 
     def log(self, txt, dt=None):
         """日志函数"""
@@ -60,6 +62,9 @@ class BaseStrategy(bt.Strategy):
             return
 
         self.log(f'交易利润, 毛利润: {trade.pnl:.2f}, 净利润: {trade.pnlcomm:.2f}')
+        
+        # 将交易记录到列表
+        self.trades.append(trade)
 
     def next(self):
         """策略主循环，在每个bar上调用一次"""

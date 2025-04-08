@@ -58,7 +58,12 @@ class RiskAnalyzer(BaseAnalyzer):
 
             # 计算当前回撤
             if self.current_peak > 0:
-                drawdown = 1 - (self.equity_curve[-1] / self.current_peak)
+                # 确保回撤计算正确：(峰值 - 当前值)/峰值
+                drawdown = (self.current_peak - self.equity_curve[-1]) / self.current_peak
+                
+                # 确保回撤值在合理范围内 [0, 1]
+                drawdown = max(0, min(drawdown, 1.0))
+                
                 self.drawdowns.append(drawdown)
 
                 # 更新最大回撤
@@ -99,6 +104,11 @@ class RiskAnalyzer(BaseAnalyzer):
             }}
 
         # 计算最终指标
+
+        # 确保最大回撤值在合理范围内 [0, 1]
+        if self.max_drawdown > 1.0:
+            self.logger.warning(f"检测到不合理的最大回撤值: {self.max_drawdown}，将其限制在 [0, 1] 范围内")
+            self.max_drawdown = min(self.max_drawdown, 1.0)
 
         # 计算波动率 (如果有日收益率)
         if len(self.equity_curve) > 1:

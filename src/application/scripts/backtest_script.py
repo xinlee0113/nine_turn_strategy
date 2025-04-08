@@ -57,7 +57,8 @@ class BacktestScript:
         self.broker = None
         self.analyzers = []
 
-    def run(self, symbol="AAPL", start_date=None, end_date=None, period=TimeInterval.ONE_MINUTE.value):
+    def run(self, symbol="AAPL", start_date=None, end_date=None, period=TimeInterval.ONE_MINUTE.value, 
+            enable_plot=False):
         """
         运行回测
         
@@ -66,8 +67,14 @@ class BacktestScript:
             start_date: 开始日期，默认为当前日期前30天（对于1分钟K线，老虎证券API限制最多30天）
             end_date: 结束日期，默认为当前日期
             period: 数据周期，默认为1m(1分钟)
+            enable_plot: 是否启用绘图功能，默认为False
         """
         self.logger.info("开始回测流程")
+
+        # 保存开始和结束日期，用于后续计算
+        self.start_date = start_date
+        self.end_date = end_date
+        self.period = period
 
         # 设置默认日期
         if end_date is None:
@@ -200,6 +207,31 @@ class BacktestScript:
         # 注册分析器
         for analyzer in self.analyzers:
             self.engine.add_analyzer(analyzer)
+            
+        # 设置绘图选项
+        if enable_plot:
+            plot_options = {
+                'style': 'candle',  # 默认使用蜡烛图
+                'volume': True,     # 默认显示成交量
+                'plotname': f"{symbol} {period} {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
+                'show': True,       # 立即显示图表
+                'width': 16,        # 图表宽度
+                'height': 9,        # 图表高度
+                'dpi': 100,         # 分辨率
+                'use': None,        # 使用指定的绘图后端，None表示自动选择
+                'plotdist': 0.0,    # 子图之间的间距
+                'barup': '#27A59A', # 上涨柱状图颜色
+                'bardown': '#EF534F',  # 下跌柱状图颜色
+                'linevalues': True,    # 显示线条数值
+                'fmt_x_data': None,    # x轴数据格式
+                'fmt_y_data': None,    # y轴数据格式
+                'plotobservercols': True,  # 默认绘制观察者列
+                'show_trades': True,       # 默认显示交易观察器
+                'show_broker': True,       # 默认显示资金曲线
+                'show_buysell': True,      # 默认显示买卖点标记
+            }
+            self.engine.set_plot_options(enabled=True, **plot_options)
+            self.logger.info("启用绘图功能")
 
         # 8. 注册事件监听
         self.logger.info("8. 注册事件监听")
@@ -249,6 +281,11 @@ class BacktestScript:
             self.logger.info(f"- 总收益率: {total_return * 100:.2f}%")
             self.logger.info(f"- 年化收益率: {annual_return * 100:.2f}%")
             self.logger.info(f"- 夏普比率: {sharpe_ratio:.4f}")
+            
+            # 如果有索提诺比率，也输出
+            if 'sortino_ratio' in perf:
+                sortino_ratio = perf.get('sortino_ratio', 0) or 0
+                self.logger.info(f"- 索提诺比率: {sortino_ratio:.4f}")
 
         # 记录风险指标
         if 'risk' in results:
@@ -259,9 +296,44 @@ class BacktestScript:
             max_drawdown_length = risk.get('max_drawdown_length', 0) or 0
             volatility = risk.get('volatility', 0) or 0
 
+            # 确保最大回撤值在合理范围内 [0, 1]，然后转换为百分比显示
+            max_drawdown = max(0, min(max_drawdown, 1.0))
             self.logger.info(f"- 最大回撤: {max_drawdown * 100:.2f}%")
-            self.logger.info(f"- 最大回撤期: {max_drawdown_length} 天")
+            
+            # 直接输出原始回撤长度，不做任何修正
+            self.logger.info(f"- 最大回撤持续时间: {max_drawdown_length} 个数据点")
+            
+            # 如果有回撤日期信息，显示具体日期
+            if 'max_drawdown_start' in risk and 'max_drawdown_end' in risk:
+                start_date = risk.get('max_drawdown_start')
+                end_date = risk.get('max_drawdown_end')
+                self.logger.info(f"- 最大回撤起止时间: {start_date} 至 {end_date}")
+                
+                # 计算实际日历天数
+                if isinstance(start_date, datetime) and isinstance(end_date, datetime):
+                    delta = end_date - start_date
+                    days = delta.days + (1 if delta.seconds > 0 else 0)
+                    self.logger.info(f"- 最大回撤持续天数: {days} 天")
+            
+            # 分析回撤历史
+            if 'drawdowns' in risk and risk['drawdowns']:
+                drawdowns = risk['drawdowns']
+                # 取前5个最大回撤
+                top_drawdowns = sorted(drawdowns, key=lambda x: x[2], reverse=True)[:5]
+                
+                self.logger.info("回撤历史(Top 5):")
+                for i, (start_date, end_date, dd_value, points) in enumerate(top_drawdowns, 1):
+                    dd_days = (end_date - start_date).days + (1 if (end_date - start_date).seconds > 0 else 0)
+                    self.logger.info(f"  {i}. {start_date} 至 {end_date}: {dd_value*100:.2f}%, 持续{points}个点 ({dd_days}天)")
+            
             self.logger.info(f"- 波动率: {volatility * 100:.2f}%")
+            
+            # 计算卡尔玛比率 (Calmar Ratio) = 年化收益率 / 最大回撤
+            if max_drawdown > 0 and annual_return:
+                calmar_ratio = annual_return / max_drawdown
+                self.logger.info(f"- 卡尔玛比率: {calmar_ratio:.4f}")
+            else:
+                self.logger.info(f"- 卡尔玛比率: 0.0000")
 
         # 记录交易统计
         if 'trades' in results:
@@ -272,15 +344,114 @@ class BacktestScript:
             won = trades.get('won', 0) or 0
             lost = trades.get('lost', 0) or 0
             win_rate = trades.get('win_rate', 0) or 0
-            pnl_avg = trades.get('pnl_avg', 0) or 0
-            pnl_net = trades.get('pnl_net', 0) or 0
-
+            
+            # 基础交易统计
             self.logger.info(f"- 总交易次数: {total}")
             self.logger.info(f"- 盈利交易: {won}")
             self.logger.info(f"- 亏损交易: {lost}")
             self.logger.info(f"- 胜率: {win_rate * 100:.2f}%")
+            
+            # 如果有更多高级指标，也输出它们
+            if 'avg_profit' in trades and 'avg_loss' in trades:
+                avg_profit = trades.get('avg_profit', 0) or 0
+                avg_loss = trades.get('avg_loss', 0) or 0
+                
+                # 计算平均盈亏比
+                win_loss_ratio = trades.get('win_loss_ratio', 0) or 0
+                if win_loss_ratio == 0 and avg_loss != 0:
+                    win_loss_ratio = abs(avg_profit / avg_loss)
+                
+                self.logger.info(f"- 平均盈亏比: {win_loss_ratio:.2f}")
+            
+            # 盈利因子 = 总盈利 / 总亏损
+            profit_factor = trades.get('profit_factor', 0) or 0
+            self.logger.info(f"- 盈利因子: {profit_factor:.2f}")
+            
+            # 平均每笔交易收益
+            expectancy = trades.get('expectancy', 0) or 0
+            self.logger.info(f"- 每笔交易期望收益: {expectancy:.2f}")
+            
+            # 最大连续盈亏次数
+            max_consecutive_wins = trades.get('max_consecutive_wins', 0) or 0
+            max_consecutive_losses = trades.get('max_consecutive_losses', 0) or 0
+            
+            self.logger.info(f"- 最大连续盈利次数: {max_consecutive_wins}")
+            self.logger.info(f"- 最大连续亏损次数: {max_consecutive_losses}")
+            
+            # 系统质量指标 (SQN)
+            sqn = trades.get('sqn', 0) or 0
+            self.logger.info(f"- 系统质量指标(SQN): {sqn:.4f}")
+            
+            # 平均收益和总收益
+            pnl_avg = trades.get('avg_trade', 0) or trades.get('pnl_avg', 0) or 0
+            pnl_net = trades.get('net_profit', 0) or trades.get('pnl_net', 0) or 0
+            
             self.logger.info(f"- 平均收益: {pnl_avg:.4f}")
             self.logger.info(f"- 总净利润: {pnl_net:.4f}")
+            
+            # 平均每天交易次数
+            if hasattr(self, 'start_date') and hasattr(self, 'end_date'):
+                delta = self.end_date - self.start_date
+                days = max(1, delta.days)
+                trades_per_day = total / days
+                self.logger.info(f"- 平均每天交易次数: {trades_per_day:.2f}")
+
+        # 记录持仓分析结果
+        if 'positions' in results and results['positions']:
+            positions = results['positions']
+            self.logger.info("持仓统计:")
+            
+            # 总持仓数量
+            total_positions = positions.get('total_positions', 0)
+            long_positions = positions.get('long_positions', 0)
+            short_positions = positions.get('short_positions', 0)
+            
+            self.logger.info(f"- 总持仓数量: {total_positions}")
+            self.logger.info(f"- 多头持仓: {long_positions}")
+            self.logger.info(f"- 空头持仓: {short_positions}")
+            
+            # 多空盈亏
+            long_pnl = positions.get('long_pnl', 0)
+            short_pnl = positions.get('short_pnl', 0)
+            
+            self.logger.info(f"- 多头总盈亏: {long_pnl:.2f}")
+            self.logger.info(f"- 空头总盈亏: {short_pnl:.2f}")
+            
+            # 多空胜率
+            long_win_rate = positions.get('long_win_rate', 0)
+            short_win_rate = positions.get('short_win_rate', 0)
+            
+            self.logger.info(f"- 多头胜率: {long_win_rate * 100:.2f}%")
+            self.logger.info(f"- 空头胜率: {short_win_rate * 100:.2f}%")
+            
+            # 持仓时间统计
+            avg_holding_period = positions.get('avg_holding_period', 0)
+            max_holding_period = positions.get('max_holding_period', 0)
+            min_holding_period = positions.get('min_holding_period', 0)
+            
+            # 将分钟转换为小时和天，便于阅读
+            avg_hours = avg_holding_period / 60
+            max_hours = max_holding_period / 60
+            min_hours = min_holding_period / 60
+            
+            avg_days = avg_hours / 24
+            max_days = max_hours / 24
+            min_days = min_hours / 24
+            
+            self.logger.info(f"- 平均持仓时间: {avg_holding_period:.0f}分钟 ({avg_hours:.2f}小时, {avg_days:.2f}天)")
+            self.logger.info(f"- 最长持仓时间: {max_holding_period:.0f}分钟 ({max_hours:.2f}小时, {max_days:.2f}天)")
+            self.logger.info(f"- 最短持仓时间: {min_holding_period:.0f}分钟 ({min_hours:.2f}小时, {min_days:.2f}天)")
+            
+            # 持仓时间分布
+            if 'holding_time_percentiles' in positions:
+                percentiles = positions['holding_time_percentiles']
+                self.logger.info("- 持仓时间分布(分钟):")
+                for p, value in percentiles.items():
+                    if p.startswith('p'):
+                        percentile = p[1:]  # 去掉'p'前缀
+                        hours = value / 60
+                        days = hours / 24
+                        self.logger.info(f"  - {percentile}%的持仓时间小于: {value:.0f}分钟 ({hours:.2f}小时, {days:.2f}天)")
 
         self.logger.info("=" * 50)
 

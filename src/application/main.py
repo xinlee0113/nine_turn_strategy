@@ -63,6 +63,9 @@ def parse_args():
     # 策略参数
     parser.add_argument('--period', type=int, default=9, help='神奇九转周期')
     parser.add_argument('--enable-short', action='store_true', help='启用做空交易')
+    
+    # 绘图参数
+    parser.add_argument('--plot', action='store_true', help='启用绘图功能')
 
     # 配置参数
     parser.add_argument('--strategy-config', type=str, default='configs/strategy/magic_nine.yaml',
@@ -109,13 +112,18 @@ def main():
 
             logger.info(
                 f"回测参数: 标的={args.symbol}, 周期={args.interval}, 时间范围=过去{days}天 ({start_date.strftime('%Y-%m-%d')} 至 {end_date.strftime('%Y-%m-%d')})")
+            
+            # 处理绘图参数
+            if args.plot:
+                logger.info("将启用绘图功能")
 
             # 通过脚本管理器运行回测脚本
             results = script_manager.run_backtest(
                 symbol=args.symbol,
                 start_date=start_date,
                 end_date=end_date,
-                period=args.interval
+                period=args.interval,
+                enable_plot=args.plot,
             )
 
             if not results:

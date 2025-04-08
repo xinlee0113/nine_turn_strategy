@@ -3,6 +3,7 @@
 """
 import logging
 from typing import Dict, Any
+from datetime import datetime
 
 import backtrader as bt
 import pandas as pd
@@ -11,6 +12,10 @@ from src.infrastructure.constants.const import DEFAULT_INITIAL_CAPITAL, DEFAULT_
 from ..base_engine import BaseEngine
 from ...analyzers.performance_analyzer import PerformanceAnalyzer
 from ...analyzers.risk_analyzer import RiskAnalyzer
+from ...analyzers.custom_drawdown import CustomDrawDown
+from ...analyzers.trade_analyzer import TradeAnalyzer
+from ...analyzers.position_analyzer import PositionAnalyzer
+from ...analyzers.sortino_ratio import SortinoRatio  # 导入自定义的SortinoRatio分析器
 
 
 class BacktestEngine(BaseEngine):
@@ -33,12 +38,18 @@ class BacktestEngine(BaseEngine):
         self.analyzers = []
         self.performance_analyzer = PerformanceAnalyzer()
         self.risk_analyzer = RiskAnalyzer()
-        self.analyzers.extend([self.performance_analyzer, self.risk_analyzer])
+        self.trade_analyzer = TradeAnalyzer()
+        self.position_analyzer = PositionAnalyzer()
+        self.analyzers.extend([self.performance_analyzer, self.risk_analyzer, self.trade_analyzer, self.position_analyzer])
 
         # 回测状态
         self.is_running = False
         self.current_datetime = None
         self.results = {}
+        
+        # 绘图设置
+        self.plot_enabled = False
+        self.plot_options = {}
 
     def set_strategy(self, strategy_class) -> None:
         """设置策略类
@@ -69,17 +80,24 @@ class BacktestEngine(BaseEngine):
             data.index = pd.to_datetime(data.index)
 
         # 创建backtrader的数据源
-        data_feed = bt.feeds.PandasData(
-            dataname=data,
-            datetime=None,  # 使用索引作为日期时间
-            open='open',
-            high='high',
-            low='low',
-            close='close',
-            volume='volume',
-            openinterest=-1  # 不使用持仓量
-        )
-
+        # 根据不同版本的backtrader，参数名称可能有所不同
+        try:
+            # 尝试使用标准参数
+            data_feed = bt.feeds.PandasData(
+                dataname=data,
+                datetime=None,  # 使用索引作为日期时间
+                open='open',
+                high='high',
+                low='low',
+                close='close',
+                volume='volume',
+                openinterest=-1  # 不使用持仓量
+            )
+        except TypeError as e:
+            self.logger.warning(f"使用标准参数创建PandasData失败: {e}，尝试使用字典方式")
+            # 尝试使用字典方式
+            data_feed = bt.feeds.PandasData(data=data)
+            
         return data_feed
 
     def set_broker(self, broker) -> None:
@@ -108,10 +126,38 @@ class BacktestEngine(BaseEngine):
     def _add_bt_analyzers(self):
         """添加backtrader内置分析器"""
         self.cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
-        self.cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+        self.cerebro.addanalyzer(CustomDrawDown, _name='drawdown')  # 使用自定义回撤分析器
         self.cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
+        
+        # 添加交易分析器，但保留内置的交易分析器以保持兼容性
         self.cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trade_analyzer')
+        
+        # 添加SQN分析器
+        self.cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
+        
+        # 添加自定义的索提诺比率分析器
+        try:
+            self.cerebro.addanalyzer(SortinoRatio, _name='sortino', 
+                                    riskfreerate=0.0, annualize=True)
+            self.logger.info("成功添加自定义索提诺比率分析器")
+        except Exception as e:
+            self.logger.warning(f"无法添加索提诺比率分析器: {e}")
+        
+        # 不在这里添加交易观察器，避免重复
 
+    def set_plot_options(self, enabled=True, **kwargs):
+        """设置绘图选项
+        
+        Args:
+            enabled: 是否启用绘图
+            **kwargs: 绘图选项，如style、width、barup等
+        """
+        self.plot_enabled = enabled
+        self.plot_options = kwargs
+        self.logger.info(f"{'启用' if enabled else '禁用'}绘图功能")
+        if enabled and kwargs:
+            self.logger.info(f"设置绘图选项: {kwargs}")
+            
     def run(self) -> Dict[str, Any]:
         """运行回测"""
         self.logger.info("开始运行回测")
@@ -125,12 +171,22 @@ class BacktestEngine(BaseEngine):
         # 添加backtrader内置分析器
         self._add_bt_analyzers()
 
+        # 设置cerebro选项，控制标准观察器（解决双重Trades问题）
+        show_trades = self.plot_options.get('show_trades', False) # 默认不显示交易观察器
+        if not show_trades:
+            # 默认不显示交易观察器，避免重复
+            self.cerebro.stdstats = False
+            
+            # 手动添加需要的观察器
+            self.cerebro.addobserver(bt.observers.Broker)
+            self.cerebro.addobserver(bt.observers.BuySell)
+
         # 添加策略到cerebro
         try:
-            strategy_params = self.config.get_params().get('strategy', {})
-        except AttributeError:
-            # 如果config没有get_params方法，尝试直接获取
             strategy_params = self.config.get('strategy', {})
+        except Exception as e:
+            self.logger.warning(f"获取策略参数失败: {e}，使用空字典")
+            strategy_params = {}
 
         self.cerebro.addstrategy(self.strategy, **strategy_params)
 
@@ -142,6 +198,18 @@ class BacktestEngine(BaseEngine):
         if len(bt_results) > 0:
             bt_strategy = bt_results[0]
             self.results = self._extract_results(bt_strategy)
+
+        # 如果启用了绘图功能，则绘制图表
+        if self.plot_enabled:
+            self.logger.info("生成回测图表")
+            try:
+                # 过滤掉非绘图相关的选项
+                plot_options = {k: v for k, v in self.plot_options.items() 
+                              if k not in ['show_trades']}
+                self.cerebro.plot(**plot_options)
+                self.logger.info("图表生成成功")
+            except Exception as e:
+                self.logger.error(f"图表生成失败: {e}")
 
         # 完成回测
         self.is_running = False
@@ -176,6 +244,42 @@ class BacktestEngine(BaseEngine):
 
         # 获取交易分析
         trades = strategy.analyzers.trade_analyzer.get_analysis()
+        
+        # 获取SQN
+        sqn_result = {}
+        try:
+            sqn_result = strategy.analyzers.sqn.get_analysis()
+        except Exception as e:
+            self.logger.warning(f"提取SQN分析结果失败: {e}")
+            
+        # 获取索提诺比率
+        sortino_result = {}
+        try:
+            sortino_result = strategy.analyzers.sortino.get_analysis()
+            self.logger.info(f"成功提取索提诺比率: {sortino_result.get('sortinoratio', 0)}")
+        except Exception as e:
+            self.logger.warning(f"提取索提诺比率分析结果失败: {e}")
+        
+        # 处理交易记录，用于自定义持仓分析
+        try:
+            # 提取策略中的交易记录
+            trade_list = strategy.trades
+            # 将交易记录传递给持仓分析器
+            for trade in trade_list:
+                trade_dict = {
+                    'action': trade.status == 0 and 'buy' or trade.status == 1 and 'sell' or trade.status == 2 and 'short' or 'cover',
+                    'symbol': trade.data._name if hasattr(trade.data, '_name') else 'unknown',
+                    'size': trade.size,
+                    'price': trade.price,
+                    'timestamp': trade.dtopen if hasattr(trade, 'dtopen') else datetime.now(),
+                    'baropen': trade.baropen if hasattr(trade, 'baropen') else 0,
+                    'barclose': trade.barclose if hasattr(trade, 'barclose') else 0,
+                    'pnl': trade.pnl if hasattr(trade, 'pnl') else 0,
+                    'pnlcomm': trade.pnlcomm if hasattr(trade, 'pnlcomm') else 0,
+                }
+                self.position_analyzer.on_trade(trade_dict)
+        except Exception as e:
+            self.logger.warning(f"处理交易记录失败: {e}")
 
         # 整理性能指标
         performance = {
@@ -183,30 +287,131 @@ class BacktestEngine(BaseEngine):
             'annual_return': returns.get('rnorm', 0),
             'sharpe_ratio': sharpe.get('sharperatio', 0) if hasattr(sharpe, 'get') else 0,
         }
+        
+        # 添加索提诺比率
+        if sortino_result and 'sortinoratio' in sortino_result:
+            performance['sortino_ratio'] = sortino_result.get('sortinoratio', 0)
+        else:
+            performance['sortino_ratio'] = 0
+        
+        # 添加SQN
+        if sqn_result and 'sqn' in sqn_result:
+            performance['sqn'] = sqn_result.get('sqn', 0)
 
         # 整理风险指标
         risk = {
             'max_drawdown': drawdown.get('max', {}).get('drawdown', 0),
-            'max_drawdown_length': drawdown.get('max', {}).get('len', 0),
+            'max_drawdown_length': 0,  # 初始化为0
             'volatility': 0,  # 需要另外计算
         }
+        
+        # 直接使用回撤分析器提供的天数
+        if 'days' in drawdown.get('max', {}):
+            risk['max_drawdown_length'] = drawdown['max']['days']
+        # 如果没有天数信息，则使用原始数据点数
+        elif 'len' in drawdown.get('max', {}):
+            risk['max_drawdown_length'] = drawdown['max']['len']
+            self.logger.info(f"使用原始数据点数作为回撤持续时间: {drawdown['max']['len']}个数据点")
+        
+        # 记录回撤的起止日期
+        if 'start_date' in drawdown.get('max', {}) and 'end_date' in drawdown.get('max', {}):
+            risk['max_drawdown_start'] = drawdown['max']['start_date']
+            risk['max_drawdown_end'] = drawdown['max']['end_date']
+            
+        # 添加回撤历史记录
+        if 'drawdowns' in drawdown:
+            risk['drawdowns'] = drawdown['drawdowns']
+            self.logger.info(f"回撤历史记录: {len(drawdown['drawdowns'])}个回撤周期")
+        
+        # 添加总数据点数
+        if 'total_points' in drawdown:
+            risk['total_points'] = drawdown['total_points']
 
         # 整理交易统计
-        trade_stats = {
-            'total': trades.get('total', {}).get('total', 0),
-            'won': trades.get('won', {}).get('total', 0),
-            'lost': trades.get('lost', {}).get('total', 0),
-            'win_rate': trades.get('won', {}).get('total', 0) / trades.get('total', {}).get('total', 1) if trades.get(
-                'total', {}).get('total', 0) > 0 else 0,
-            'pnl_net': trades.get('pnl', {}).get('net', {}).get('total', 0),
-            'pnl_avg': trades.get('pnl', {}).get('net', {}).get('average', 0),
-        }
+        trade_stats = self._extract_trade_stats(trades)
+        
+        # 获取持仓分析结果
+        position_stats = {}
+        try:
+            position_stats = self.position_analyzer.get_results()
+        except Exception as e:
+            self.logger.warning(f"获取持仓分析结果失败: {e}")
 
         results['performance'] = performance
         results['risk'] = risk
         results['trades'] = trade_stats
+        results['positions'] = position_stats
 
         return results
+        
+    def _extract_trade_stats(self, trades) -> Dict[str, Any]:
+        """从交易分析结果中提取详细的交易统计"""
+        # 基础交易统计
+        trade_stats = {
+            'total': trades.get('total', {}).get('total', 0),
+            'won': trades.get('won', {}).get('total', 0),
+            'lost': trades.get('lost', {}).get('total', 0),
+            'pnl_net': trades.get('pnl', {}).get('net', {}).get('total', 0),
+            'pnl_avg': trades.get('pnl', {}).get('net', {}).get('average', 0),
+        }
+        
+        # 计算胜率
+        if trade_stats['total'] > 0:
+            trade_stats['win_rate'] = trade_stats['won'] / trade_stats['total']
+        else:
+            trade_stats['win_rate'] = 0
+            
+        # 提取更多详细指标(如果有)
+        # 最大盈亏
+        if 'pnl' in trades and 'net' in trades['pnl']:
+            net_pnl = trades['pnl']['net']
+            if 'max' in net_pnl:
+                trade_stats['max_profit'] = net_pnl.get('max', 0)
+            if 'min' in net_pnl:
+                trade_stats['max_loss'] = net_pnl.get('min', 0)
+                
+        # 平均盈亏
+        if 'won' in trades and 'pnl' in trades.get('won', {}):
+            trade_stats['avg_profit'] = trades['won'].get('pnl', {}).get('average', 0)
+        
+        if 'lost' in trades and 'pnl' in trades.get('lost', {}):
+            trade_stats['avg_loss'] = trades['lost'].get('pnl', {}).get('average', 0)
+        
+        # 盈亏比和盈利因子
+        if trade_stats.get('avg_loss', 0) != 0:
+            avg_profit = trade_stats.get('avg_profit', 0)
+            avg_loss = abs(trade_stats.get('avg_loss', 0))
+            if avg_loss > 0:
+                trade_stats['win_loss_ratio'] = avg_profit / avg_loss
+            else:
+                trade_stats['win_loss_ratio'] = 0
+                
+        gross_profit = trades.get('won', {}).get('pnl', {}).get('total', 0)
+        gross_loss = abs(trades.get('lost', {}).get('pnl', {}).get('total', 0))
+        
+        if gross_loss > 0:
+            trade_stats['profit_factor'] = gross_profit / gross_loss
+        else:
+            trade_stats['profit_factor'] = 0
+            
+        # 连续盈亏
+        if 'streak' in trades:
+            streak = trades['streak']
+            if 'won' in streak:
+                trade_stats['max_consecutive_wins'] = streak['won'].get('longest', 0)
+            if 'lost' in streak:
+                trade_stats['max_consecutive_losses'] = streak['lost'].get('longest', 0)
+                
+        # 期望值
+        if (trade_stats.get('win_rate', 0) > 0 and 
+            'avg_profit' in trade_stats and 
+            'avg_loss' in trade_stats):
+            win_rate = trade_stats['win_rate']
+            avg_profit = trade_stats['avg_profit']
+            avg_loss = trade_stats['avg_loss']
+            trade_stats['expectancy'] = (win_rate * avg_profit) + ((1 - win_rate) * avg_loss)
+            
+        return trade_stats
 
     def analyze(self) -> Dict[str, Any]:
         """分析回测结果"""

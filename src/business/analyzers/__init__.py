@@ -5,9 +5,11 @@
 from .base_analyzer import BaseAnalyzer
 from .performance_analyzer import PerformanceAnalyzer
 from .risk_analyzer import RiskAnalyzer
+from .custom_drawdown import CustomDrawDown
 
 __all__ = [
     'BaseAnalyzer',
     'PerformanceAnalyzer',
-    'RiskAnalyzer'
+    'RiskAnalyzer',
+    'CustomDrawDown'
 ]
