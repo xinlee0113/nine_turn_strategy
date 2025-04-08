@@ -296,11 +296,26 @@ class BacktestEngine(BaseEngine):
         except Exception as e:
             self.logger.warning(f"获取Sortino比率分析结果失败: {e}")
 
+        # 提取基本交易统计
+        trade_stats = self._extract_trade_stats(trades)
+        
+        # 从自定义交易分析器中获取平均每天交易次数
+        if 'tradeanalyzer' in results:
+            tradeanalyzer_results = results['tradeanalyzer']
+            # 检查自定义交易分析器结果中是否包含avg_trades_per_day
+            if 'avg_trades_per_day' in tradeanalyzer_results:
+                trade_stats['avg_trades_per_day'] = tradeanalyzer_results['avg_trades_per_day']
+                self.logger.info(f"从自定义交易分析器中获取平均每天交易次数: {tradeanalyzer_results['avg_trades_per_day']}")
+            # 如果自定义分析器结果嵌套在trades字段中
+            elif 'trades' in tradeanalyzer_results and 'avg_trades_per_day' in tradeanalyzer_results['trades']:
+                trade_stats['avg_trades_per_day'] = tradeanalyzer_results['trades']['avg_trades_per_day']
+                self.logger.info(f"从自定义交易分析器的trades字段中获取平均每天交易次数: {tradeanalyzer_results['trades']['avg_trades_per_day']}")
+
         # 组织结果
         results.update({
             'returns': returns,
             'sharpe': sharpe,
-            'trades': self._extract_trade_stats(trades),
+            'trades': trade_stats,
             'sqn': sqn_result,
             'sortino': sortino_result
         })
@@ -319,6 +334,7 @@ class BacktestEngine(BaseEngine):
             'lost': trades.get('lost', {}).get('total', 0),
             'pnl_net': trades.get('pnl', {}).get('net', {}).get('total', 0),
             'pnl_avg': trades.get('pnl', {}).get('net', {}).get('average', 0),
+            'avg_trades_per_day': trades.get('avg_trades_per_day', 0),  # 添加平均每天交易次数
         }
         
         # 计算胜率
@@ -412,6 +428,13 @@ class BacktestEngine(BaseEngine):
             sharpe_ratio = risk.get('sharperatio', 0) or 0
 
             self.logger.info(f"- 夏普比率: {sharpe_ratio:.4f}")
+            
+        # 记录卡尔玛比率
+        if 'calmarratio' in self.results:
+            calmar = self.results['calmarratio']
+            # 确保值不为None再进行格式化
+            calmar_ratio = calmar.get('calmar_ratio', 0) or 0
+            self.logger.info(f"- 卡尔玛比率: {calmar_ratio:.4f}")
 
         if 'trades' in self.results:
             trades = self.results['trades']
@@ -423,6 +446,7 @@ class BacktestEngine(BaseEngine):
             win_rate = trades.get('win_rate', 0) or 0
             pnl_avg = trades.get('pnl_avg', 0) or 0
             pnl_net = trades.get('pnl_net', 0) or 0
+            avg_trades_per_day = trades.get('avg_trades_per_day', 0) or 0
 
             self.logger.info(f"- 总交易次数: {total}")
             self.logger.info(f"- 盈利交易: {won}")
@@ -430,6 +454,7 @@ class BacktestEngine(BaseEngine):
             self.logger.info(f"- 胜率: {win_rate * 100:.2f}%")
             self.logger.info(f"- 平均收益: {pnl_avg:.4f}")
             self.logger.info(f"- 总净利润: {pnl_net:.4f}")
+            self.logger.info(f"- 平均每天交易次数: {avg_trades_per_day:.2f}")
 
         if 'sqn' in self.results:
             sqn = self.results['sqn']

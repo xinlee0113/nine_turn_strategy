@@ -259,9 +259,32 @@ class BacktestScript:
                 # 构建分析结果字典
                 analysis_results = {
                     'performance': results.get('performanceanalyzer', {}),
-                    'risk': results.get('riskanalyzer', {}),
-                    'trades': results.get('trades', {})
+                    'risk': results.get('riskanalyzer', {})
                 }
+                
+                # 确保从calmarratio分析器中获取卡尔玛比率
+                if 'calmarratio' in results:
+                    calmar_results = results.get('calmarratio', {})
+                    if 'calmar_ratio' in calmar_results:
+                        if 'risk' not in analysis_results:
+                            analysis_results['risk'] = {}
+                        analysis_results['risk']['calmar_ratio'] = calmar_results['calmar_ratio']
+                        self.logger.info(f"从calmarratio分析器获取卡尔玛比率: {calmar_results['calmar_ratio']}")
+                
+                # 添加交易统计
+                analysis_results['trades'] = results.get('trades', {})
+                
+                # 确保从tradeanalyzer中获取平均每天交易次数
+                if 'tradeanalyzer' in results:
+                    trade_analyzer_results = results.get('tradeanalyzer', {})
+                    if 'trades' not in analysis_results:
+                        analysis_results['trades'] = {}
+                    
+                    # 直接从tradeanalyzer获取avg_trades_per_day
+                    if 'avg_trades_per_day' in trade_analyzer_results:
+                        analysis_results['trades']['avg_trades_per_day'] = trade_analyzer_results['avg_trades_per_day']
+                        self.logger.info(f"从tradeanalyzer获取平均每天交易次数: {trade_analyzer_results['avg_trades_per_day']}")
+                
                 self.logger.info(f"已从回测引擎中提取分析结果: {analysis_results.keys()}")
 
             # 11. 记录回测报告
@@ -412,6 +435,9 @@ class BacktestScript:
                 days = max(1, delta.days)
                 trades_per_day = total / days
                 self.logger.info(f"- 平均每天交易次数: {trades_per_day:.2f}")
+                
+                # 确保trades_per_day被添加到formatted_results中
+                # 将在后面构建formatted_results时使用
 
         # 记录持仓分析结果
         if 'positions' in results and results['positions']:
@@ -508,6 +534,7 @@ class BacktestScript:
                     "max_consecutive_wins": results.get('trades', {}).get('max_consecutive_wins', 0),
                     "max_consecutive_losses": results.get('trades', {}).get('max_consecutive_losses', 0),
                     "total_net_profit": round(results.get('trades', {}).get('pnl_net', 0) or 0, 3),
+                    "avg_trades_per_day": round(results.get('trades', {}).get('avg_trades_per_day', 0) or 0, 3),
                 }
             }
             

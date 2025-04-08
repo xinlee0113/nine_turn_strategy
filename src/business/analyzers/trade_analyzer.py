@@ -66,6 +66,12 @@ class TradeAnalyzer(BaseAnalyzer):
         self.trades = []  # 交易记录
         self.current_trade = None  # 当前进行中的交易
         
+        # 交易时间跟踪
+        self.first_trade_date = None  # 第一笔交易日期
+        self.last_trade_date = None   # 最后一笔交易日期
+        self.trading_days = set()     # 交易发生的日期集合
+        self.avg_trades_per_day = 0.0 # 平均每天交易次数
+        
         # 统计指标
         self.total_trades = 0
         self.winning_trades = 0
@@ -142,6 +148,23 @@ class TradeAnalyzer(BaseAnalyzer):
         """
         self.logger.debug(f"收到交易: {trade}")
         self.trades.append(trade)
+        
+        # 记录交易日期
+        if 'timestamp' in trade and trade['timestamp'] is not None:
+            trade_timestamp = trade['timestamp']
+            trade_date = trade_timestamp.date() if hasattr(trade_timestamp, 'date') else None
+            
+            if trade_date:
+                # 记录交易发生的日期
+                self.trading_days.add(trade_date)
+                
+                # 更新第一笔交易日期
+                if self.first_trade_date is None or trade_date < self.first_trade_date:
+                    self.first_trade_date = trade_date
+                
+                # 更新最后一笔交易日期
+                if self.last_trade_date is None or trade_date > self.last_trade_date:
+                    self.last_trade_date = trade_date
         
         # 更新连续盈亏次数
         if trade['pnl'] > 0:
@@ -231,6 +254,29 @@ class TradeAnalyzer(BaseAnalyzer):
         # 计算期望值
         self.expectancy = (self.win_rate * self.avg_profit) + ((1 - self.win_rate) * self.avg_loss)
         
+        # 计算平均每天交易次数
+        if self.first_trade_date and self.last_trade_date:
+            # 计算交易持续的天数
+            from datetime import timedelta
+            trading_period = (self.last_trade_date - self.first_trade_date).days + 1
+            
+            # 计算实际交易的天数
+            actual_trading_days = len(self.trading_days)
+            
+            # 计算平均每个交易日的交易次数
+            avg_trades_per_trading_day = self.total_trades / max(actual_trading_days, 1)
+            
+            # 计算平均每天交易次数(包括非交易日)
+            self.avg_trades_per_day = self.total_trades / max(trading_period, 1)
+            
+            self.logger.info(f"交易时段: {self.first_trade_date} 至 {self.last_trade_date}, "
+                           f"持续{trading_period}天, 其中{actual_trading_days}个交易日")
+            self.logger.info(f"平均每个交易日交易次数: {avg_trades_per_trading_day:.2f}, "
+                           f"平均每天交易次数: {self.avg_trades_per_day:.2f}")
+        else:
+            self.avg_trades_per_day = 0
+            self.logger.warning("无法确定交易日期，无法计算平均每天交易次数")
+        
         # 计算系统质量指标 (System Quality Number)
         pnl_values = [t['pnl'] for t in self.trades]
         if len(pnl_values) > 1:
@@ -262,13 +308,14 @@ class TradeAnalyzer(BaseAnalyzer):
                 'max_consecutive_wins': self.max_consecutive_wins,
                 'max_consecutive_losses': self.max_consecutive_losses,
                 
-                'sqn': self.sqn
+                'sqn': self.sqn,
+                'avg_trades_per_day': self.avg_trades_per_day
             }
         }
         
         self.logger.info(f"交易统计: 总交易={self.total_trades}, 盈利={self.winning_trades}, "
                         f"亏损={self.losing_trades}, 胜率={self.win_rate*100:.2f}%, "
                         f"盈亏比={self.win_loss_ratio:.2f}, 盈利因子={self.profit_factor:.2f}, "
-                        f"SQN={self.sqn:.4f}")
+                        f"SQN={self.sqn:.4f}, 平均每天交易={self.avg_trades_per_day:.2f}")
         
         return results
