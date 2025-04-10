@@ -1,0 +1,9 @@
+{
+  "backtest_data": {
+    "start_date": "2025-3-10",
+    "end_date": "2025-4-10",
+    "symbols": [
+      "QQQ"
+    ]
+  }
+}

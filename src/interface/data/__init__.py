@@ -4,13 +4,13 @@
 """
 
 from .base_data import BaseData
-from .csv_data import CSVData
+from .tiger_csv_data import TigerCsvData
 from .pandas_data import PandasData
 from .realtime_data import RealtimeData
 
 __all__ = [
     'BaseData',
     'PandasData',
-    'CSVData',
+    'TigerCsvData',
     'RealtimeData'
 ]
