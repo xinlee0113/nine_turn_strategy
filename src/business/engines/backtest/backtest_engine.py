@@ -69,39 +69,9 @@ class BacktestEngine(BaseEngine):
     def set_data(self, data: pd.DataFrame) -> None:
         """设置数据源"""
         self.data = data
-        if data is not None:
-            self.logger.info(f"设置数据源: {len(data)} 个数据点")
-
-            # 将pandas数据转换为backtrader的数据格式
-            data_feed = self._convert_data_to_bt_feed(data)
-            self.cerebro.adddata(data_feed)
-        else:
-            self.logger.warning("设置了空数据源")
-
-    def _convert_data_to_bt_feed(self, data: pd.DataFrame) -> bt.feeds.PandasData:
-        """将pandas数据转换为backtrader的数据格式"""
-        # 确保数据索引是日期时间
-        if not isinstance(data.index, pd.DatetimeIndex):
-            self.logger.warning("数据索引不是DatetimeIndex类型，尝试转换")
-            data.index = pd.to_datetime(data.index)
-
-        # 创建backtrader的数据源
-        try:
-            data_feed = bt.feeds.PandasData(
-                dataname=data,
-                datetime=None,  # 使用索引作为日期时间
-                open='open',
-                high='high',
-                low='low',
-                close='close',
-                volume='volume',
-                openinterest=-1  # 不使用持仓量
-            )
-            return data_feed
-        except TypeError:
-            # 适配不同版本的backtrader
-            self.logger.info("使用替代方法创建PandasData")
-            return bt.feeds.PandasData(data=data)
+        self.logger.info(f"设置数据源: {len(data)} 个数据点")
+        # 将pandas数据转换为backtrader的数据格式
+        self.cerebro.adddata(data)
 
     def set_broker(self, broker) -> None:
         """设置回测Broker"""
@@ -162,28 +132,14 @@ class BacktestEngine(BaseEngine):
         except Exception as e:
             self.logger.warning(f"无法添加索提诺比率分析器: {e}")
 
-    def set_plot_options(self, enabled=True, **kwargs):
-        """设置绘图选项
-        
-        Args:
-            enabled: 是否启用绘图
-            **kwargs: 绘图选项，如style、width、barup等
-        """
+    def set_plot_options(self, enabled=True):
         self.plot_enabled = enabled
-        self.plot_options = kwargs
         self.logger.info(f"{'启用' if enabled else '禁用'}绘图功能")
-        if enabled and kwargs:
-            self.logger.info(f"设置绘图选项: {kwargs}")
-            
+
     def run(self) -> Dict[str, Any]:
         """运行回测"""
         self.logger.info("开始运行回测")
         self.is_running = True
-
-        # 检查组件是否齐全
-        if not self._check_components():
-            self.is_running = False
-            return {}
 
         # 设置cerebro选项，控制标准观察器
         show_trades = self.plot_options.get('show_trades', False)
@@ -233,18 +189,6 @@ class BacktestEngine(BaseEngine):
 
         # 返回结果
         return self.results
-
-    def _check_components(self) -> bool:
-        """检查回测组件是否齐全"""
-        if self.strategy is None:
-            self.logger.error("策略未设置")
-            return False
-
-        if self.data is None or self.data.empty:
-            self.logger.error("数据未设置或为空")
-            return False
-
-        return True
 
     def _extract_results(self, strategy) -> Dict[str, Any]:
         """从backtrader策略中提取结果"""
