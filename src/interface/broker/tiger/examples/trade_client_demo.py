@@ -8,7 +8,6 @@ import logging
 import traceback
 import unittest
 
-from src.brokers.tiger.examples.client_config import get_client_config
 from tigeropen.common.consts import Currency, SecurityType, OrderSortBy
 from tigeropen.common.request import OpenApiRequest
 from tigeropen.common.response import TigerResponse
@@ -16,6 +15,7 @@ from tigeropen.common.util.contract_utils import stock_contract
 from tigeropen.common.util.order_utils import order_leg, algo_order_params, \
     algo_order
 from tigeropen.common.util.price_util import PriceUtil
+from tigeropen.examples.client_config import get_client_config
 from tigeropen.tiger_open_client import TigerOpenClient
 from tigeropen.trade.domain.order import OrderStatus
 from tigeropen.trade.request.model import AccountsParams

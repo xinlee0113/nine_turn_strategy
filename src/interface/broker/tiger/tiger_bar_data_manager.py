@@ -65,6 +65,7 @@ class TigerBarDataManager:
                                               limit=page_size, lang=lang, trade_session=trade_session,
                                               page_token=next_page_token)
             bars['utc_date'] = pd.to_datetime(bars['time'], unit='ms').dt.tz_localize('UTC').dt.tz_convert('UTC')
+            bars['cn_date'] = pd.to_datetime(bars['time'], unit='ms').dt.tz_localize('UTC').dt.tz_convert('Asia/Shanghai')
             print(f'loading data from {bars["utc_date"].iloc[0]} to {bars["utc_date"].iloc[-1]}')
             if bars.empty:
                 result_df = bars
