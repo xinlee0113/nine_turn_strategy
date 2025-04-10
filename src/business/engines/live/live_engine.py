@@ -3,25 +3,13 @@ from typing import Dict, List
 import pandas as pd
 
 from src.business.strategy.base_strategy import BaseStrategy
-from src.interface.broker.tiger.tiger_client import TigerClient
 
 
 class LiveEngine:
     """实盘引擎"""
 
-    def __init__(self, strategy: BaseStrategy, client: TigerClient,
-                 symbols: List[str], initial_capital: float):
-        """
-        初始化实盘引擎
-        
-        Args:
-            strategy: 交易策略
-            client: 交易客户端
-            symbols: 交易标的
-            initial_capital: 初始资金
-        """
+    def __init__(self, strategy: BaseStrategy,symbols: List[str], initial_capital: float):
         self.strategy = strategy
-        self.client = client
         self.symbols = symbols
         self.initial_capital = initial_capital
 
