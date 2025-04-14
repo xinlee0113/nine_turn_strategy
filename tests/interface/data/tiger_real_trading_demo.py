@@ -1,9 +1,13 @@
 # 配置日志
 import logging
 import os
+import time
+from datetime import datetime, timedelta
+from typing import Optional, Any
 
 import backtrader as bt
-from tigeropen.common.consts import Currency, SecurityType, Language
+import pandas as pd
+from tigeropen.common.consts import Currency, SecurityType, Language, Market, BarPeriod
 from tigeropen.common.util.signature_utils import read_private_key
 from tigeropen.push.push_client import PushClient
 from tigeropen.quote.quote_client import QuoteClient
@@ -35,11 +39,22 @@ class TigerTradeStrategy(bt.Strategy):
         self.account = account
         self.sma = bt.indicators.SMA(self.data.close, period=self.p.sma_period)
         self.order = None
+        logging.info(f"策略初始化完成，SMA周期={self.p.sma_period}")
+
+
 
     def next(self):
+        logging.info(f"next,当前时间: {datetime.now()},当前价格: {self.data.close[0]:.2f}")
         """策略主逻辑，每个数据点都会执行一次"""
-        print(f"当前价格: {self.data.close[0]:.2f}")
-        # 没有持仓且收盘价上穿SMA
+        # # 确保有足够的数据来计算指标
+        # if len(self.data) < self.p.sma_period:
+        #     logging.info(f"数据点不足，当前={len(self.data)}，需要至少{self.p.sma_period}个点")
+        #     return
+        #
+        # # 记录当前价格和指标值
+        # logging.info(f"当前价格={self.data.close[0]:.2f}, SMA={self.sma[0]:.2f}")
+        #
+        # # 没有持仓且收盘价上穿SMA
         # if not self.position and self.data.close[0] > self.sma[0]:
         #     # 买入信号
         #     self.order = self.buy()
@@ -60,24 +75,30 @@ class TigerTradeStrategy(bt.Strategy):
     def _execute_tiger_order(self, action, quantity=10):
         """在老虎证券执行交易"""
         try:
-            contract = self.data._contract
-
+            # 这里需要从data对象获取合约
+            data_feed = self.data._owner
+            contract = data_feed.contract
+            
+            if contract is None:
+                logging.error("无法获取合约信息，无法执行交易")
+                return
+            
             # 创建订单
             order = self.trade_client.create_order(
-                self.account, contract,
-                action=action,
+                self.account, contract, 
+                action=action, 
                 order_type='MKT',
                 quantity=quantity
             )
-
+            
             # 预览订单
             result = self.trade_client.preview_order(order)
             logging.info(f"订单预览结果: {result}")
-
-            # 下单
-            self.trade_client.place_order(order)
+            
+            # 下单（正式环境中取消注释）
+            # self.trade_client.place_order(order)
             logging.info(f"成功提交{action}订单")
-
+            
         except Exception as e:
             logging.error(f"执行{action}订单出错: {e}")
 
@@ -128,10 +149,21 @@ def main():
 
     # 运行策略
     logging.info(f"初始资金: {cerebro.broker.getvalue():.2f}")
-    cerebro.run()
+    
+    try:
+        # 使用run_forever()而不是run()，确保程序持续运行以获取实时数据
+        # 对于实时交易，run_forever()会使程序持续运行，不会在历史数据处理完后退出
+        cerebro.run()
+    except KeyboardInterrupt:
+        logging.info("用户按Ctrl+C中断程序，正在退出...")
+    except Exception as e:
+        logging.error(f"运行策略时发生错误: {e}")
+        import traceback
+        traceback.print_exc()
+    
     logging.info(f"最终资金: {cerebro.broker.getvalue():.2f}")
 
-    # 绘制结果
+    # 注意：在实时交易中，这里的绘图功能通常不会被执行到，因为程序会一直运行
     # cerebro.plot()
 
 

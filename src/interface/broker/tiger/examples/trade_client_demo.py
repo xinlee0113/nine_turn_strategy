@@ -15,11 +15,12 @@ from tigeropen.common.util.contract_utils import stock_contract
 from tigeropen.common.util.order_utils import order_leg, algo_order_params, \
     algo_order
 from tigeropen.common.util.price_util import PriceUtil
-from tigeropen.examples.client_config import get_client_config
 from tigeropen.tiger_open_client import TigerOpenClient
 from tigeropen.trade.domain.order import OrderStatus
 from tigeropen.trade.request.model import AccountsParams
 from tigeropen.trade.trade_client import TradeClient
+
+from src.interface.broker.tiger.examples.tiger_config import get_client_config
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s %(message)s',

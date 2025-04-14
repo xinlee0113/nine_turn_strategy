@@ -22,8 +22,8 @@ class TigerRealtimeData(bt.feeds.DataBase):
 
     lines = ('open', 'high', 'low', 'close', 'volume')
     params = (
-        ('symbol', 'QQQ'),
-        ('market', Market.US),
+        ('symbol', '03690'),
+        ('market', Market.HK),
         ('sec_type', SecurityType.STK),
         ('interval', 5),  # 数据更新间隔（秒）
         ('historical_days', 5),  # 加载的历史数据天数
@@ -130,24 +130,31 @@ class TigerRealtimeData(bt.feeds.DataBase):
         return False
 
     def _load_realtime_data(self):
+        logging.info("_load_realtime_data")
         """加载实时数据"""
         # 检查市场状态
         if not self.market_open:
             self.market_open = self._check_market_open()
             if not self.market_open:
-                time.sleep(1)  # 市场未开盘时，短暂休眠
-                return False
+                time.sleep(5)  # 市场未开盘时，短暂休眠
+                logging.info("市场未开盘，正在检查市场状态...")
+                # 返回None，表示等待下次获取,不能return False,return就会直接结束
+                return None
 
         # 控制数据获取频率
         current_time = time.time()
         if current_time - self.last_time < self.p.interval:
-            time.sleep(0.1)  # 短暂休眠，避免CPU占用过高
-            return False
+            time.sleep(5)  # 短暂休眠，避免CPU占用过高
+            logging.info(f'current_time: {current_time}, last_time: {self.last_time}, interval: {self.p.interval}')
+            logging.info("数据获取频率过快，正在等待...")
+            # 返回None，表示等待下次获取,不能return False,return就会直接结束
+            return None
 
         self.last_time = current_time
 
         try:
             # 获取实时行情
+            print(f'获取实时数据: {self.p.symbol},当前时间: {datetime.now()}')
             quote = self.quote_client.get_stock_briefs([self.p.symbol])
 
             if quote is None or quote.empty:
@@ -160,9 +167,12 @@ class TigerRealtimeData(bt.feeds.DataBase):
             self.lines.low[0] = float(quote['low'][0])
             self.lines.close[0] = float(quote['close'][0])
             self.lines.volume[0] = float(quote['volume'][0])
-
+            timstamp = quote['latest_time'][0]
+            bar_time=datetime.fromtimestamp(timstamp / 1000)
+            date2_num=bt.date2num(bar_time)
             # 更新时间戳
-            self.lines.datetime[0] = bt.date2num(datetime.now())
+            num = bt.date2num(datetime.now())
+            self.lines.datetime[0] = date2_num
 
             logging.info(f'获取实时数据成功: {self.p.symbol}, 价格={self.lines.close[0]}')
             return True
@@ -171,4 +181,6 @@ class TigerRealtimeData(bt.feeds.DataBase):
             logging.error(f"获取实时数据出错: {e}")
             return False
 
+    def islive(self):
+        return True
 
