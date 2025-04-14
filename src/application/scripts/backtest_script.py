@@ -5,7 +5,8 @@
 import logging
 from datetime import datetime
 
-from src.business.engines.backtest.backtest_engine import BacktestEngine
+from backtrader import Cerebro
+
 from src.business.strategy.magic_nine_strategy import MagicNineStrategy
 from src.infrastructure.config.data_config import DataConfig
 from src.infrastructure.config.strategy_config import StrategyConfig
@@ -62,7 +63,7 @@ class BacktestScript:
 
         # 2. 创建回测引擎
         self.logger.info("2. 创建回测引擎")
-        self.engine = BacktestEngine(self.strategy_config)
+        self.engine = Cerebro()
 
         # 3. 创建策略实例
         self.logger.info("3. 创建神奇九转策略实例")

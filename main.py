@@ -6,7 +6,6 @@ import argparse
 import logging
 import os
 import sys
-from datetime import datetime, timedelta
 
 # 添加项目根目录到Python路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -15,10 +14,8 @@ sys.path.append(current_dir)
 # 导入脚本管理器
 from src.application.script_manager import ScriptManager
 from src.infrastructure.constants.const import (
-    TimeInterval,
     DEFAULT_INITIAL_CAPITAL,
-    DEFAULT_COMMISSION_RATE,
-    MAX_1MIN_DATA_DAYS
+    DEFAULT_COMMISSION_RATE
 )
 
 
@@ -47,11 +44,13 @@ def parse_args():
 
     # 运行模式
     parser.add_argument('--mode', type=str, choices=['backtest', 'optimize', 'trade'],
-                        default='backtest', help='运行模式')
+                        default='trade', help='运行模式')
 
     # 基本参数
     parser.add_argument('--cash', type=float, default=DEFAULT_INITIAL_CAPITAL, help='初始资金')
     parser.add_argument('--commission', type=float, default=DEFAULT_COMMISSION_RATE, help='佣金率')
+
+    parser.add_argument('--symbols', type=str, default='QQQ', help='标的')
 
     # 绘图参数
     parser.add_argument('--plot', action='store_true', help='启用绘图功能')
@@ -82,6 +81,7 @@ def main():
     script_manager = ScriptManager()
 
     # 根据运行模式执行不同的操作
+    symbols = args.symbols.split(',')
     if args.mode == 'backtest':
         logger.info("运行回测模式")
 
@@ -107,7 +107,7 @@ def main():
 
     elif args.mode == 'trade':
         logger.info("运行实盘交易模式")
-
+        script_manager.run_live_trade(symbols)
         # 这里应该添加实盘交易逻辑，暂时省略
         logger.warning("实盘交易模式尚未实现")
         sys.exit(0)
@@ -115,6 +115,7 @@ def main():
     else:
         logger.error(f"不支持的运行模式: {args.mode}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

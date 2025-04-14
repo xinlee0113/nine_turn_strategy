@@ -6,7 +6,7 @@ import backtrader as bt
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 sys.path.insert(0, project_root)
 
-from src.interface.data.tiger_csv_data import TigerCsvData
+from src.interface.tiger.tiger_csv_data import TigerCsvData
 
 
 class RSIStrategy(bt.Strategy):

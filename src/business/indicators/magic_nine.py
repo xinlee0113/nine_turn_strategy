@@ -31,6 +31,15 @@ class MagicNine(bt.Indicator):
         self.sell_count = 0
 
     def next(self):
+        # 确保有足够的数据来进行比较
+        if len(self.data) <= self.p.period:
+            # 数据不足，设置默认值
+            self.lines.buy_setup[0] = np.nan
+            self.lines.sell_setup[0] = np.nan
+            self.lines.buy_signal[0] = 0
+            self.lines.sell_signal[0] = 0
+            return
+            
         # 计算买入序列
         if self.data.close[0] < self.data.close[-self.p.period]:
             self.buy_count += 1

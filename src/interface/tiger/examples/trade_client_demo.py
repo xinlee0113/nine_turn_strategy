@@ -13,14 +13,14 @@ from tigeropen.common.request import OpenApiRequest
 from tigeropen.common.response import TigerResponse
 from tigeropen.common.util.contract_utils import stock_contract
 from tigeropen.common.util.order_utils import order_leg, algo_order_params, \
-    algo_order
+    algo_order, limit_order
 from tigeropen.common.util.price_util import PriceUtil
 from tigeropen.tiger_open_client import TigerOpenClient
 from tigeropen.trade.domain.order import OrderStatus
 from tigeropen.trade.request.model import AccountsParams
 from tigeropen.trade.trade_client import TradeClient
 
-from src.interface.broker.tiger.examples.tiger_config import get_client_config
+from src.interface.tiger.examples.tiger_config import get_client_config
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s %(message)s',
@@ -62,7 +62,8 @@ def get_account_apis():
     # 获取持仓
     openapi_client.get_positions()
     # 获取资产
-    openapi_client.get_assets()
+    asset=openapi_client.get_assets()
+    print(f'get_account_apis:{asset}')
     # 综合/模拟账户获取资产
     openapi_client.get_prime_assets()
 
@@ -117,7 +118,7 @@ def trade_apis():
 
     order = openapi_client.create_order(account, contract, 'BUY', 'LMT', 100, limit_price=5.0)
     # 或者本地构造订单对象
-    # order = limit_order(account=account, contract=contract, action='BUY', quantity=100, limit_price=5.0)
+    order = limit_order(account=account, contract=contract, action='BUY', quantity=100, limit_price=5.0)
     openapi_client.place_order(order)
 
     new_order = openapi_client.get_order(id=order.id)
@@ -218,59 +219,73 @@ class TestTradeClient(unittest.TestCase):
         """换汇"""
         order = self.trade_client.place_forex_order(seg_type='FUT', source_currency='USD', target_currency='HKD',
                                                     source_amount=50)
-        print(order)
-
     def test_get_account_apis(self):
         """获取账户信息"""
         accounts = self.trade_client.get_managed_accounts()
-        print(accounts)
-        account = self.trade_client.get_managed_accounts(accounts[0].account)
-        print(account)
-        get_account_info()
+        print(f'test_get_account_apis,accounts:\n {accounts}')
+
 
     def test_get_account_positions(self):
         """获取账户持仓"""
         accounts = self.trade_client.get_managed_accounts()
         account = accounts[0]
-        positions = self.trade_client.get_managed_accounts(account.account)
-        print(positions)
         positions = self.trade_client.get_positions(account.account)
-        print(positions)
+        print(f'test_get_account_positions,positions:\n {positions} ')
 
     def test_get_account_orders(self):
         """获取账户订单"""
         accounts = self.trade_client.get_managed_accounts()
         account = accounts[0]
         orders = self.trade_client.get_orders(account.account)
-        print(orders)
+        print(f'test_get_account_orders,orders:\n {orders}')
 
     def test_get_account_transactions(self):
         """获取账户交易"""
         accounts = self.trade_client.get_managed_accounts()
         account = accounts[0]
         transactions = self.trade_client.get_transactions(account.account, symbol='AAPL')
-        print(transactions)
+        print(f'test_get_account_transactions,transactions:\n {transactions}')
 
     def test_get_account_funds(self):
         """获取账户资金"""
         accounts = self.trade_client.get_managed_accounts()
         account = accounts[0]
         funds = self.trade_client.get_segment_fund_history(account.account)
-        print(funds)
+        print(f'test_get_account_funds,funds:\n {funds}')
+
+    def test_submit_order(self):
+        """提交订单"""
+        accounts = self.trade_client.get_managed_accounts()
+        account_id = accounts[1].account if len(accounts) > 2 else accounts[0].account
+        
+        print(f'使用账户ID: {account_id}')
+        
+        contract = self.trade_client.get_contracts('AAPL')
+        print(f'test_submit_order,contract:\n {contract}')
+    
+        # 使用账户ID字符串代替AccountProfile对象
+        order = limit_order(account=account_id, contract=contract[0], action='BUY', quantity=1, limit_price=100)
+        print(f'test_submit_order,order:\n {order}')
+
+        preview_order=self.trade_client.preview_order(order)
+        print(f'test_submit_order,preview_order:\n {preview_order}')
+
+        result = self.trade_client.place_order(order)
+        print(f'test_submit_order,result:\n {result}')
 
     def test_get_account_segments(self):
         """获取账户资金"""
         accounts = self.trade_client.get_managed_accounts()
         account = accounts[0]
         segments = self.trade_client.get_segment_fund_history(account.account)
-        print(segments)
+        print(f'test_get_account_segments,segments:\n {segments}')
 
     def test_get_account_segments_funds(self):
         """获取账户资金"""
         accounts = self.trade_client.get_managed_accounts()
         account = accounts[0]
         segments = self.trade_client.get_segment_fund_available(from_segment='SEC', currency=Currency.USD)
-        print(segments)
+        print(f'test_get_account_segments_funds: {segments}')
 
 
 if __name__ == '__main__':

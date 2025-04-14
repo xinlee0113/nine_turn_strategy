@@ -139,6 +139,7 @@ class MagicNineStrategy(bt.Strategy):
         self.order_manager.notify_trade(trade)
 
     def next(self):
+        logger.info(f"当前时间: {self.data.datetime.datetime(0)},当前价格: {self.data.close[0]}")
         """主策略逻辑"""
         # 如果有未完成的订单，不进行操作
         if self.order_manager.has_pending_order():

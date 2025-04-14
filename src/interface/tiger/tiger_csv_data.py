@@ -6,7 +6,7 @@ import backtrader as bt
 import pandas as pd
 from tigeropen.common.consts import BarPeriod
 
-from src.interface.broker.tiger.tiger_client_manager import TigerClientManager
+from src.interface.tiger.tiger_client_manager import TigerClientManager
 
 
 class TigerCsvData(backtrader.CSVDataBase):
@@ -18,6 +18,7 @@ class TigerCsvData(backtrader.CSVDataBase):
         ('fromdate', datetime.now() - timedelta(days=30)),
         ('period', BarPeriod.ONE_MINUTE),
         ('desc', '老虎证券最近30天的k线数据'),
+        ('store', None)
     )
 
     def __init__(self):
@@ -33,11 +34,11 @@ class TigerCsvData(backtrader.CSVDataBase):
     def start(self):
         print('start')
         # 如果csv数据文件不存在，则从 Tiger API 获取数据并保存到 CSV 文件
-        if not os.path.exists(self.p.dataname):                 
-            df = self.bar_data_manager.get_bar_data(symbol=self.p.symbol,
-                                                    begin_time=self.p.fromdate,
-                                                    end_time=self.p.todate,
-                                                    period=self.p.period)
+        if not os.path.exists(self.p.dataname):
+            df = self.p.store.get_bar_data(symbol=self.p.symbol,
+                                           begin_time=self.p.fromdate,
+                                           end_time=self.p.todate,
+                                           period=self.p.period)
             # 确保数据按时间排序
             df.set_index('utc_date', inplace=True)
             df.index = pd.to_datetime(df.index)
@@ -64,4 +65,3 @@ class TigerCsvData(backtrader.CSVDataBase):
         # 解析收盘价
         self.lines.volume[0] = float(linetokens[7])
         return True
-

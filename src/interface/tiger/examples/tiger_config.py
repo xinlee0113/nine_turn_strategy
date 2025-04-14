@@ -6,7 +6,7 @@ from tigeropen.tiger_open_config import TigerOpenClientConfig
 
 
 def get_client_config() -> TigerOpenClientConfig:
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..",".."))
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
     config_path = os.path.join(base_dir, "configs", "tiger", "tiger_openapi_config.properties")
     private_key_path = os.path.join(base_dir, "configs", "tiger", "private_key.pem")
     """创建默认的Tiger API配置"""

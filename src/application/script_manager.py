@@ -6,6 +6,7 @@ import logging
 from typing import Dict, Any, Optional
 
 from src.application.scripts.backtest_script import BacktestScript
+from src.application.scripts.live_trade_script import LiveTradeScript
 from src.infrastructure.logging.logger import Logger
 
 
@@ -47,3 +48,17 @@ class ScriptManager:
 
     def get_script(self, script_name: str) -> Optional[Any]:
         return self.scripts.get(script_name)
+
+    def create_live_trade_script(self) -> LiveTradeScript:
+        self.logger.info("实盘交易脚本")
+        live_script = LiveTradeScript()
+        self.scripts['live'] = live_script
+        return live_script
+
+    def run_live_trade(self, symbols: []):
+        if 'live' not in self.scripts:
+            self.create_live_trade_script()
+        live_script = self.scripts['live']
+        results = live_script.run(symbols)
+        self.logger.info("实盘交易执行完成，返回结果")
+        return results

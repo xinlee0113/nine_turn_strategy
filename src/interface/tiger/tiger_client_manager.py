@@ -7,7 +7,7 @@ from tigeropen.quote.quote_client import QuoteClient
 from tigeropen.tiger_open_config import TigerOpenClientConfig
 from tigeropen.trade.trade_client import TradeClient
 
-from src.interface.broker.tiger.tiger_bar_data_manager import TigerBarDataManager
+from src.interface.tiger.tiger_bar_data_manager import TigerBarDataManager
 
 
 class TigerClientManager:

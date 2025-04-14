@@ -1,17 +1,10 @@
 import logging
 import time
 from datetime import datetime, timedelta
-from typing import Optional, Any
 
 import backtrader as bt
 import pandas as pd
-from tigeropen.common.consts import Market, SecurityType, Currency, BarPeriod
-from tigeropen.common.util.signature_utils import read_private_key
-from tigeropen.quote.quote_client import QuoteClient
-from tigeropen.tiger_open_config import TigerOpenClientConfig
-from tigeropen.trade.trade_client import TradeClient
-
-from src.interface.broker.tiger import TigerClientManager
+from tigeropen.common.consts import Market, SecurityType, BarPeriod
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -26,21 +19,23 @@ class TigerRealtimeData(bt.feeds.DataBase):
         ('market', Market.HK),
         ('sec_type', SecurityType.STK),
         ('interval', 5),  # 数据更新间隔（秒）
+        ('market_status_interval', 60),
         ('historical_days', 5),  # 加载的历史数据天数
+        ('store', None)
     )
 
-    def __init__(self, trade_client, quote_client, contract_manager):
+    def __init__(self):
+        # 确保在调用父类构造函数之前先保存store引用
+        self.store = self.p.store
         super().__init__()
-        self.trade_client = trade_client
-        self.quote_client = quote_client
-        self.contract_manager = contract_manager
-        self.bar_data_manager = TigerClientManager().tiger_bar_data_manager
+        
         self.last_time = time.time()
         self.live_mode = False
         self.data_loaded = False
+        self.contract_cache = {}
 
         # 获取合约
-        self.contract = self.contract_manager.get_contract(self.p.symbol)
+        self.contract = self.store.get_contract(self.p.symbol)
         logging.info(f'初始化数据源，合约={self.contract}')
 
         # 检查市场状态
@@ -54,7 +49,7 @@ class TigerRealtimeData(bt.feeds.DataBase):
     def _check_market_open(self):
         """检查市场是否开盘"""
         try:
-            status = self.quote_client.get_market_status(self.p.market)[0]
+            status = self.store.get_market_status(self.p.market)[0]
             return status.trading_status != 'MARKET_CLOSED'
         except Exception as e:
             logging.error(f"检查市场状态出错: {e}")
@@ -69,7 +64,7 @@ class TigerRealtimeData(bt.feeds.DataBase):
             logging.info(f"正在加载{self.p.symbol}的历史数据，从{start_date}到{end_date}")
 
             # 使用老虎证券API获取历史数据
-            bars = self.bar_data_manager.get_bar_data(
+            bars = self.store.get_bar_data(
                 symbol=self.p.symbol,
                 begin_time=start_date,
                 end_time=end_date,
@@ -130,57 +125,46 @@ class TigerRealtimeData(bt.feeds.DataBase):
         return False
 
     def _load_realtime_data(self):
-        logging.info("_load_realtime_data")
+        logging.info("加载实时数据")
         """加载实时数据"""
         # 检查市场状态
         if not self.market_open:
             self.market_open = self._check_market_open()
             if not self.market_open:
-                time.sleep(5)  # 市场未开盘时，短暂休眠
-                logging.info("市场未开盘，正在检查市场状态...")
+                time.sleep(self.p.market_status_interval)  # 市场未开盘时，短暂休眠
+                logging.info(f"市场未开盘，{self.p.market_status_interval}秒后再次检查...")
                 # 返回None，表示等待下次获取,不能return False,return就会直接结束
                 return None
 
         # 控制数据获取频率
         current_time = time.time()
         if current_time - self.last_time < self.p.interval:
-            time.sleep(5)  # 短暂休眠，避免CPU占用过高
-            logging.info(f'current_time: {current_time}, last_time: {self.last_time}, interval: {self.p.interval}')
-            logging.info("数据获取频率过快，正在等待...")
+            time.sleep(self.p.interval)  # 短暂休眠，避免CPU占用过高
+            logging.info(f"数据获取频率过快，正在等待...{self.p.interval}秒后再次获取数据...")
             # 返回None，表示等待下次获取,不能return False,return就会直接结束
             return None
 
         self.last_time = current_time
 
-        try:
-            # 获取实时行情
-            print(f'获取实时数据: {self.p.symbol},当前时间: {datetime.now()}')
-            quote = self.quote_client.get_stock_briefs([self.p.symbol])
+        # 获取实时行情
+        print(f'获取实时数据: {self.p.symbol},当前时间: {datetime.now()}')
+        quote = self.p.store.get_stock_briefs([self.p.symbol])
 
-            if quote is None or quote.empty:
-                logging.warning(f"获取行情数据失败，将在{self.p.interval}秒后重试")
-                return False
-
-            # 更新数据线
-            self.lines.open[0] = float(quote['open'][0])
-            self.lines.high[0] = float(quote['high'][0])
-            self.lines.low[0] = float(quote['low'][0])
-            self.lines.close[0] = float(quote['close'][0])
-            self.lines.volume[0] = float(quote['volume'][0])
-            timstamp = quote['latest_time'][0]
-            bar_time=datetime.fromtimestamp(timstamp / 1000)
-            date2_num=bt.date2num(bar_time)
-            # 更新时间戳
-            num = bt.date2num(datetime.now())
-            self.lines.datetime[0] = date2_num
-
-            logging.info(f'获取实时数据成功: {self.p.symbol}, 价格={self.lines.close[0]}')
-            return True
-
-        except Exception as e:
-            logging.error(f"获取实时数据出错: {e}")
+        if quote is None or quote.empty:
+            logging.warning(f"获取行情数据失败，将在{self.p.interval}秒后重试")
             return False
+
+        # 更新数据线
+        self.lines.open[0] = float(quote['open'][0])
+        self.lines.high[0] = float(quote['high'][0])
+        self.lines.low[0] = float(quote['low'][0])
+        self.lines.close[0] = float(quote['close'][0])
+        self.lines.volume[0] = float(quote['volume'][0])
+        # 更新时间戳
+        self.lines.datetime[0] = bt.date2num(datetime.fromtimestamp(quote['latest_time'][0] / 1000))
+
+        logging.info(f'获取实时数据成功: {self.p.symbol}, 价格={self.lines.close[0]}')
+        return True
 
     def islive(self):
         return True
-
