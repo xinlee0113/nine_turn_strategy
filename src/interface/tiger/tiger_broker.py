@@ -324,7 +324,8 @@ class TigerBroker(backtrader.BrokerBase):
         
         # 处理持仓更新 - 遍历store中缓存的持仓
         position_updates = 0
-        for symbol, position in self.store.position_cache.items():
+        # 直接将position_cache作为列表处理
+        for position in self.store.position_cache:
             self._process_position_update(position)
             position_updates += 1
             
