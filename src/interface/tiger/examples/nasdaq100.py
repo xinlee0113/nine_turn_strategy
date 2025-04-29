@@ -4,12 +4,13 @@ import sys
 import time
 
 import pandas as pd
-from src.brokers.tiger.examples.client_config import get_client_config
 from tigeropen.common.consts import BarPeriod, SecurityType, Market, Currency
 from tigeropen.common.util.contract_utils import stock_contract
 from tigeropen.common.util.order_utils import limit_order
 from tigeropen.quote.quote_client import QuoteClient
 from tigeropen.trade.trade_client import TradeClient
+
+from src.interface.tiger.examples.tiger_config import get_client_config
 
 client_logger = logging.getLogger('client')
 client_logger.setLevel(logging.WARNING)
@@ -174,7 +175,7 @@ class Strategy:
                                f'quantity:{positions[symbol]}')
                 continue
             limit_price = latest_price[symbol]
-            order = limit_order(account=ACCOUNT,
+            order = limit_order(account=client_config.account,
                                 contract=contract,
                                 action='SELL' if quantity > 0 else 'BUY',
                                 quantity=abs(quantity),
@@ -188,7 +189,7 @@ class Strategy:
         # adjust_value = asset.sma - target_overnight_liquidation
 
         # 综合/模拟账户 prime/paper account
-        asset = trade_client.get_prime_assets(account=ACCOUNT).segments['S']
+        asset = trade_client.get_prime_assets(account=client_config.account).segments['S']
         # 调仓后目标隔夜剩余流动性(隔夜剩余流动性 overnight_liquidation = 含贷款价值总权益 equity_with_loan - 隔夜保证金 overnight_margin)
         # 隔夜剩余流动性比例 = 隔夜剩余流动性 overnight_liquidation / 含贷款价值总权益 equity_with_loan
         target_overnight_liquidation = asset.equity_with_loan * self.target_overnight_liquidation_ratio
@@ -211,12 +212,12 @@ class Strategy:
                 logger.warning(f'can not place order with this quantity, symbol:{symbol}, lot_size:{lot_size[symbol]},'
                                f'quantity:{quote[TARGET_QUANTITY][symbol]}')
                 continue
-            order = limit_order(account=ACCOUNT,
+            order = limit_order(account=client_config.account,
                                 contract=contract,
                                 action='BUY',
                                 quantity=quantity,
                                 limit_price=quote[LATEST_PRICE][symbol])
-            order.time_in_force = 'GTC'  # 'DAY' 日内有效 / 'GTC' 撤销前有效
+            order.time_in_force = 'DAY'  # 'DAY' 日内有效 / 'GTC' 撤销前有效
             orders.append(order)
         self.execute_orders(orders)
 
@@ -235,7 +236,7 @@ class Strategy:
         i = 0
         while i <= ORDERS_CHECK_MAX_TIMES:
             logger.info(f'check {i} times')
-            history_open_orders = trade_client.get_open_orders(account=ACCOUNT, sec_type=SecurityType.STK,
+            history_open_orders = trade_client.get_open_orders(account=client_config.account, sec_type=SecurityType.STK,
                                                                market=self.market,
                                                                start_time=self.get_time_from_now(
                                                                    datetime.timedelta(days=1)),
@@ -259,7 +260,7 @@ class Strategy:
                 for order in history_open_orders:
                     logger.info(f'the order was not filled, now cancel it: {order}')
                     try:
-                        trade_client.cancel_order(ACCOUNT, id=order.id)
+                        trade_client.cancel_order(client_config.account, id=order.id)
                     except Exception as e:
                         logger.error(f'cancel order error: {order}')
                         logger.error(e, exc_info=True)
@@ -267,7 +268,7 @@ class Strategy:
             time.sleep(10)
 
         # 打印已成交订单信息
-        filled_orders = trade_client.get_filled_orders(account=ACCOUNT,
+        filled_orders = trade_client.get_filled_orders(account=client_config.account,
                                                        sec_type=SecurityType.STK,
                                                        market=self.market,
                                                        start_time=self.get_time_from_now(datetime.timedelta(days=1)),
@@ -279,7 +280,7 @@ class Strategy:
         # 打印未成交订单信息
         unfilled_order_ids = set(local_orders.keys()) - set(order.id for order in filled_orders)
         for order_id in unfilled_order_ids:
-            order = trade_client.get_order(ACCOUNT, id=order_id)
+            order = trade_client.get_order(client_config.account, id=order_id)
             logger.info(f'order was cancelled, id:{order.id}, status:{order.status}, reason:{order.reason}')
 
     @staticmethod
