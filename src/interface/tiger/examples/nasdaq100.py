@@ -6,7 +6,7 @@ import time
 import pandas as pd
 from tigeropen.common.consts import BarPeriod, SecurityType, Market, Currency
 from tigeropen.common.util.contract_utils import stock_contract
-from tigeropen.common.util.order_utils import limit_order
+from tigeropen.common.util.order_utils import limit_order, market_order
 from tigeropen.quote.quote_client import QuoteClient
 from tigeropen.trade.trade_client import TradeClient
 
