@@ -1,21 +1,12 @@
 import collections
-from datetime import datetime, timezone
-import time
 import logging
+from datetime import datetime, timezone
 
 import backtrader
 from backtrader import Order
+from tigeropen.push.pb.OrderStatusData_pb2 import OrderStatusData
 
-# 订单状态映射
-ORDER_STATUS_MAP = {
-    'NEW': Order.Accepted,
-    'PARTIALLY_FILLED': Order.Partial,
-    'FILLED': Order.Completed,
-    'PENDING_CANCEL': Order.Cancelled,
-    'CANCELLED': Order.Cancelled,
-    'REJECTED': Order.Rejected,
-    'EXPIRED': Order.Expired
-}
+from src.interface.tiger.tiger_utils import process_tiger_order
 
 
 class TigerBroker(backtrader.BrokerBase):
@@ -29,10 +20,10 @@ class TigerBroker(backtrader.BrokerBase):
 
     def __init__(self):
         super().__init__()
-        
+
         # 初始化日志
         self.logger = logging.getLogger(__name__)
-        
+
         # 保存store引用
         self.store = self.p.store
 
@@ -45,11 +36,11 @@ class TigerBroker(backtrader.BrokerBase):
         # 初始化订单字典
         self.orders = collections.OrderedDict()  # 订单管理
         self.notifs = collections.deque()  # 通知队列
-        
+
         # 初始化买卖订单列表
         self.buy_orders = []
         self.sell_orders = []
-        
+
         # 初始化订单ID计数器
         self.orderid = 0
 
@@ -60,12 +51,12 @@ class TigerBroker(backtrader.BrokerBase):
         # 当前持仓
         self.positions = {}
         self._load_positions()
-        
+
         # 注册回调函数
         self.store.register_callback('asset_update', self._on_asset_update)
         self.store.register_callback('order_update', self._on_order_update)
         self.store.register_callback('position_update', self._on_position_update)
-        
+
         self.logger.info("TigerBroker初始化完成")
 
     def _load_positions(self):
@@ -112,16 +103,17 @@ class TigerBroker(backtrader.BrokerBase):
 
     def _create_order(self, owner, data, size, price, exectype, valid, action, **kwargs):
         """创建订单"""
+
         # 重写Order类，确保ordtype在初始化前就存在
         # 这种方式可以避免在Order.__init__中调用isbuy()时的属性错误
         class PatchedOrder(Order):
             def __init__(self, *args, **kwargs):
                 self.ordtype = Order.Buy if action == 'BUY' else Order.Sell
                 super().__init__(*args, **kwargs)
-        
+
         # 使用补丁后的Order类
         order = PatchedOrder(
-            owner=owner, data=data, 
+            owner=owner, data=data,
             size=size if action == 'BUY' else -size,
             price=price if price is not None else 0.0,
             pricelimit=None, 
@@ -129,28 +121,28 @@ class TigerBroker(backtrader.BrokerBase):
             valid=valid,
             tradeid=0
         )
-        
+
         # 设置订单编号
         order.ref = self.orderid
         self.orderid += 1
-        
+
         # 记录日志
         if action == 'BUY':
             self.logger.info(f"创建买入订单 - Ref: {order.ref}, 标的: {data._name}, 数量: {size}")
         else:
             self.logger.info(f"创建卖出订单 - Ref: {order.ref}, 标的: {data._name}, 数量: {size}")
-        
+
         # 添加额外信息和佣金
         order.info['action'] = action
         order.addinfo(**kwargs)
         order.addcomminfo(self.getcommissioninfo(data))
-        
+
         # 将订单添加到对应列表
         if action == 'BUY':
             self.buy_orders.append(order)
         else:
             self.sell_orders.append(order)
-        
+
         return order
 
     def submit(self, order):
@@ -185,9 +177,9 @@ class TigerBroker(backtrader.BrokerBase):
 
         # 通过Store发送取消请求
         result = self.store.cancel_order(tiger_order_id)
-        
+
         # 取消成功，将订单状态设置为等待取消确认
-        order.status = Order.Cancelled
+        order.status = Order.Canceled
         self.notify(order)
 
         return order
@@ -206,25 +198,46 @@ class TigerBroker(backtrader.BrokerBase):
             if hasattr(order, 'info') and order.info.get('tiger_order_id') == order_id:
                 matched_order = order
                 break
-                
+            
         if matched_order is None:
             # 订单可能已经被处理或尚未创建
             return None
             
-        # 获取订单状态并映射到backtrader状态
-        status = tiger_order.status
-        bt_status = ORDER_STATUS_MAP.get(status, matched_order.status)
+        self.logger.info(f"处理订单状态更新 - 订单ID: {order_id}, BT订单引用: {matched_order.ref}")
         
-        # 已成交或部分成交时更新成交信息
-        if status in ['FILLED', 'PARTIALLY_FILLED']:
+        # 使用tiger_utils中的函数处理订单
+        order_result = process_tiger_order(tiger_order, matched_order)
+        
+        # 如果订单有成交信息，处理成交
+        if 'execution' in order_result:
+            execution = order_result['execution']
+            commission = execution.get('commission', 0)
+            
+            self.logger.info(f"执行订单成交 - Ref: {matched_order.ref}, 数量: {execution['size']}, 价格: {execution['price']}, 手续费: {commission}")
+            
+            # 计算开仓价值和佣金
+            size = execution['size']
+            price = execution['price']
+            openedvalue = size * price
+            
+            # 执行订单成交
             matched_order.execute(
                 dt=datetime.now(timezone.utc), 
-                size=tiger_order.filled, 
-                price=tiger_order.avg_fill_price
+                size=size, 
+                price=price,
+                closed=0,                # 平仓数量
+                closedvalue=0,           # 平仓价值
+                closedcomm=0,            # 平仓佣金
+                opened=size,             # 开仓数量
+                openedvalue=openedvalue, # 开仓价值
+                openedcomm=commission,   # 开仓佣金 - 使用实际佣金
+                margin=0,                # 保证金
+                pnl=0,                   # 盈亏
+                psize=0,                 # 以前的持仓数量
+                pprice=0                 # 以前的持仓价格
             )
-        
-        # 更新订单状态
-        matched_order.status = bt_status
+            
+            self.logger.info(f"订单成交完成 - Ref: {matched_order.ref}, 状态: {matched_order.status}")
         
         # 通知状态更新
         self.notify(matched_order)
@@ -237,12 +250,8 @@ class TigerBroker(backtrader.BrokerBase):
         将Tiger API返回的持仓更新应用到broker的持仓记录
         """
         # 更新持仓信息
-        self.positions[position.symbol] = position
-        
-        # 通知cerebro进行持仓更新
-        # 通过通知机制告知策略持仓发生变化
-        # 创建一个持仓更新通知，以便Cerebro和策略可以处理
-        # backtrader会自动获取持仓状态，此处只需确保数据更新完毕
+        if hasattr(position, 'symbol'):
+            self.positions[position.symbol] = position
 
     def get_notification(self):
         """获取通知"""
@@ -263,7 +272,7 @@ class TigerBroker(backtrader.BrokerBase):
     def _on_order_update(self, order_id, order):
         """订单更新回调"""
         self._process_order_update(order)
-            
+
     def _on_position_update(self, position):
         """持仓更新回调"""
         self._process_position_update(position)

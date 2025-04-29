@@ -18,7 +18,7 @@ from tigeropen.trade.trade_client import TradeClient
 from src.infrastructure import Logger
 from src.interface.tiger.tiger_broker import TigerBroker
 from src.interface.tiger.tiger_real_time_data import TigerRealtimeData
-from src.interface.tiger.tiger_utils import backtrader_order_to_tiger_order, tiger_order_to_backtrader_order
+from src.interface.tiger.tiger_utils import backtrader_order_to_tiger_order
 
 
 class TigerStore(backtrader.Store):

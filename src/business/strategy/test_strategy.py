@@ -1,8 +1,11 @@
+import logging
+
 import backtrader as bt
 from datetime import datetime, timedelta
 import pandas as pd
 
 from src.infrastructure import Logger
+from src.interface.tiger.tiger_utils import adjust_price_to_tick_size
 
 
 class TestStrategy(bt.Strategy):
@@ -49,15 +52,19 @@ class TestStrategy(bt.Strategy):
         if self._place_order_done or self.order:
             return
         
+        # 调整价格为符合最小变动单位的值
+        adjusted_price = adjust_price_to_tick_size(current_price, self.p.symbol)
+        
         # 下单交易
-        self.logger.info(f"准备下单买入 {self.p.symbol}, 数量: {self.p.quantity}, 价格: {current_price}")
+        self.logger.info(f"准备下单买入 {self.p.symbol}, 数量: {self.p.quantity}, 原始价格: {current_price}, 调整后价格: {adjusted_price}")
         
         # 创建限价单并标记已下单
-        self.order = self.buy(size=self.p.quantity,price=current_price)
+        self.order = self.buy(size=self.p.quantity, price=adjusted_price)
         self._place_order_done = True
         self.logger.info(f"已提交订单: {self.order}")
 
     def notify_order(self, order):
+        # logging.info(f'notify_order: {order}')
         """订单状态更新通知"""
         if order.status in [order.Submitted, order.Accepted]:
             # 订单已提交或已接受
