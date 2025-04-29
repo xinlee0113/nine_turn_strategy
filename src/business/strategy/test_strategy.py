@@ -21,7 +21,12 @@ class TestStrategy(bt.Strategy):
         self.logger = Logger()
         self.logger.info("TestStrategy初始化")
         self._place_order_done = False  # 下单标记
+        self._close_order_done = False  # 平仓标记
         self.order = None  # 当前活跃订单
+        self.close_order = None  # 平仓订单
+        self.order_ref = None  # 保存开仓订单引用号
+        self.close_order_ref = None  # 保存平仓订单引用号
+        self.buy_fill_time = None  # 买入订单成交时间
         self.live_mode = False  # 是否处于实时模式
         self.historical_data_end_time = None  # 历史数据结束时间
         
@@ -49,7 +54,21 @@ class TestStrategy(bt.Strategy):
                 return
         
         # 检查是否已经下过单，确保只下单一次
-        if self._place_order_done or self.order:
+        if self._place_order_done or self.order is not None:
+            # 开仓已完成，检查是否需要平仓
+            if self.buy_fill_time and not self._close_order_done and self.close_order is None:
+                # 检查是否已经过了10秒
+                if (current_time - self.buy_fill_time).total_seconds() >= 10:
+                    self.logger.info(f"已过10秒，准备平仓 {self.p.symbol}, 当前时间: {current_time}, 买入时间: {self.buy_fill_time}")
+                    
+                    # 调整价格为符合最小变动单位的值
+                    adjusted_price = adjust_price_to_tick_size(current_price, self.p.symbol)
+                    
+                    # 创建平仓限价单
+                    self.close_order = self.sell(size=self.p.quantity, price=adjusted_price)
+                    self.close_order_ref = self.close_order
+                    self._close_order_done = True
+                    self.logger.info(f"已提交平仓订单: {self.close_order}")
             return
         
         # 调整价格为符合最小变动单位的值
@@ -60,11 +79,11 @@ class TestStrategy(bt.Strategy):
         
         # 创建限价单并标记已下单
         self.order = self.buy(size=self.p.quantity, price=adjusted_price)
+        self.order_ref = self.order
         self._place_order_done = True
         self.logger.info(f"已提交订单: {self.order}")
 
     def notify_order(self, order):
-        # logging.info(f'notify_order: {order}')
         """订单状态更新通知"""
         if order.status in [order.Submitted, order.Accepted]:
             # 订单已提交或已接受
@@ -79,6 +98,9 @@ class TestStrategy(bt.Strategy):
                     f'成本: {order.executed.value:.2f}, '
                     f'手续费: {order.executed.comm:.2f}'
                 )
+                # 记录买入成交时间
+                self.buy_fill_time = self.datetime.datetime()
+                self.logger.info(f"买入成交时间: {self.buy_fill_time}")
             else:
                 self.logger.info(
                     f'卖出委托已成交: 价格: {order.executed.price:.2f}, '
@@ -96,8 +118,11 @@ class TestStrategy(bt.Strategy):
             status_text = status_map.get(order.status, '未知状态')
             self.logger.info(f'订单{status_text}: {order.ref}')
             
-        # 重置订单引用
-        self.order = None
+        # 重置订单引用 - 通过比较订单引用号
+        if self.order_ref is not None and order.ref == self.order_ref:
+            self.order = None
+        elif self.close_order_ref is not None and order.ref == self.close_order_ref:
+            self.close_order = None
 
     def notify_trade(self, trade):
         """交易更新通知"""

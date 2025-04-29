@@ -152,8 +152,8 @@ def process_tiger_order(tiger_order, bt_order=None):
         # 2. 检查枚举值（tiger API可能返回枚举而非字符串）
         elif hasattr(tiger_order, 'status') and tiger_order.status == OrderStatus.FILLED.value:
             is_filled = True
-        # 3. 通过状态字符串映射来检查
-        elif status in STATUS_STRING_TO_ENUM and STATUS_STRING_TO_ENUM[status] == OrderStatus.FILLED.value:
+        # 3. 通过状态字符串映射来检查 - 安全检查status不为None且在字典中
+        elif status is not None and status in STATUS_STRING_TO_ENUM and STATUS_STRING_TO_ENUM[status] == OrderStatus.FILLED.value:
             is_filled = True
             
         logging.debug(f"订单状态判断 - 原始状态: {status}, 是否成交: {is_filled}")
