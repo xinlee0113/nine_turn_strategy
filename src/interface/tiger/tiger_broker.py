@@ -61,6 +61,11 @@ class TigerBroker(backtrader.BrokerBase):
         self.positions = {}
         self._load_positions()
         
+        # 注册回调函数
+        self.store.register_callback('asset_update', self._on_asset_update)
+        self.store.register_callback('order_update', self._on_order_update)
+        self.store.register_callback('position_update', self._on_position_update)
+        
         self.logger.info("TigerBroker初始化完成")
 
     def _load_positions(self):
@@ -256,39 +261,21 @@ class TigerBroker(backtrader.BrokerBase):
         """通知订单状态"""
         self.notifs.append(order.clone())
 
-    def next(self):
-        """处理每个时间点的操作
+    def _on_asset_update(self, old_cash, new_cash, old_value, new_value):
+        """资产更新回调"""
+        self.cash = new_cash
+        self.value = new_value
         
-        在每个bar更新时调用，用于处理订单和持仓更新
-        """
-        self.logger.debug("处理bar更新")
-        
-        # 从store获取最新账户信息
-        old_cash = self.cash
-        old_value = self.value
-        
-        self.cash = self.store.getcash()
-        self.value = self.store.getvalue()
-        
-        if old_cash != self.cash or old_value != self.value:
-            self.logger.info(f"账户更新 - 现金: {self.cash}, 总资产: {self.value}")
-        
-        # 处理订单状态更新 - 遍历store中缓存的订单
-        order_updates = 0
-        for order_id, cached_order in self.store.order_cache.items():
-            result = self._process_order_update(cached_order)
-            if result:
-                order_updates += 1
-        
-        if order_updates > 0:
-            self.logger.debug(f"已处理{order_updates}个订单更新")
-        
-        # 处理持仓更新 - 遍历store中缓存的持仓
-        position_updates = 0
-        # 直接将position_cache作为列表处理
-        for position in self.store.position_cache:
-            self._process_position_update(position)
-            position_updates += 1
+        if old_cash != new_cash or old_value != new_value:
+            self.logger.info(f"账户更新 - 现金: {new_cash}, 总资产: {new_value}")
             
-        if position_updates > 0:
-            self.logger.debug(f"已处理{position_updates}个持仓更新")
+    def _on_order_update(self, order_id, order):
+        """订单更新回调"""
+        result = self._process_order_update(order)
+        if result:
+            self.logger.debug(f"已处理订单更新: {order_id}")
+            
+    def _on_position_update(self, position):
+        """持仓更新回调"""
+        self._process_position_update(position)
+        self.logger.debug(f"已处理持仓更新: {position.symbol}")

@@ -71,8 +71,38 @@ class TigerStore(backtrader.Store):
         self.account = None  # 当前活跃账户ID
         self.cash_value = 0
         self.account_value = 0
+        
+        # 回调函数字典
+        self.callbacks = {
+            'quote_update': [],
+            'asset_update': [],
+            'order_update': [],
+            'position_update': []
+        }
+        
         # 初始化时主动获取数据填充缓存
         self._init_data_cache()
+
+    def register_callback(self, event_type, callback):
+        """注册回调函数
+        
+        Args:
+            event_type: 事件类型，可选值：quote_update, asset_update, order_update, position_update
+            callback: 回调函数
+        """
+        if event_type in self.callbacks:
+            self.callbacks[event_type].append(callback)
+            
+    def _notify_subscribers(self, event_type, *args):
+        """通知订阅者
+        
+        Args:
+            event_type: 事件类型
+            *args: 传递给回调函数的参数
+        """
+        if event_type in self.callbacks:
+            for callback in self.callbacks[event_type]:
+                callback(*args)
 
     def _on_quote_changed(self, quote: QuoteBasicData):
         if quote.symbol not in self.symbols:
@@ -80,14 +110,20 @@ class TigerStore(backtrader.Store):
         symbol = quote.symbol
         self.quote_cache[symbol] = quote
         self.logger.info(f"Received quote update: {quote}")
+        # 通知订阅者
+        self._notify_subscribers('quote_update', symbol, quote)
 
     def _on_asset_changed(self, asset: AssetData):
         if asset.account != self.account:
             return
         self.asset_cache = asset
+        old_cash = self.cash_value
+        old_value = self.account_value
         self.cash_value = asset.cashBalance
         self.account_value = asset.netLiquidation
         self.logger.info(f"Received asset update: {asset}")
+        # 通知订阅者
+        self._notify_subscribers('asset_update', old_cash, self.cash_value, old_value, self.account_value)
 
     def _on_order_changed(self, order):
         """
@@ -107,7 +143,7 @@ class TigerStore(backtrader.Store):
 
         # 保存订单到缓存
         self.order_cache[order_id] = order
-
+        
         # 将Tiger订单转换为可用于Backtrader的格式
         bt_order_info = tiger_order_to_backtrader_order(order)
 
@@ -121,9 +157,9 @@ class TigerStore(backtrader.Store):
             self.logger.info(f"订单已取消 - ID: {order_id}")
         elif status == 'REJECTED':
             self.logger.warning(f"订单被拒绝 - ID: {order_id}, 原因: {bt_order_info['reason']}")
-
-        # 注意：这里不直接向strategy通知，而是通过TigerBroker的next()方法统一处理
-        # broker会每个bar周期从order_cache中获取最新状态并更新backtrader订单
+            
+        # 通知订阅者
+        self._notify_subscribers('order_update', order_id, order)
 
     def _on_position_changed(self, position: PositionData):
         """
@@ -135,6 +171,8 @@ class TigerStore(backtrader.Store):
         # 直接处理持仓更新
         self.position_cache.append(position)
         self.logger.info(f"持仓更新: {position.symbol}, 数量: {position.position}, 成本: {position.averageCost}")
+        # 通知订阅者
+        self._notify_subscribers('position_update', position)
 
     def _on_error_callback(self, frame):
         self.logger.error(f"Received error: {frame}")
