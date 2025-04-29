@@ -148,7 +148,7 @@ class TigerRealtimeData(bt.feeds.DataBase):
 
         # 获取实时行情
         print(f'获取实时数据: {self.p.symbol},当前时间: {datetime.now()}')
-        quote = self.p.store.get_stock_briefs([self.p.symbol])
+        quote = self.store.get_stock_briefs([self.p.symbol])
 
         if quote is None or quote.empty:
             logging.warning(f"获取行情数据失败，将在{self.p.interval}秒后重试")

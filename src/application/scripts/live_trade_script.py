@@ -37,17 +37,32 @@ class LiveTradeScript:
 
         # 创建交易引擎
         self.cerebro = backtrader.cerebro.Cerebro()
+        
+        # 确保symbols列表不为空
+        if not symbols:
+            self.logger.error("未提供交易标的，请指定至少一个交易标的")
+            return False
+            
+        # 获取第一个交易标的
+        symbol = symbols[0]
+        self.logger.info(f"使用交易标的: {symbol}")
+        
         # 创建数据存储
         self.store = TigerStore(symbols=symbols)
         self.cerebro.addstore(self.store)
-        self.cerebro.adddata(self.store.getdata())
+        
+        # 获取数据源并设置名称
+        data = self.store.getdata()
+        data._name = symbol  # 确保数据对象有正确的标的名称
+        self.cerebro.adddata(data)
         self.cerebro.broker = self.store.getbroker()
 
-        # 创建策略
-        self.cerebro.addstrategy(TestStrategy)
+        # 创建策略，并传入正确的symbol参数
+        self.cerebro.addstrategy(TestStrategy, symbol=symbol)
 
         # 运行交易
         self.cerebro.run()
+        return True
 
     def stop(self):
         """

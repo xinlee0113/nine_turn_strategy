@@ -105,23 +105,28 @@ class TigerStore(backtrader.Store):
                 callback(*args)
 
     def _on_quote_changed(self, quote: QuoteBasicData):
+        """行情数据回调"""
         if quote.symbol not in self.symbols:
             return
-        symbol = quote.symbol
-        self.quote_cache[symbol] = quote
-        self.logger.info(f"Received quote update: {quote}")
+            
+        # 更新行情缓存
+        self.quote_cache[quote.symbol] = quote
+        
         # 通知订阅者
-        self._notify_subscribers('quote_update', symbol, quote)
+        self._notify_subscribers('quote_update', quote.symbol, quote)
 
     def _on_asset_changed(self, asset: AssetData):
+        """资产变化回调"""
         if asset.account != self.account:
             return
+            
+        # 更新资产缓存
         self.asset_cache = asset
         old_cash = self.cash_value
         old_value = self.account_value
         self.cash_value = asset.cashBalance
         self.account_value = asset.netLiquidation
-        self.logger.info(f"Received asset update: {asset}")
+        
         # 通知订阅者
         self._notify_subscribers('asset_update', old_cash, self.cash_value, old_value, self.account_value)
 
@@ -132,32 +137,16 @@ class TigerStore(backtrader.Store):
         Args:
             order: Tiger API的订单对象
         """
-        # 获取订单ID
+        # 获取订单ID和状态
         order_id = order.id
-
-        # 获取订单状态
         status = order.status
 
-        # 记录详细日志
-        self.logger.info(f"订单状态更新回调 - ID: {order_id}, 状态: {status}")
+        # 记录日志
+        self.logger.info(f"订单状态更新 - ID: {order_id}, 状态: {status}")
 
         # 保存订单到缓存
         self.order_cache[order_id] = order
         
-        # 将Tiger订单转换为可用于Backtrader的格式
-        bt_order_info = tiger_order_to_backtrader_order(order)
-
-        # 如果需要进一步处理，可以在这里添加额外的逻辑
-        if status == 'FILLED':
-            self.logger.info(f"订单已完全成交 - ID: {order_id}，成交均价: {bt_order_info['avg_fill_price']}")
-        elif status == 'PARTIALLY_FILLED':
-            self.logger.info(
-                f"订单部分成交 - ID: {order_id}，已成交: {bt_order_info['filled']}, 剩余: {bt_order_info['remaining']}")
-        elif status == 'CANCELLED':
-            self.logger.info(f"订单已取消 - ID: {order_id}")
-        elif status == 'REJECTED':
-            self.logger.warning(f"订单被拒绝 - ID: {order_id}, 原因: {bt_order_info['reason']}")
-            
         # 通知订阅者
         self._notify_subscribers('order_update', order_id, order)
 
@@ -168,9 +157,9 @@ class TigerStore(backtrader.Store):
         Args:
             position: Tiger API的持仓对象
         """
-        # 直接处理持仓更新
+        # 更新持仓缓存
         self.position_cache.append(position)
-        self.logger.info(f"持仓更新: {position.symbol}, 数量: {position.position}, 成本: {position.averageCost}")
+        
         # 通知订阅者
         self._notify_subscribers('position_update', position)
 
@@ -285,6 +274,13 @@ class TigerStore(backtrader.Store):
             currency=currency,
             sec_type=sec_type
         )
+        
+        # 检查是否获取到合约
+        if not contracts:
+            error_msg = f"无法获取合约信息，标的: {symbol}，请确认标的代码正确且可交易"
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
+            
         self.contract_cache[cache_key] = contracts[0]
         return contracts[0]
 
@@ -309,6 +305,13 @@ class TigerStore(backtrader.Store):
         """根据账户类型查找账户ID"""
         # 获取账户信息
         accounts = self.trade_client.get_managed_accounts()
+        
+        # 检查是否获取到账户
+        if not accounts:
+            self.logger.error("无法获取账户信息")
+            # 使用配置中的账户ID
+            self.account = self.client_config.account
+            return self.account
 
         # 遍历账户列表，查找指定类型
         for acc in accounts:
@@ -351,12 +354,6 @@ class TigerStore(backtrader.Store):
         
         self.logger.info(f"订单提交成功 - Tiger订单ID: {order_id}, BT订单Ref: {order.ref}")
         
-        # 初始化订单映射关系
-        if not hasattr(self, 'bt_order_map'):
-            self.bt_order_map = {}
-            
-        # 记录订单映射关系
-        self.bt_order_map[order.ref] = order_id
         return order_id
 
     def cancel_order(self, order_id):
@@ -397,9 +394,13 @@ class TigerStore(backtrader.Store):
             
         # 从服务器获取最新持仓
         positions = self.trade_client.get_positions(self.account)
-        self.position_cache = positions
-        self.logger.info(f"已获取持仓信息: {len(positions)}个持仓")
-        return positions
+        if positions:
+            self.position_cache = positions
+            self.logger.info(f"已获取持仓信息: {len(positions)}个持仓")
+        else:
+            self.position_cache = []
+            self.logger.info("当前没有持仓")
+        return self.position_cache
 
     def getcash(self):
         """获取账户现金"""
@@ -422,12 +423,15 @@ class TigerStore(backtrader.Store):
 
         # 2. 获取订单信息
         orders = self.trade_client.get_orders(account=self.account, limit=10)
-        # 打印订单信息结构
-        self.logger.info(f"订单信息数据结构: {dir(orders[0])}")
-        for order in orders:
-            order_id = order.id
-            self.order_cache[order_id] = order
-        self.logger.info(f"已获取订单信息: {len(orders)}个订单")
+        if orders:
+            # 打印订单信息结构
+            self.logger.info(f"订单信息数据结构: {dir(orders[0])}")
+            for order in orders:
+                order_id = order.id
+                self.order_cache[order_id] = order
+            self.logger.info(f"已获取订单信息: {len(orders)}个订单")
+        else:
+            self.logger.info("当前没有活跃订单")
 
         # 3. 获取持仓信息
         self.get_positions()

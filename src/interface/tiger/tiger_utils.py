@@ -19,13 +19,25 @@ def backtrader_order_to_tiger_order(order: backtrader.order.Order):
     # 获取订单数据
     data = order.data
     symbol = data._name
+    
+    # 检查标的是否为空，如果为空则尝试从策略参数获取
+    if not symbol and hasattr(order.owner, 'p') and hasattr(order.owner.p, 'symbol'):
+        symbol = order.owner.p.symbol
+        logger.info(f"数据对象中标的为空，从策略参数获取标的: {symbol}")
+    
+    # 如果标的仍然为空，则无法继续
+    if not symbol:
+        error_msg = "无法获取交易标的，订单无法提交"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+        
     logger.info(f"转换订单 - 标的: {symbol}, 类型: {'买入' if order.isbuy() else '卖出'}, 数量: {abs(order.size)}")
     
     # 获取买卖方向
     action = order.info.get('action', 'BUY' if order.isbuy() else 'SELL')
     
     # 获取store和合约信息
-    store = order.owner._broker.store
+    store = order.owner.broker.store
     contract = store.get_contract(symbol)
     logger.info(f"从store获取合约信息: {contract}")
     
@@ -134,7 +146,7 @@ def tiger_order_to_backtrader_order(tiger_order):
     
     logger.info(f"解析Tiger订单 - ID: {order_id}, 状态: {status}, 已成交: {filled}, 均价: {avg_fill_price}")
     
-    # 构建订单信息字典
+    # 构建订单信息字典 - 只包含必要信息
     order_info = {
         'id': order_id,
         'status': status,
@@ -143,14 +155,7 @@ def tiger_order_to_backtrader_order(tiger_order):
         'avg_fill_price': avg_fill_price,
         'commission': tiger_order.commission,
         'reason': tiger_order.reason,
-        'symbol': symbol,
-        'bt_ref': tiger_order.bt_ref,
-        # 添加更多信息
-        'creation_time': tiger_order.create_time,
-        'update_time': tiger_order.update_time,
-        'order_type': tiger_order.order_type,
-        'time_in_force': tiger_order.time_in_force,
-        'account': tiger_order.account,
+        'symbol': symbol
     }
     
     return order_info

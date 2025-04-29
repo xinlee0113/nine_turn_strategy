@@ -162,8 +162,11 @@ class TigerBroker(backtrader.BrokerBase):
         # 通过Store提交订单到交易所
         tiger_order_id = self.store.submit_order(order)
 
+        # 确保info是字典
+        if not hasattr(order, 'info'):
+            order.info = {}
         # 保存老虎订单ID到backtrader订单的info对象中
-        order.info.tiger_order_id = tiger_order_id
+        order.info['tiger_order_id'] = tiger_order_id
         # 更新订单状态为已接受
         order.accept()
         # 通知订单状态更新
@@ -176,7 +179,9 @@ class TigerBroker(backtrader.BrokerBase):
     def cancel(self, order):
         """取消订单"""
         # 获取Tiger订单ID
-        tiger_order_id = order.info.tiger_order_id
+        tiger_order_id = order.info.get('tiger_order_id')
+        if not tiger_order_id:
+            return order
 
         # 通过Store发送取消请求
         result = self.store.cancel_order(tiger_order_id)
@@ -194,34 +199,29 @@ class TigerBroker(backtrader.BrokerBase):
         """
         # 获取Tiger订单ID
         order_id = tiger_order.id
-            
-        # 在订单字典中查找对应的backtrader订单
+        
+        # 通过订单ID查找对应的backtrader订单
         matched_order = None
         for order in self.orders.values():
-            if order.info.tiger_order_id == order_id:
+            if hasattr(order, 'info') and order.info.get('tiger_order_id') == order_id:
                 matched_order = order
                 break
                 
-        self.logger.warning(f"未找到对应的Backtrader订单，Tiger订单ID: {order_id}")
+        if matched_order is None:
+            # 订单可能已经被处理或尚未创建
+            return None
             
-        # 获取订单状态
+        # 获取订单状态并映射到backtrader状态
         status = tiger_order.status
-        self.logger.info(f"订单状态更新: {order_id}, 状态: {status}")
-        
-        # 映射到backtrader订单状态
         bt_status = ORDER_STATUS_MAP.get(status, matched_order.status)
         
         # 已成交或部分成交时更新成交信息
         if status in ['FILLED', 'PARTIALLY_FILLED']:
-            # 获取成交信息
-            executed_price = tiger_order.avg_fill_price
-            executed_size = tiger_order.filled
-            
-            # 更新订单成交信息
-            self.logger.info(f"订单成交: {order_id}, 价格: {executed_price}, 数量: {executed_size}")
-            matched_order.execute(dt=datetime.now(timezone.utc), 
-                           size=executed_size, 
-                           price=executed_price)
+            matched_order.execute(
+                dt=datetime.now(timezone.utc), 
+                size=tiger_order.filled, 
+                price=tiger_order.avg_fill_price
+            )
         
         # 更新订单状态
         matched_order.status = bt_status
@@ -236,19 +236,13 @@ class TigerBroker(backtrader.BrokerBase):
         
         将Tiger API返回的持仓更新应用到broker的持仓记录
         """
-        # 获取持仓标识
-        symbol = position.symbol
-        
         # 更新持仓信息
-        self.positions[symbol] = position
+        self.positions[position.symbol] = position
         
-        # 记录持仓数量信息
-        quantity = position.quantity 
-        avg_cost = position.average_cost
-        
-        self.logger.info(f"持仓更新: {symbol}, 数量: {quantity}, 平均成本: {avg_cost}")
-        
-        # 通知cerebro进行持仓更新 - 具体实现取决于backtrader架构
+        # 通知cerebro进行持仓更新
+        # 通过通知机制告知策略持仓发生变化
+        # 创建一个持仓更新通知，以便Cerebro和策略可以处理
+        # backtrader会自动获取持仓状态，此处只需确保数据更新完毕
 
     def get_notification(self):
         """获取通知"""
@@ -265,17 +259,11 @@ class TigerBroker(backtrader.BrokerBase):
         """资产更新回调"""
         self.cash = new_cash
         self.value = new_value
-        
-        if old_cash != new_cash or old_value != new_value:
-            self.logger.info(f"账户更新 - 现金: {new_cash}, 总资产: {new_value}")
-            
+
     def _on_order_update(self, order_id, order):
         """订单更新回调"""
-        result = self._process_order_update(order)
-        if result:
-            self.logger.debug(f"已处理订单更新: {order_id}")
+        self._process_order_update(order)
             
     def _on_position_update(self, position):
         """持仓更新回调"""
         self._process_position_update(position)
-        self.logger.debug(f"已处理持仓更新: {position.symbol}")
