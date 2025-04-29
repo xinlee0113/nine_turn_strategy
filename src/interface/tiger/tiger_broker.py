@@ -155,54 +155,30 @@ class TigerBroker(backtrader.BrokerBase):
         self.notify(order)
 
         # 通过Store提交订单到交易所
-        try:
-            # 调用tiger_store的submit_order方法，返回tiger_order_id
-            tiger_order_id = self.store.submit_order(order)
+        tiger_order_id = self.store.submit_order(order)
 
-            # 如果成功获取到订单ID，关联到order.info
-            if tiger_order_id:
-                # 保存老虎订单ID到backtrader订单的info对象中
-                order.info.tiger_order_id = tiger_order_id
-                # 更新订单状态为已接受
-                order.accept()
-                # 通知订单状态更新
-                self.notify(order)
-                self.logger.info(f"订单提交成功，订单ID: {tiger_order_id}")
-            else:
-                # 如果没有获取到订单ID，则拒绝订单
-                order.reject(self)
-                self.notify(order)
-                self.logger.error("订单提交失败，未获取到订单ID")
-        except Exception as e:
-            # 提交失败，将订单状态设置为拒绝
-            order.reject(self)
-            self.notify(order)
-            self.logger.error(f"订单提交异常: {e}")
+        # 保存老虎订单ID到backtrader订单的info对象中
+        order.info.tiger_order_id = tiger_order_id
+        # 更新订单状态为已接受
+        order.accept()
+        # 通知订单状态更新
+        self.notify(order)
+        self.logger.info(f"订单提交成功，订单ID: {tiger_order_id}")
 
         # 返回订单引用ID，而不是订单对象
         return order.ref
 
     def cancel(self, order):
         """取消订单"""
-        # 判断是否可以取消
-        if not order.alive():
-            return
-
         # 获取Tiger订单ID
-        tiger_order_id = getattr(order.info, 'tiger_order_id', None)
-        if not tiger_order_id:
-            return
+        tiger_order_id = order.info.tiger_order_id
 
         # 通过Store发送取消请求
-        try:
-            result = self.store.cancel_order(tiger_order_id)
-            if result:
-                # 取消成功，将订单状态设置为等待取消确认
-                order.status = Order.Cancelled
-                self.notify(order)
-        except Exception as e:
-            # 取消失败，维持原状态
-            pass
+        result = self.store.cancel_order(tiger_order_id)
+        
+        # 取消成功，将订单状态设置为等待取消确认
+        order.status = Order.Cancelled
+        self.notify(order)
 
         return order
 
@@ -212,24 +188,19 @@ class TigerBroker(backtrader.BrokerBase):
         将tiger API返回的订单状态更新应用到backtrader订单对象
         """
         # 获取Tiger订单ID
-        order_id = getattr(tiger_order, 'id', None) or getattr(tiger_order, 'order_id', None)
-        if not order_id:
-            self.logger.warning(f"接收到无效订单更新，未包含订单ID: {tiger_order}")
-            return None
+        order_id = tiger_order.id
             
         # 在订单字典中查找对应的backtrader订单
         matched_order = None
         for order in self.orders.values():
-            if getattr(order.info, 'tiger_order_id', None) == order_id:
+            if order.info.tiger_order_id == order_id:
                 matched_order = order
                 break
                 
-        if not matched_order:
-            self.logger.warning(f"未找到对应的Backtrader订单，Tiger订单ID: {order_id}")
-            return None
+        self.logger.warning(f"未找到对应的Backtrader订单，Tiger订单ID: {order_id}")
             
         # 获取订单状态
-        status = getattr(tiger_order, 'status', 'Unknown')
+        status = tiger_order.status
         self.logger.info(f"订单状态更新: {order_id}, 状态: {status}")
         
         # 映射到backtrader订单状态
@@ -238,8 +209,8 @@ class TigerBroker(backtrader.BrokerBase):
         # 已成交或部分成交时更新成交信息
         if status in ['FILLED', 'PARTIALLY_FILLED']:
             # 获取成交信息
-            executed_price = getattr(tiger_order, 'avg_fill_price', 0)
-            executed_size = getattr(tiger_order, 'filled', 0)
+            executed_price = tiger_order.avg_fill_price
+            executed_size = tiger_order.filled
             
             # 更新订单成交信息
             self.logger.info(f"订单成交: {order_id}, 价格: {executed_price}, 数量: {executed_size}")
@@ -261,24 +232,14 @@ class TigerBroker(backtrader.BrokerBase):
         将Tiger API返回的持仓更新应用到broker的持仓记录
         """
         # 获取持仓标识
-        symbol = None
-        if hasattr(position, 'contract') and hasattr(position.contract, 'symbol'):
-            symbol = position.contract.symbol
-        elif hasattr(position, 'identifier'):
-            symbol = position.identifier
-        elif hasattr(position, 'symbol'):
-            symbol = position.symbol
-        else:
-            # 如果无法确定symbol，使用对象字符串作为键
-            symbol = str(position)
-            self.logger.warning(f"持仓对象缺少symbol属性: {position}")
+        symbol = position.symbol
         
         # 更新持仓信息
         self.positions[symbol] = position
         
         # 记录持仓数量信息
-        quantity = getattr(position, 'quantity', 0) or getattr(position, 'position', 0)
-        avg_cost = getattr(position, 'average_cost', 0) or getattr(position, 'avg_cost', 0)
+        quantity = position.quantity 
+        avg_cost = position.average_cost
         
         self.logger.info(f"持仓更新: {symbol}, 数量: {quantity}, 平均成本: {avg_cost}")
         

@@ -97,10 +97,10 @@ class TigerStore(backtrader.Store):
             order: Tiger API的订单对象
         """
         # 获取订单ID
-        order_id = getattr(order, 'id', None) or getattr(order, 'order_id', 'unknown')
+        order_id = order.id
 
         # 获取订单状态
-        status = getattr(order, 'status', 'Unknown')
+        status = order.status
 
         # 记录详细日志
         self.logger.info(f"订单状态更新回调 - ID: {order_id}, 状态: {status}")
@@ -126,33 +126,15 @@ class TigerStore(backtrader.Store):
         # broker会每个bar周期从order_cache中获取最新状态并更新backtrader订单
 
     def _on_position_changed(self, position: PositionData):
-        if position.account != self.account:
-            return
-        if position.symbol not in self.symbols:
-            return
-        '''
-        account: "708815"
-        symbol: "MIU.HK"
-        expiry: "20250429"
-        strike: "43.00"
-        right: "CALL"
-        identifier: "MIU.HK250429C00043000"
-        multiplier: 1000
-        market: "HK"
-        currency: "HKD"
-        segType: "S"
-        secType: "OPT"
-        position: 3
-        averageCost: 3.4629
-        latestPrice: 2.325
-        marketValue: 6975
-        unrealizedPnl: -3413.7
-        timestamp: 1744642266874
-        positionQty: 3
-        salableQty: 3
-        '''
-        self.position_cache = position
-        self.logger.info(f"Received position update: {position}")
+        """
+        处理持仓变化的回调
+        
+        Args:
+            position: Tiger API的持仓对象
+        """
+        # 直接处理持仓更新
+        self.position_cache.append(position)
+        self.logger.info(f"持仓更新: {position.symbol}, 数量: {position.position}, 成本: {position.averageCost}")
 
     def _on_error_callback(self, frame):
         self.logger.error(f"Received error: {frame}")
@@ -160,29 +142,21 @@ class TigerStore(backtrader.Store):
     def _on_disconnect_callback(self):
         self.logger.info("Disconnected from server")
 
-        # 尝试重新连接
-        max_retries = 5
-        retry_interval = 5  # 秒
+        # 重新连接
+        protocol, host, port = self.client_config.socket_host_port
+        self.push_client = PushClient(host, port, use_ssl=(protocol == 'ssl'))
 
-        for attempt in range(max_retries):
-            self.logger.info(f"尝试重新连接 (第{attempt + 1}次)")
-            protocol, host, port = self.client_config.socket_host_port
-            self.push_client = PushClient(host, port, use_ssl=(protocol == 'ssl'))
+        self.push_client.quote_changed = self._on_quote_changed
+        self.push_client.error_callback = self._on_error_callback
+        self.push_client.disconnect_callback = self._on_disconnect_callback
+        self.push_client.asset_changed = self._on_asset_changed
+        self.push_client.position_changed = self._on_position_changed
+        self.push_client.order_changed = self._on_order_changed
 
-            self.push_client.quote_changed = self._on_quote_changed
-            self.push_client.error_callback = self._on_error_callback
-            self.push_client.disconnect_callback = self._on_disconnect_callback
-            self.push_client.asset_changed = self._on_asset_changed
-            self.push_client.position_changed = self._on_position_changed
-            self.push_client.order_changed = self._on_order_changed
+        self.push_client.connect(self.client_config.tiger_id, self.client_config.private_key)
+        self.push_client.subscribe_quote(self.symbols)
 
-            self.push_client.connect(self.client_config.tiger_id, self.client_config.private_key)
-            self.push_client.subscribe_quote(self.symbols)
-
-            self.logger.info("重新连接成功")
-            return
-
-        self.logger.error(f"重新连接失败，已超过最大尝试次数: {max_retries}")
+        self.logger.info("重新连接成功")
 
     def getdata(self, *args, **kwargs):
         """获取数据源
@@ -295,23 +269,19 @@ class TigerStore(backtrader.Store):
 
     def get_account(self, account_type):
         """根据账户类型查找账户ID"""
-        # todo 首先从缓存获取,没有则从API获取
         # 获取账户信息
         accounts = self.trade_client.get_managed_accounts()
 
         # 遍历账户列表，查找指定类型
         for acc in accounts:
-            if hasattr(acc, 'account_type') and acc.account_type == account_type:
-                acc_account = acc.account
-                self.account = acc_account
-                return acc_account
+            if acc.account_type == account_type:
+                self.account = acc.account
+                return self.account
 
         # 如果没找到指定类型，返回第一个账户
-        if accounts and len(accounts) > 0:
-            self.logger.error(f"未找到{account_type}类型账户")
-            # todo 抛出异常
-            return self.account
-        return None
+        self.account = accounts[0].account
+        self.logger.error(f"未找到{account_type}类型账户，使用第一个账户: {self.account}")
+        return self.account
 
     def get_asset(self):
         """获取综合账户"""
@@ -339,22 +309,17 @@ class TigerStore(backtrader.Store):
         result = self.trade_client.place_order(tiger_order)
 
         # 获取订单ID
-        order_id = getattr(result, 'id', None) or getattr(result, 'order_id', None)
-
-        if order_id:
-            self.logger.info(f"订单提交成功 - Tiger订单ID: {order_id}, BT订单Ref: {order.ref}")
-
-            # 记录订单映射关系 - 便于后续查询
-            if not hasattr(self, 'bt_order_map'):
-                self.bt_order_map = {}
-            self.bt_order_map[order.ref] = order_id
-
-            # 保存到订单缓存 - 初始状态为未确认
-            # 实际状态会通过推送更新
-            return order_id
-        else:
-            self.logger.error(f"订单提交失败 - 未获取到订单ID")
-            return None
+        order_id = result.id
+        
+        self.logger.info(f"订单提交成功 - Tiger订单ID: {order_id}, BT订单Ref: {order.ref}")
+        
+        # 初始化订单映射关系
+        if not hasattr(self, 'bt_order_map'):
+            self.bt_order_map = {}
+            
+        # 记录订单映射关系
+        self.bt_order_map[order.ref] = order_id
+        return order_id
 
     def cancel_order(self, order_id):
         """
@@ -391,8 +356,9 @@ class TigerStore(backtrader.Store):
         if self.position_cache:
             # 如果有缓存，直接返回
             return self.position_cache
+            
         # 从服务器获取最新持仓
-        positions: [Position] = self.trade_client.get_positions(self.account)
+        positions = self.trade_client.get_positions(self.account)
         self.position_cache = positions
         self.logger.info(f"已获取持仓信息: {len(positions)}个持仓")
         return positions
@@ -418,26 +384,21 @@ class TigerStore(backtrader.Store):
 
         # 2. 获取订单信息
         orders = self.trade_client.get_orders(account=self.account, limit=10)
-        if orders is not None and len(orders) > 0:
-            # 打印订单信息结构
-            self.logger.info(f"订单信息数据结构: {dir(orders[0])}")
-            for order in orders:
-                order_id = order.id
-                self.order_cache[order_id] = order
-            self.logger.info(f"已获取订单信息: {len(orders)}个订单")
-        else:
-            self.logger.info("未获取到订单信息")
-        # 4. 获取持仓信息
+        # 打印订单信息结构
+        self.logger.info(f"订单信息数据结构: {dir(orders[0])}")
+        for order in orders:
+            order_id = order.id
+            self.order_cache[order_id] = order
+        self.logger.info(f"已获取订单信息: {len(orders)}个订单")
+
+        # 3. 获取持仓信息
         self.get_positions()
 
-        # 5. 预先获取合约信息
+        # 4. 预先获取合约信息
         for symbol in self.symbols:
             contract = self.get_contract(symbol)
-            if contract is not None:
-                # 打印合约信息结构
-                self.logger.info(f"合约信息数据结构: {dir(contract)}")
-                self.logger.info(f"已获取合约信息: {symbol}")
-            else:
-                self.logger.info(f"未获取到合约信息: {symbol}")
+            # 打印合约信息结构
+            self.logger.info(f"合约信息数据结构: {dir(contract)}")
+            self.logger.info(f"已获取合约信息: {symbol}")
 
         self.logger.info("数据缓存初始化完成")
