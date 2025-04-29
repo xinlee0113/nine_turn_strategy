@@ -24,115 +24,84 @@ def backtrader_order_to_tiger_order(order: backtrader.order.Order):
     # 获取买卖方向
     action = order.info.get('action', 'BUY' if order.isbuy() else 'SELL')
     
-    # 获取合约信息
-    contract = data.contract if hasattr(data, 'contract') else None
-    # 如果数据对象没有合约信息，需要从store中获取
-    if contract is None and hasattr(order.owner, '_broker') and hasattr(order.owner._broker, 'store'):
-        # 获取store对象
-        store = order.owner._broker.store
-        if hasattr(store, 'get_contract'):
-            contract = store.get_contract(symbol)
-            logger.info(f"从store获取合约信息: {contract}")
+    # 获取store和合约信息
+    store = order.owner._broker.store
+    contract = store.get_contract(symbol)
+    logger.info(f"从store获取合约信息: {contract}")
     
     # 获取账户ID
-    account = None
-    store = None
-    if hasattr(order.owner, '_broker') and hasattr(order.owner._broker, 'store'):
-        store = order.owner._broker.store
-        if hasattr(store, 'account'):
-            account = store.account
+    account = store.account
     
-    # 如果没有账户ID，尝试从store.p.account_type获取
-    if account is None and store is not None and hasattr(store, 'get_account'):
+    # 如果没有直接账户，从账户类型获取
+    if not account:
         account = store.get_account(store.p.account_type)
     
-    if not account:
-        logger.warning("未找到账户ID，将使用默认账户")
-        
-    if not contract:
-        logger.warning(f"未找到合约信息: {symbol}，可能导致订单提交失败")
-    
-    # 创建Tiger订单
-    quantity = abs(order.size)  # 数量为正数
-    
-    logger.info(f"创建Tiger订单 - 账户: {account}, 标的: {symbol}, 动作: {action}, 数量: {quantity}")
+    logger.info(f"创建Tiger订单 - 账户: {account}, 标的: {symbol}, 动作: {action}, 数量: {abs(order.size)}")
     
     # 根据订单类型创建不同的订单
     tiger_order = None
-    try:
-        if order.exectype == order.Market:
-            # 市价单
-            logger.info("创建市价单")
-            tiger_order = market_order(
-                account=account,
-                contract=contract,
-                action=action,
-                quantity=quantity
-            )
-        elif order.exectype == order.Limit:
-            # 限价单
-            logger.info(f"创建限价单，价格: {order.price}")
-            tiger_order = limit_order(
-                account=account,
-                contract=contract,
-                action=action,
-                quantity=quantity,
-                limit_price=order.price
-            )
-        elif order.exectype == order.Stop:
-            # 止损单
-            logger.info(f"创建止损单，价格: {order.price}")
-            tiger_order = stop_order(
-                account=account,
-                contract=contract,
-                action=action,
-                quantity=quantity,
-                aux_price=order.price
-            )
-        elif order.exectype == order.StopLimit:
-            # 止损限价单
-            logger.info(f"创建止损限价单，止损价: {order.price}，限价: {order.pricelimit}")
-            tiger_order = stop_limit_order(
-                account=account,
-                contract=contract,
-                action=action,
-                quantity=quantity,
-                limit_price=order.pricelimit,
-                aux_price=order.price
-            )
-        else:
-            # 默认使用限价单
-            logger.info(f"创建默认限价单，价格: {order.price if order.price else '市价'}")
-            tiger_order = limit_order(
-                account=account,
-                contract=contract,
-                action=action,
-                quantity=quantity,
-                limit_price=order.price if order.price else 0
-            )
-        
-        # 设置有效期
-        if order.valid:
-            # 如果有设置有效期，转换为Tiger API格式
-            if hasattr(tiger_order, 'time_in_force'):
-                # 设置为当日有效或GTC (Good Till Cancelled)
-                tiger_order.time_in_force = 'DAY'  # 当日有效
-                logger.info("设置订单有效期: 当日有效")
-        
-        # 保存backtrader订单引用ID，便于后续关联
-        if hasattr(tiger_order, 'outside_rth'):
-            tiger_order.outside_rth = True  # 允许盘前盘后交易
-            
-        # 添加自定义属性，保存backtrader订单引用
-        # 使用本地变量存储，不直接修改tiger_order对象
-        bt_ref = order.ref
-        
-        logger.info(f"Tiger订单创建成功: {tiger_order}, BT订单引用: {bt_ref}")
-        return tiger_order
-        
-    except Exception as e:
-        logger.error(f"创建Tiger订单失败: {e}")
-        raise
+    # 市价单
+    if order.exectype == order.Market:
+        logger.info("创建市价单")
+        tiger_order = market_order(
+            account=account,
+            contract=contract,
+            action=action,
+            quantity=abs(order.size)
+        )
+    # 限价单
+    elif order.exectype == order.Limit:
+        logger.info(f"创建限价单，价格: {order.price}")
+        tiger_order = limit_order(
+            account=account,
+            contract=contract,
+            action=action,
+            quantity=abs(order.size),
+            limit_price=order.price
+        )
+    # 止损单
+    elif order.exectype == order.Stop:
+        logger.info(f"创建止损单，价格: {order.price}")
+        tiger_order = stop_order(
+            account=account,
+            contract=contract,
+            action=action,
+            quantity=abs(order.size),
+            aux_price=order.price
+        )
+    # 止损限价单
+    elif order.exectype == order.StopLimit:
+        logger.info(f"创建止损限价单，止损价: {order.price}，限价: {order.pricelimit}")
+        tiger_order = stop_limit_order(
+            account=account,
+            contract=contract,
+            action=action,
+            quantity=abs(order.size),
+            limit_price=order.pricelimit,
+            aux_price=order.price
+        )
+    # 默认使用限价单
+    else:
+        logger.info(f"创建默认限价单，价格: {order.price if order.price else '市价'}")
+        tiger_order = limit_order(
+            account=account,
+            contract=contract,
+            action=action,
+            quantity=abs(order.size),
+            limit_price=order.price if order.price else 0
+        )
+    
+    # 设置有效期
+    if order.valid:
+        # 设置为当日有效
+        tiger_order.time_in_force = 'DAY'
+        logger.info("设置订单有效期: 当日有效")
+    
+    # 允许盘前盘后交易
+    tiger_order.outside_rth = True
+    
+    logger.info(f"Tiger订单创建成功: {tiger_order}, BT订单引用: {order.ref}")
+    return tiger_order
 
 def tiger_order_to_backtrader_order(tiger_order):
     """
@@ -147,32 +116,21 @@ def tiger_order_to_backtrader_order(tiger_order):
     logger = logging.getLogger(__name__)
     
     # 获取订单ID
-    order_id = getattr(tiger_order, 'id', None) or getattr(tiger_order, 'order_id', None)
+    order_id = tiger_order.id
     
     # 获取订单状态
-    status = getattr(tiger_order, 'status', 'Unknown')
+    status = tiger_order.status
     
     # 获取成交信息
-    filled = getattr(tiger_order, 'filled', 0)
-    remaining = getattr(tiger_order, 'remaining', 0)
+    filled = tiger_order.filled
+    remaining = tiger_order.remaining
     
     # 获取成交均价
-    avg_fill_price = getattr(tiger_order, 'avg_fill_price', 0)
-    
-    # 获取佣金
-    commission = getattr(tiger_order, 'commission', 0)
-    
-    # 获取拒绝原因(如果有)
-    reason = getattr(tiger_order, 'reason', None)
+    avg_fill_price = tiger_order.avg_fill_price
     
     # 获取合约信息
-    contract = getattr(tiger_order, 'contract', None)
-    symbol = None
-    if contract:
-        symbol = getattr(contract, 'symbol', None)
-    
-    # 获取backtrader订单引用(如果有)
-    bt_ref = getattr(tiger_order, 'bt_ref', None)
+    contract = tiger_order.contract
+    symbol = contract.symbol
     
     logger.info(f"解析Tiger订单 - ID: {order_id}, 状态: {status}, 已成交: {filled}, 均价: {avg_fill_price}")
     
@@ -183,16 +141,16 @@ def tiger_order_to_backtrader_order(tiger_order):
         'filled': filled,
         'remaining': remaining,
         'avg_fill_price': avg_fill_price,
-        'commission': commission,
-        'reason': reason,
+        'commission': tiger_order.commission,
+        'reason': tiger_order.reason,
         'symbol': symbol,
-        'bt_ref': bt_ref,
-        # 添加更多可能需要的信息
-        'creation_time': getattr(tiger_order, 'create_time', None),
-        'update_time': getattr(tiger_order, 'update_time', None),
-        'order_type': getattr(tiger_order, 'order_type', None),
-        'time_in_force': getattr(tiger_order, 'time_in_force', None),
-        'account': getattr(tiger_order, 'account', None),
+        'bt_ref': tiger_order.bt_ref,
+        # 添加更多信息
+        'creation_time': tiger_order.create_time,
+        'update_time': tiger_order.update_time,
+        'order_type': tiger_order.order_type,
+        'time_in_force': tiger_order.time_in_force,
+        'account': tiger_order.account,
     }
     
     return order_info
