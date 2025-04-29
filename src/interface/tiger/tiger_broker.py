@@ -125,7 +125,7 @@ class TigerBroker(backtrader.BrokerBase):
             size=size if action == 'BUY' else -size,
             price=price if price is not None else 0.0,
             pricelimit=None, 
-            exectype=exectype if exectype is not None else Order.Market,
+            exectype=exectype if exectype is not None else Order.Limit,
             valid=valid,
             tradeid=0
         )

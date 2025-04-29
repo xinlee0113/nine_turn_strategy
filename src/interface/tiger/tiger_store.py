@@ -192,6 +192,7 @@ class TigerStore(backtrader.Store):
             TigerRealtimeData: 实时数据源
         """
         kwargs['store'] = self
+        kwargs['symbol'] = self.symbols[0]
         return TigerRealtimeData(**kwargs)
 
     def getbroker(self, *args, **kwargs):
@@ -350,7 +351,7 @@ class TigerStore(backtrader.Store):
         result = self.trade_client.place_order(tiger_order)
 
         # 获取订单ID
-        order_id = result.id
+        order_id = result
         
         self.logger.info(f"订单提交成功 - Tiger订单ID: {order_id}, BT订单Ref: {order.ref}")
         

@@ -52,8 +52,8 @@ class TestStrategy(bt.Strategy):
         # 下单交易
         self.logger.info(f"准备下单买入 {self.p.symbol}, 数量: {self.p.quantity}, 价格: {current_price}")
         
-        # 创建市价单并标记已下单
-        self.order = self.buy(size=self.p.quantity)
+        # 创建限价单并标记已下单
+        self.order = self.buy(size=self.p.quantity,price=current_price)
         self._place_order_done = True
         self.logger.info(f"已提交订单: {self.order}")
 
