@@ -47,7 +47,7 @@ class BacktestScript:
         self.event_manager = EventManager()
 
         # 初始化引擎和组件
-        self.engine = None
+        self.cerebro = None
         self.strategy = None
         self.data_source = None
         self.analyzer = None
@@ -75,7 +75,8 @@ class BacktestScript:
         
         # 2. 创建回测引擎
         self.logger.info("2. 创建回测引擎")
-        self.engine = Cerebro()
+        self.cerebro = Cerebro()
+        self.cerebro.p.oldbuysell= True
 
         # 3. 创建策略实例
         self.logger.info("3. 创建神奇九转策略实例")
@@ -89,7 +90,7 @@ class BacktestScript:
         
         # 5. 配置Broker
         self.logger.info("5. 配置Broker")
-        self.engine.broker.setcash(10000.0)
+        self.cerebro.broker.setcash(10000.0)
         
         # 6. 添加分析器
         self.logger.info("6. 添加分析器")
@@ -98,34 +99,34 @@ class BacktestScript:
         from backtrader.analyzers import SharpeRatio, DrawDown, TradeAnalyzer
 
         # 添加分析器，使用一致的命名，以便访问
-        self.engine.addanalyzer(PerformanceAnalyzer, _name='performanceanalyzer')
-        self.engine.addanalyzer(RiskAnalyzer, _name='riskanalyzer')
-        self.engine.addanalyzer(SharpeRatio, _name='sharperatio')
-        self.engine.addanalyzer(DrawDown, _name='drawdown')
-        self.engine.addanalyzer(TradeAnalyzer, _name='tradeanalyzer')
+        self.cerebro.addanalyzer(PerformanceAnalyzer, _name='performanceanalyzer')
+        self.cerebro.addanalyzer(RiskAnalyzer, _name='riskanalyzer')
+        self.cerebro.addanalyzer(SharpeRatio, _name='sharperatio')
+        self.cerebro.addanalyzer(DrawDown, _name='drawdown')
+        self.cerebro.addanalyzer(TradeAnalyzer, _name='tradeanalyzer')
 
         # 7. 设置引擎组件
         self.logger.info("7. 向回测引擎添加组件")
-        self.engine.addstrategy(self.strategy)
-        self.engine.adddata(data)
+        self.cerebro.addstrategy(self.strategy)
+        self.cerebro.adddata(data)
 
         # 设置绘图选项
         if enable_plot:
             self.logger.info("启用绘图功能")
             # 正确设置Cerebro的绘图选项
-            self.engine.stdstats = True
+            self.cerebro.stdstats = True
             # 添加默认的统计指标
             from backtrader import bt
-            self.engine.addobserver(bt.observers.Broker)
-            self.engine.addobserver(bt.observers.BuySell)
-            self.engine.addobserver(bt.observers.Value)
-            self.engine.addobserver(bt.observers.DrawDown)
-            self.engine.addobserver(bt.observers.Trades)
+            self.cerebro.addobserver(bt.observers.Broker)
+            self.cerebro.addobserver(bt.observers.BuySell)
+            self.cerebro.addobserver(bt.observers.Value)
+            self.cerebro.addobserver(bt.observers.DrawDown)
+            self.cerebro.addobserver(bt.observers.Trades)
         # 不需要设置engine.plot属性
 
         # 8. 注册事件监听
         self.logger.info("8. 注册事件监听")
-        self.event_manager.register_listeners(self.engine, self.strategy, self.broker)
+        self.event_manager.register_listeners(self.cerebro, self.strategy, self.broker)
         self.logger.info("开始事件监听")
 
         # 记录回测开始时间
@@ -133,7 +134,7 @@ class BacktestScript:
 
         # 9. 开始回测
         self.logger.info("执行回测引擎")
-        results = self.engine.run()
+        results = self.cerebro.run()
         self.logger.info("回测执行完成")
 
         # 记录回测结束时间
@@ -167,8 +168,8 @@ class BacktestScript:
                 
                 # 绘制并保存图表
                 # backtrader的plot方法返回的是figure对象
-                figs = self.engine.plot(style='candle', barup='red', bardown='green',
-                                       valuetags=True, volume=True, grid=True)
+                figs = self.cerebro.plot(barup='red', bardown='green',
+                                         valuetags=True, volume=True, grid=True)
                 
                 # 保存第一个图表(总览图)
                 if figs and len(figs) > 0 and len(figs[0]) > 0:
@@ -368,6 +369,6 @@ class BacktestScript:
         self.logger.info("停止回测")
         if self.data_source:
             self.data_source.stop()
-        if self.engine:
-            self.engine.stop()
+        if self.cerebro:
+            self.cerebro.stop()
         self.logger.info("回测停止完成")
