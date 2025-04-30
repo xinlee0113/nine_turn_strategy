@@ -3,13 +3,12 @@
 负责回测流程的控制，按照架构图中的回测流程实现
 """
 import logging
-from datetime import datetime, timedelta
 import os
+from datetime import datetime, timedelta
 
 from backtrader import Cerebro
 
 from src.business.strategy.magic_nine_strategy import MagicNineStrategy
-from src.infrastructure.config.data_config import DataConfig
 from src.infrastructure.config.strategy_config import StrategyConfig
 from src.infrastructure.event.event_manager import EventManager
 from src.infrastructure.logging.logger import Logger
@@ -40,7 +39,6 @@ class BacktestScript:
         self.logger_manager = Logger()
 
         # 初始化配置
-        self.data_config = DataConfig()
         self.strategy_config = StrategyConfig()
 
         # 初始化事件管理器
@@ -53,13 +51,13 @@ class BacktestScript:
         self.analyzer = None
         self.broker = None
         self.analyzers = []
-        
+
         # 交易标的和时间范围
         self.symbol = "QQQ"
         self.start_date = datetime.now() - timedelta(days=30)
         self.end_date = datetime.now()
         self.period = "1m"
-        
+
         # 回测执行时间记录
         self.start_time = None
         self.end_time = None
@@ -71,12 +69,11 @@ class BacktestScript:
         self.logger.info("1. 加载回测配置")
         config_file = 'configs/strategy/magic_nine.yaml'
         self.strategy_config.load_config(config_file)
-        self.data_config.load_config('configs/data/data_config.yaml')
-        
+
         # 2. 创建回测引擎
         self.logger.info("2. 创建回测引擎")
         self.cerebro = Cerebro()
-        self.cerebro.p.oldbuysell= True
+        self.cerebro.p.oldbuysell = True
 
         # 3. 创建策略实例
         self.logger.info("3. 创建神奇九转策略实例")
@@ -87,11 +84,11 @@ class BacktestScript:
         store = TigerStore()
         data = TigerCsvData()
         data.p.store = store
-        
+
         # 5. 配置Broker
         self.logger.info("5. 配置Broker")
         self.cerebro.broker.setcash(10000.0)
-        
+
         # 6. 添加分析器
         self.logger.info("6. 添加分析器")
         from src.business.analyzers.performance_analyzer import PerformanceAnalyzer
@@ -142,14 +139,14 @@ class BacktestScript:
 
         # 10. 分析回测结果
         self.logger.info("10. 分析回测结果")
-        
+
         # 从策略实例中提取分析器结果
         analysis_results = self._extract_analyzer_results(results[0])
-        
+
         # 11. 记录回测报告
         self.logger.info("11. 生成回测报告")
         self._log_results(analysis_results)
-        
+
         # 12. 保存回测结果
         self._save_results(analysis_results)
 
@@ -160,17 +157,17 @@ class BacktestScript:
                 # 创建输出目录
                 plot_dir = "results/plots"
                 os.makedirs(plot_dir, exist_ok=True)
-                
+
                 # 生成文件名
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 plot_filename = f"{timestamp}_{self.symbol}_{self.strategy.__name__}.png"
                 plot_path = os.path.join(plot_dir, plot_filename)
-                
+
                 # 绘制并保存图表
                 # backtrader的plot方法返回的是figure对象
                 figs = self.cerebro.plot(barup='red', bardown='green',
                                          valuetags=True, volume=True, grid=True)
-                
+
                 # 保存第一个图表(总览图)
                 if figs and len(figs) > 0 and len(figs[0]) > 0:
                     fig = figs[0][0]  # 获取第一个图表
@@ -189,35 +186,35 @@ class BacktestScript:
     def _extract_analyzer_results(self, strategy):
         """从策略实例中提取分析器结果"""
         analysis_results = {'performance': {}, 'risk': {}, 'trades': {}}
-            
+
         # 从性能分析器获取结果
         perf = strategy.analyzers.performanceanalyzer
         analysis_results['performance'] = perf.get_analysis()
         self.logger.info(f"成功提取性能分析器结果: {analysis_results['performance']}")
-        
+
         # 从风险分析器获取结果
         risk = strategy.analyzers.riskanalyzer
         analysis_results['risk'] = risk.get_analysis()
         self.logger.info(f"成功提取风险分析器结果: {analysis_results['risk']}")
-            
+
         # 从交易分析器获取结果
         trade = strategy.analyzers.tradeanalyzer
         analysis_results['trades'] = trade.get_analysis()
         self.logger.info(f"成功提取交易分析器结果: {analysis_results['trades']}")
-            
+
         # 从sharperatio分析器获取结果
         sharpe = strategy.analyzers.sharperatio
         sharpe_ratio = sharpe.get_analysis()
         analysis_results['performance']['sharpe_ratio'] = sharpe_ratio.get('sharperatio', 0.0)
-            
+
         # 从drawdown分析器获取结果
         dd = strategy.analyzers.drawdown
         dd_analysis = dd.get_analysis()
         analysis_results['risk']['max_drawdown'] = dd_analysis.get('max', {}).get('drawdown', 0.0) / 100.0
         analysis_results['risk']['max_drawdown_length'] = dd_analysis.get('max', {}).get('len', 0)
-            
+
         self.logger.info(f"已从回测引擎中提取分析结果: {analysis_results.keys()}")
-        
+
         return analysis_results
 
     def _log_results(self, results):
@@ -231,7 +228,7 @@ class BacktestScript:
         self.logger.info("性能指标:")
         self.logger.info(f"- 总收益率: {perf['total_return'] * 100:.2f}%")
         self.logger.info(f"- 年化收益率: {perf['annual_return'] * 100:.2f}%")
-        
+
         # 将numpy值转换为Python标准值
         sharpe_ratio = float(perf['sharpe_ratio']) if perf['sharpe_ratio'] is not None else 0.0
         self.logger.info(f"- 夏普比率: {sharpe_ratio:.4f}")
@@ -253,7 +250,7 @@ class BacktestScript:
         won = trades.won.total
         lost = trades.lost.total
         win_rate = won / total if total > 0 else 0
-        
+
         # 基础交易统计
         self.logger.info("交易统计:")
         self.logger.info(f"- 总交易次数: {total}")
@@ -293,7 +290,7 @@ class BacktestScript:
         try:
             # 创建结果目录
             os.makedirs('results/backtest', exist_ok=True)
-            
+
             # 构建文件名
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             symbol = getattr(self, 'symbol', 'unknown')
@@ -301,24 +298,24 @@ class BacktestScript:
             period = getattr(self, 'period', 'unknown')
             start_date_str = getattr(self, 'start_date', 'unknown')
             end_date_str = getattr(self, 'end_date', 'unknown')
-            
+
             if isinstance(start_date_str, datetime):
                 start_date_str = start_date_str.strftime("%Y%m%d")
             if isinstance(end_date_str, datetime):
                 end_date_str = end_date_str.strftime("%Y%m%d")
-                
+
             filename = f"results/backtest/{timestamp}_{symbol}_{strategy_name}_{start_date_str}_{end_date_str}_{period}.csv"
-            
+
             # 计算附加指标
             win_rate = results['trades']['won']['total'] / results['trades']['total']['total'] * 100
-            
+
             # 从trades数据中获取平均每天交易次数
             avg_trades_per_day = 0
             if hasattr(self, 'start_date') and hasattr(self, 'end_date') and self.start_date and self.end_date:
                 delta = self.end_date - self.start_date
                 days = max(1, delta.days + 1)  # 加1是为了包括开始日期
                 avg_trades_per_day = results['trades']['total']['total'] / days
-            
+
             # 准备数据
             data = {
                 "回测ID": timestamp,
@@ -329,7 +326,8 @@ class BacktestScript:
                 "周期": period,
                 "总收益率": round(results['performance']['total_return'] * 100, 3),
                 "年化收益率": round(results['performance']['annual_return'] * 100, 3),
-                "夏普比率": 0.0 if results['performance']['sharpe_ratio'] is None else round(float(results['performance']['sharpe_ratio']), 3),
+                "夏普比率": 0.0 if results['performance']['sharpe_ratio'] is None else round(
+                    float(results['performance']['sharpe_ratio']), 3),
                 "最大回撤": round(results['risk']['max_drawdown'] * 100, 3),
                 "最大回撤持续时间": results['risk']['max_drawdown_duration'],
                 "波动率": round(float(results['risk']['volatility']) * 100, 3),

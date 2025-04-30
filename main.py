@@ -58,8 +58,6 @@ def parse_args():
     # 配置参数
     parser.add_argument('--strategy-config', type=str, default='configs/strategy/magic_nine.yaml',
                         help='策略配置文件路径')
-    parser.add_argument('--data-config', type=str, default='configs/data/data_config.yaml',
-                        help='数据配置文件路径')
     parser.add_argument('--log-level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                         default='INFO', help='日志级别')
 

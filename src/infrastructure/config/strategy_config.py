@@ -7,10 +7,8 @@ from typing import Any, Dict, Optional
 
 import yaml
 
-from .base_config import Config
 
-
-class StrategyConfig(Config):
+class StrategyConfig:
     """策略配置类"""
 
     def __init__(self):
