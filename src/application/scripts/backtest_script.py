@@ -59,6 +59,10 @@ class BacktestScript:
         self.start_date = datetime.now() - timedelta(days=30)
         self.end_date = datetime.now()
         self.period = "1m"
+        
+        # 回测执行时间记录
+        self.start_time = None
+        self.end_time = None
 
     def run(self, enable_plot=False):
         self.logger.info("开始回测流程")
@@ -108,16 +112,32 @@ class BacktestScript:
         # 设置绘图选项
         if enable_plot:
             self.logger.info("启用绘图功能")
+            # 正确设置Cerebro的绘图选项
+            self.engine.stdstats = True
+            # 添加默认的统计指标
+            from backtrader import bt
+            self.engine.addobserver(bt.observers.Broker)
+            self.engine.addobserver(bt.observers.BuySell)
+            self.engine.addobserver(bt.observers.Value)
+            self.engine.addobserver(bt.observers.DrawDown)
+            self.engine.addobserver(bt.observers.Trades)
+        # 不需要设置engine.plot属性
 
         # 8. 注册事件监听
         self.logger.info("8. 注册事件监听")
         self.event_manager.register_listeners(self.engine, self.strategy, self.broker)
         self.logger.info("开始事件监听")
 
+        # 记录回测开始时间
+        self.start_time = datetime.now()
+
         # 9. 开始回测
         self.logger.info("执行回测引擎")
         results = self.engine.run()
         self.logger.info("回测执行完成")
+
+        # 记录回测结束时间
+        self.end_time = datetime.now()
 
         # 10. 分析回测结果
         self.logger.info("10. 分析回测结果")
@@ -131,6 +151,36 @@ class BacktestScript:
         
         # 12. 保存回测结果
         self._save_results(analysis_results)
+
+        # 13. 如果启用绘图，则显示图表
+        if enable_plot:
+            self.logger.info("12. 生成并显示回测图表")
+            try:
+                # 创建输出目录
+                plot_dir = "results/plots"
+                os.makedirs(plot_dir, exist_ok=True)
+                
+                # 生成文件名
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                plot_filename = f"{timestamp}_{self.symbol}_{self.strategy.__name__}.png"
+                plot_path = os.path.join(plot_dir, plot_filename)
+                
+                # 绘制并保存图表
+                # backtrader的plot方法返回的是figure对象
+                figs = self.engine.plot(style='candle', barup='red', bardown='green',
+                                       valuetags=True, volume=True, grid=True)
+                
+                # 保存第一个图表(总览图)
+                if figs and len(figs) > 0 and len(figs[0]) > 0:
+                    fig = figs[0][0]  # 获取第一个图表
+                    fig.savefig(plot_path, dpi=300, bbox_inches='tight')
+                    self.logger.info(f"回测图表已保存至: {plot_path}")
+                else:
+                    self.logger.warning("没有生成图表，可能是数据量太少")
+            except Exception as e:
+                self.logger.error(f"绘制图表失败: {str(e)}")
+                import traceback
+                self.logger.error(traceback.format_exc())
 
         # 返回回测结果
         return analysis_results
