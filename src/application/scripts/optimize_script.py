@@ -13,6 +13,7 @@ from src.application.scripts.base_script import BaseScript
 from src.business.strategy.magic_nine_strategy import MagicNineStrategy
 from src.interface import TigerCsvData
 from src.interface.tiger.tiger_store import TigerStore
+from src.infrastructure.utils.file_utils import ensure_directory_exists
 
 
 class OptimizeScript(BaseScript):
@@ -42,43 +43,48 @@ class OptimizeScript(BaseScript):
         self.history_file = f"{self.output_dir}/optimization_history.csv"
 
         # 确保输出目录存在
-        ensure_dir(self.output_dir)
+        ensure_directory_exists(self.output_dir)
 
-        # 可优化的参数定义
+        # 可优化的参数定义 - 确保使用策略支持的参数
         self.param_definitions = {
-            # 布林通道参数
-            "bb_period": {"min": 10, "max": 30, "step": 5, "type": "int"},
-            "bb_devfactor": {"min": 1.5, "max": 3.0, "step": 0.5, "type": "float"},
-
-            # MACD参数
-            "macd_fast": {"min": 8, "max": 15, "step": 1, "type": "int"},
-            "macd_slow": {"min": 20, "max": 30, "step": 2, "type": "int"},
-            "macd_signal": {"min": 7, "max": 12, "step": 1, "type": "int"},
-
+            # 神奇九转参数
+            "magic_period": {"min": 2, "max": 5, "step": 1, "type": "int"},
+            "magic_count": {"min": 3, "max": 7, "step": 1, "type": "int"},
+            
             # RSI参数
             "rsi_period": {"min": 8, "max": 16, "step": 2, "type": "int"},
-            "rsi_upper": {"min": 65, "max": 80, "step": 5, "type": "int"},
-            "rsi_lower": {"min": 20, "max": 35, "step": 5, "type": "int"},
-
+            "rsi_overbought": {"min": 65, "max": 80, "step": 5, "type": "int"},
+            "rsi_oversold": {"min": 20, "max": 35, "step": 5, "type": "int"},
+            
+            # ATR参数
+            "atr_period": {"min": 10, "max": 20, "step": 2, "type": "int"},
+            "atr_multiplier": {"min": 1.5, "max": 3.5, "step": 0.5, "type": "float"},
+            
             # 交易控制参数
-            "trail_percent": {"min": 0.5, "max": 3.0, "step": 0.5, "type": "float"},
-            "take_profit": {"min": 2.0, "max": 10.0, "step": 2.0, "type": "float"},
-            "stop_loss": {"min": 1.0, "max": 5.0, "step": 1.0, "type": "float"}
+            "trailing_pct": {"min": 0.5, "max": 2.0, "step": 0.5, "type": "float"},
+            "profit_target_pct": {"min": 1.0, "max": 3.0, "step": 0.5, "type": "float"},
+            "stop_loss_pct": {"min": 0.5, "max": 1.5, "step": 0.5, "type": "float"}
         }
-
+        
         # 默认的参数网格，较小的配置用于测试
         self.default_param_grid = {
-            "bb_period": [20, 25],
-            "bb_devfactor": [2.0, 2.5],
+            # 神奇九转参数
+            "magic_period": [3, 4],
+            "magic_count": [4, 5],
+            
+            # RSI参数
             "rsi_period": [10, 14],
-            "rsi_upper": [70, 75],
-            "rsi_lower": [25, 30],
-            "macd_fast": [10, 12],
-            "macd_slow": [24, 26],
-            "macd_signal": [8, 9],
-            "trail_percent": [1.0, 2.0],
-            "take_profit": [4.0, 6.0],
-            "stop_loss": [2.0, 3.0]
+            "rsi_overbought": [70, 75],
+            "rsi_oversold": [25, 30],
+            
+            # ATR参数
+            "atr_period": [12, 14],
+            "atr_multiplier": [2.0, 2.5],
+            
+            # 交易控制参数
+            "trailing_pct": [1.0, 1.5],
+            "profit_target_pct": [1.5, 2.0],
+            "stop_loss_pct": [0.8, 1.0]
         }
 
         # 优化目标和权重
@@ -109,11 +115,18 @@ class OptimizeScript(BaseScript):
         config = self.load_config()
 
         # 2. 确定要优化的标的
+        symbols = []  # 初始化为空列表
         if symbol:
             symbols = [symbol]
             self.logger.info(f"将对指定标的 {symbol} 进行参数优化")
         else:
-            symbols = config.get('target_symbols', ['QQQ'])
+            # 确保从config中获取的target_symbols不为None
+            config_symbols = config.get('target_symbols')
+            if config_symbols and isinstance(config_symbols, list):
+                symbols = config_symbols
+            else:
+                # 默认使用QQQ作为标的
+                symbols = ['QQQ']
             self.logger.info(f"将对以下标的进行参数优化: {symbols}")
 
         # 3. 确定参数网格
@@ -176,8 +189,8 @@ class OptimizeScript(BaseScript):
 
         # 2. 初始化最佳结果跟踪
         best_score = -float('inf')
-        best_params = None
-        best_metrics = None
+        best_params = {}  # 初始化为空字典而不是None
+        best_metrics = {}  # 初始化为空字典而不是None
 
         # 3. 初始化结果记录
         results_log = []
@@ -303,11 +316,21 @@ class OptimizeScript(BaseScript):
         data.p.store = store
         data.p.dataname = symbol
 
-        # 过滤只传递MagicNineStrategy支持的参数
-        strategy_params = self._filter_strategy_params(params)
-
-        # 添加策略和数据
+        # 添加数据
         self.cerebro.adddata(data)
+        
+        # 动态获取策略支持的参数
+        # 从MagicNineStrategy参数中提取所有参数名
+        supported_params = {key for key, _ in MagicNineStrategy.params._getitems()}
+        self.logger.info(f"策略支持的参数: {supported_params}")
+        
+        # 只保留支持的参数
+        strategy_params = {k: v for k, v in params.items() if k in supported_params}
+        
+        # 记录实际使用的参数
+        self.logger.info(f"使用以下参数: {strategy_params}")
+        
+        # 添加策略
         self.cerebro.addstrategy(MagicNineStrategy, **strategy_params)
 
         # 运行回测
@@ -355,24 +378,17 @@ class OptimizeScript(BaseScript):
 
     def _filter_strategy_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
-        过滤参数，只保留策略支持的参数
+        处理参数（不再过滤参数，而是全量传入）
         
         Args:
             params: 原始参数字典
             
         Returns:
-            Dict: 过滤后的参数字典
+            Dict: 所有参数字典
         """
-        # 获取策略类的默认参数
-        strategy_params = {param[0]: param[1] for param in MagicNineStrategy.params}
-
-        # 过滤参数
-        filtered_params = {}
-        for key, value in params.items():
-            if key in strategy_params:
-                filtered_params[key] = value
-
-        return filtered_params
+        # 直接返回所有参数，不再过滤
+        # 由策略自行处理需要的参数
+        return params
 
     def _calculate_optimization_score(self, metrics: Dict[str, float]) -> float:
         """
@@ -438,7 +454,7 @@ class OptimizeScript(BaseScript):
         # 创建报告目录
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         report_dir = f"{self.output_dir}/{timestamp}_{symbol}"
-        ensure_dir(report_dir)
+        ensure_directory_exists(report_dir)
 
         # 创建报告文件
         report_file = f"{report_dir}/optimization_report.csv"
@@ -523,8 +539,12 @@ class OptimizeScript(BaseScript):
 
         # 保存配置
         try:
-            self.strategy_config.save_config(config)
-            self.logger.info("配置文件更新成功")
+            # 先更新内存中的配置
+            self.strategy_config.save(config)
+            # 然后保存到文件（使用正确的配置文件路径）
+            config_path = 'configs/strategy/magic_nine.yaml'
+            self.strategy_config.save_config(config_path)
+            self.logger.info(f"配置文件更新成功: {config_path}")
         except Exception as e:
             self.logger.error(f"配置文件更新失败: {str(e)}")
 

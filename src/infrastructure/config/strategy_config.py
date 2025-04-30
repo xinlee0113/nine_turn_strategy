@@ -39,6 +39,14 @@ class StrategyConfig:
             self.logger.info(f"成功加载策略配置: {config_path}")
             return self.config
 
+    def get_config(self) -> Dict[str, Any]:
+        """获取当前配置
+        
+        Returns:
+            Dict: 当前配置字典
+        """
+        return self.config
+
     def load(self) -> Dict[str, Any]:
         """加载配置"""
         return self.config
