@@ -44,7 +44,7 @@ def parse_args():
 
     # 运行模式
     parser.add_argument('--mode', type=str, choices=['backtest', 'optimize', 'trade'],
-                        default='trade', help='运行模式')
+                        default='backtest', help='运行模式')
 
     # 基本参数
     parser.add_argument('--cash', type=float, default=DEFAULT_INITIAL_CAPITAL, help='初始资金')

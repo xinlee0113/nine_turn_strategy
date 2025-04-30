@@ -6,8 +6,6 @@ import backtrader as bt
 import pandas as pd
 from tigeropen.common.consts import BarPeriod
 
-from src.interface.tiger.tiger_client_manager import TigerClientManager
-
 
 class TigerCsvData(backtrader.CSVDataBase):
     """CSV数据接口，用于从CSV文件加载历史数据"""
@@ -23,7 +21,6 @@ class TigerCsvData(backtrader.CSVDataBase):
 
     def __init__(self):
         print('init')
-        self.bar_data_manager = TigerClientManager().tiger_bar_data_manager
         # 确保数据缓存目录存在
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
         self.tmp_csv_data_path = os.path.join(base_dir, "data", "cache", 'tiger', "QQQ", 'tiger_30days_1min_k_line.csv')
