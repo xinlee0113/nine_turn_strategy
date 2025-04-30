@@ -44,7 +44,7 @@ def parse_args():
 
     # 运行模式
     parser.add_argument('--mode', type=str, choices=['backtest', 'optimize', 'trade'],
-                        default='trade', help='运行模式')
+                        default='optimize', help='运行模式')
 
     # 基本参数
     parser.add_argument('--cash', type=float, default=DEFAULT_INITIAL_CAPITAL, help='初始资金')
@@ -60,6 +60,10 @@ def parse_args():
                         help='策略配置文件路径')
     parser.add_argument('--log-level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                         default='INFO', help='日志级别')
+
+    # 优化参数
+    parser.add_argument('--optimize-target', type=str, default='QQQ',
+                        help='优化目标标的，不指定则优化所有标的')
 
     return parser.parse_args()
 
@@ -99,9 +103,30 @@ def main():
     elif args.mode == 'optimize':
         logger.info("运行参数优化模式")
 
-        # 这里应该添加参数优化逻辑，暂时省略
-        logger.warning("参数优化模式尚未实现")
-        sys.exit(0)
+        # 获取优化目标
+        optimize_target = args.optimize_target
+        if optimize_target:
+            logger.info(f"将对标的 {optimize_target} 进行参数优化")
+        else:
+            logger.info(f"将对所有标的进行参数优化")
+
+        # 通过脚本管理器运行优化脚本
+        results = script_manager.run_optimize(symbol=optimize_target)
+
+        if not results:
+            logger.error("参数优化执行失败")
+            sys.exit(1)
+
+        logger.info("参数优化完成")
+
+        # 打印优化结果摘要
+        for symbol, result in results.items():
+            metrics = result.get("best_metrics", {})
+            logger.info(f"标的 {symbol} 优化结果:")
+            logger.info(f"- 胜率: {metrics.get('胜率', 0) * 100:.2f}%")
+            logger.info(f"- 总收益率: {metrics.get('总收益率', 0) * 100:.2f}%")
+            logger.info(f"- 夏普比率: {metrics.get('夏普比率', 0):.2f}")
+            logger.info(f"- 优化报告: {result.get('output_files', {}).get('report', '')}")
 
     elif args.mode == 'trade':
         logger.info("运行实盘交易模式")

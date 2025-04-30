@@ -15,9 +15,10 @@ from src.infrastructure.logging.logger import Logger
 from src.infrastructure.utils.file_utils import save_backtest_results
 from src.interface import TigerCsvData
 from src.interface.tiger.tiger_store import TigerStore
+from src.application.scripts.base_script import BaseScript
 
 
-class BacktestScript:
+class BacktestScript(BaseScript):
     """
     回测脚本类
     实现架构图中定义的回测流程，包括:
@@ -33,24 +34,11 @@ class BacktestScript:
         """
         初始化回测脚本
         """
-        # 初始化日志
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
-        self.logger_manager = Logger()
-
-        # 初始化配置
-        self.strategy_config = StrategyConfig()
-
+        # 调用父类初始化
+        super().__init__()
+        
         # 初始化事件管理器
         self.event_manager = EventManager()
-
-        # 初始化引擎和组件
-        self.cerebro = None
-        self.strategy = None
-        self.data_source = None
-        self.analyzer = None
-        self.broker = None
-        self.analyzers = []
 
         # 交易标的和时间范围
         self.symbol = "QQQ"
@@ -58,22 +46,17 @@ class BacktestScript:
         self.end_date = datetime.now()
         self.period = "1m"
 
-        # 回测执行时间记录
-        self.start_time = None
-        self.end_time = None
-
     def run(self, enable_plot=False):
         self.logger.info("开始回测流程")
 
         # 1. 加载配置
         self.logger.info("1. 加载回测配置")
         config_file = 'configs/strategy/magic_nine.yaml'
-        self.strategy_config.load_config(config_file)
+        self.load_config(config_file)
 
         # 2. 创建回测引擎
         self.logger.info("2. 创建回测引擎")
-        self.cerebro = Cerebro()
-        self.cerebro.p.oldbuysell = True
+        self.create_cerebro()
 
         # 3. 创建策略实例
         self.logger.info("3. 创建神奇九转策略实例")
@@ -87,20 +70,11 @@ class BacktestScript:
 
         # 5. 配置Broker
         self.logger.info("5. 配置Broker")
-        self.cerebro.broker.setcash(10000.0)
+        self.setup_broker(10000.0)
 
         # 6. 添加分析器
         self.logger.info("6. 添加分析器")
-        from src.business.analyzers.performance_analyzer import PerformanceAnalyzer
-        from src.business.analyzers.risk_analyzer import RiskAnalyzer
-        from backtrader.analyzers import SharpeRatio, DrawDown, TradeAnalyzer
-
-        # 添加分析器，使用一致的命名，以便访问
-        self.cerebro.addanalyzer(PerformanceAnalyzer, _name='performanceanalyzer')
-        self.cerebro.addanalyzer(RiskAnalyzer, _name='riskanalyzer')
-        self.cerebro.addanalyzer(SharpeRatio, _name='sharperatio')
-        self.cerebro.addanalyzer(DrawDown, _name='drawdown')
-        self.cerebro.addanalyzer(TradeAnalyzer, _name='tradeanalyzer')
+        self.add_analyzers()
 
         # 7. 设置引擎组件
         self.logger.info("7. 向回测引擎添加组件")
@@ -119,7 +93,6 @@ class BacktestScript:
             self.cerebro.addobserver(bt.observers.Value)
             self.cerebro.addobserver(bt.observers.DrawDown)
             self.cerebro.addobserver(bt.observers.Trades)
-        # 不需要设置engine.plot属性
 
         # 8. 注册事件监听
         self.logger.info("8. 注册事件监听")
@@ -141,11 +114,11 @@ class BacktestScript:
         self.logger.info("10. 分析回测结果")
 
         # 从策略实例中提取分析器结果
-        analysis_results = self._extract_analyzer_results(results[0])
+        analysis_results = self.extract_analyzer_results(results[0])
 
         # 11. 记录回测报告
         self.logger.info("11. 生成回测报告")
-        self._log_results(analysis_results)
+        self.log_results(analysis_results)
 
         # 12. 保存回测结果
         self._save_results(analysis_results)
@@ -182,106 +155,6 @@ class BacktestScript:
 
         # 返回回测结果
         return analysis_results
-
-    def _extract_analyzer_results(self, strategy):
-        """从策略实例中提取分析器结果"""
-        analysis_results = {'performance': {}, 'risk': {}, 'trades': {}}
-
-        # 从性能分析器获取结果
-        perf = strategy.analyzers.performanceanalyzer
-        analysis_results['performance'] = perf.get_analysis()
-        self.logger.info(f"成功提取性能分析器结果: {analysis_results['performance']}")
-
-        # 从风险分析器获取结果
-        risk = strategy.analyzers.riskanalyzer
-        analysis_results['risk'] = risk.get_analysis()
-        self.logger.info(f"成功提取风险分析器结果: {analysis_results['risk']}")
-
-        # 从交易分析器获取结果
-        trade = strategy.analyzers.tradeanalyzer
-        analysis_results['trades'] = trade.get_analysis()
-        self.logger.info(f"成功提取交易分析器结果: {analysis_results['trades']}")
-
-        # 从sharperatio分析器获取结果
-        sharpe = strategy.analyzers.sharperatio
-        sharpe_ratio = sharpe.get_analysis()
-        analysis_results['performance']['sharpe_ratio'] = sharpe_ratio.get('sharperatio', 0.0)
-
-        # 从drawdown分析器获取结果
-        dd = strategy.analyzers.drawdown
-        dd_analysis = dd.get_analysis()
-        analysis_results['risk']['max_drawdown'] = dd_analysis.get('max', {}).get('drawdown', 0.0) / 100.0
-        analysis_results['risk']['max_drawdown_length'] = dd_analysis.get('max', {}).get('len', 0)
-
-        self.logger.info(f"已从回测引擎中提取分析结果: {analysis_results.keys()}")
-
-        return analysis_results
-
-    def _log_results(self, results):
-        """记录回测结果"""
-        self.logger.info("=" * 50)
-        self.logger.info("回测结果摘要")
-        self.logger.info("=" * 50)
-
-        # 记录性能指标
-        perf = results['performance']
-        self.logger.info("性能指标:")
-        self.logger.info(f"- 总收益率: {perf['total_return'] * 100:.2f}%")
-        self.logger.info(f"- 年化收益率: {perf['annual_return'] * 100:.2f}%")
-
-        # 将numpy值转换为Python标准值
-        sharpe_ratio = float(perf['sharpe_ratio']) if perf['sharpe_ratio'] is not None else 0.0
-        self.logger.info(f"- 夏普比率: {sharpe_ratio:.4f}")
-
-        # 记录风险指标
-        risk = results['risk']
-        self.logger.info("风险指标:")
-        self.logger.info(f"- 最大回撤: {risk['max_drawdown'] * 100:.2f}%")
-        self.logger.info(f"- 最大回撤持续时间: {risk['max_drawdown_duration']} 个数据点")
-        self.logger.info(f"- 波动率: {risk['volatility'] * 100:.2f}%")
-
-        # 计算卡尔玛比率
-        calmar_ratio = perf['annual_return'] / risk['max_drawdown'] if risk['max_drawdown'] > 0 else 0
-        self.logger.info(f"- 卡尔玛比率: {calmar_ratio:.4f}")
-
-        # 记录交易统计
-        trades = results['trades']
-        total = trades.total.total
-        won = trades.won.total
-        lost = trades.lost.total
-        win_rate = won / total if total > 0 else 0
-
-        # 基础交易统计
-        self.logger.info("交易统计:")
-        self.logger.info(f"- 总交易次数: {total}")
-        self.logger.info(f"- 盈利交易: {won}")
-        self.logger.info(f"- 亏损交易: {lost}")
-        self.logger.info(f"- 胜率: {win_rate * 100:.2f}%")
-
-        # 计算平均每天交易次数
-        days = max(1, (self.end_date - self.start_date).days + 1)
-        avg_trades_per_day = total / days
-        self.logger.info(f"- 平均每天交易次数: {avg_trades_per_day:.2f}")
-
-        # 计算盈亏比
-        pnl_won = trades.won.pnl.total
-        pnl_lost = abs(trades.lost.pnl.total)
-        win_loss_ratio = pnl_won / pnl_lost if pnl_lost > 0 else float('inf')
-        self.logger.info(f"- 平均盈亏比: {win_loss_ratio:.2f}")
-
-        # 盈利因子
-        profit_factor = pnl_won / pnl_lost if pnl_lost > 0 else float('inf')
-        self.logger.info(f"- 盈利因子: {profit_factor:.2f}")
-
-        # 连续盈亏次数
-        self.logger.info(f"- 最大连续盈利次数: {trades.streak.won.longest}")
-        self.logger.info(f"- 最大连续亏损次数: {trades.streak.lost.longest}")
-
-        # 平均收益和总收益
-        self.logger.info(f"- 平均收益: {trades.pnl.net.average:.4f}")
-        self.logger.info(f"- 总净利润: {trades.pnl.net.total:.4f}")
-
-        self.logger.info("=" * 50)
 
     def _save_results(self, results):
         """

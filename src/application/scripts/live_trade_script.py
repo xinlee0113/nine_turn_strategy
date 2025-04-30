@@ -3,15 +3,16 @@
 负责实盘交易流程的控制
 """
 import backtrader
+from datetime import datetime
 
 from src.business.strategy import MagicNineStrategy
 from src.business.strategy.test_strategy import TestStrategy
-from src.infrastructure.config.strategy_config import StrategyConfig
+from src.application.scripts.base_script import BaseScript
 from src.infrastructure.logging.logger import Logger
 from src.interface.tiger.tiger_store import TigerStore
 
 
-class LiveTradeScript:
+class LiveTradeScript(BaseScript):
     """
     交易脚本类
     """
@@ -20,23 +21,24 @@ class LiveTradeScript:
         """
         初始化交易脚本
         """
-        self.cerebro = None
-        self.strategy = None
-        self.data = None
-        self.broker = None
-        self.store = None
-        self.config = StrategyConfig()
-        self.logger = Logger()
+        # 调用父类初始化
+        super().__init__()
 
     def run(self, symbols):
         """
         运行交易
+        
+        Args:
+            symbols: 交易标的列表
+            
+        Returns:
+            bool: 交易是否成功启动
         """
         # 加载配置
-        self.config.load_config('configs/strategy/magic_nine.yaml')
+        self.load_config('configs/strategy/magic_nine.yaml')
 
         # 创建交易引擎
-        self.cerebro = backtrader.cerebro.Cerebro()
+        self.create_cerebro()
         
         # 确保symbols列表不为空
         if not symbols:
@@ -57,11 +59,21 @@ class LiveTradeScript:
         self.cerebro.adddata(data)
         self.cerebro.broker = self.store.getbroker()
 
+        # 添加分析器
+        self.add_analyzers()
+
         # 创建策略，并传入正确的symbol参数
         self.cerebro.addstrategy(MagicNineStrategy)
 
+        # 记录开始时间
+        self.start_time = datetime.now()
+
         # 运行交易
         self.cerebro.run()
+        
+        # 记录结束时间（实盘可能长时间运行，这里主要是为了记录启动时间）
+        self.end_time = datetime.now()
+        
         return True
 
     def stop(self):

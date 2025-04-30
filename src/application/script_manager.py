@@ -3,9 +3,10 @@
 负责管理和创建不同的脚本实例
 """
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Union
 
 from src.application.scripts.backtest_script import BacktestScript
+from src.application.scripts.optimize_script import OptimizeScript
 from src.application.scripts.live_trade_script import LiveTradeScript
 from src.infrastructure.logging.logger import Logger
 
@@ -45,6 +46,39 @@ class ScriptManager:
         # 展示回测结果
         self.logger.info("回测执行完成，返回结果")
         return results
+        
+    def create_optimize_script(self) -> OptimizeScript:
+        """创建优化脚本
+        
+        Returns:
+            OptimizeScript: 优化脚本实例
+        """
+        self.logger.info("创建优化脚本")
+        optimize_script = OptimizeScript()
+        self.scripts['optimize'] = optimize_script
+        return optimize_script
+        
+    def run_optimize(self, symbol: Optional[str] = None, param_grid: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """运行优化脚本
+        
+        Args:
+            symbol: 要优化的交易标的，如果为None则使用默认的target_symbols
+            param_grid: 参数网格配置，如果为None则使用默认配置
+            
+        Returns:
+            Dict: 优化结果
+        """
+        # 如果脚本不存在，则创建
+        if 'optimize' not in self.scripts:
+            self.create_optimize_script()
+            
+        # 运行优化
+        optimize_script = self.scripts['optimize']
+        results = optimize_script.run(symbol=symbol, param_grid=param_grid)
+        
+        # 返回优化结果
+        self.logger.info("优化执行完成，返回结果")
+        return results
 
     def get_script(self, script_name: str) -> Optional[Any]:
         return self.scripts.get(script_name)
@@ -55,7 +89,12 @@ class ScriptManager:
         self.scripts['live'] = live_script
         return live_script
 
-    def run_live_trade(self, symbols: []):
+    def run_live_trade(self, symbols: List[str]):
+        """运行实盘交易脚本
+        
+        Args:
+            symbols: 交易标的列表
+        """
         if 'live' not in self.scripts:
             self.create_live_trade_script()
         live_script = self.scripts['live']

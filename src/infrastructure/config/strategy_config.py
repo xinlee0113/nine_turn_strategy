@@ -48,6 +48,28 @@ class StrategyConfig:
         self.config = config
         return True
 
+    def save_config(self, config_path: str) -> bool:
+        """将配置保存到YAML文件
+        
+        Args:
+            config_path: 配置文件保存路径
+            
+        Returns:
+            bool: 保存成功返回True，否则返回False
+        """
+        try:
+            self.logger.info(f"保存策略配置到: {config_path}")
+            # 确保目录存在
+            os.makedirs(os.path.dirname(config_path), exist_ok=True)
+            # 写入YAML配置文件
+            with open(config_path, 'w', encoding='utf-8') as f:
+                yaml.dump(self.config, f, default_flow_style=False, allow_unicode=True)
+            self.logger.info(f"成功保存策略配置到: {config_path}")
+            return True
+        except Exception as e:
+            self.logger.error(f"保存策略配置失败: {str(e)}")
+            return False
+
     def get(self, key: str, default=None) -> Optional[Any]:
         """获取配置项
         
