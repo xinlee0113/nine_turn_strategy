@@ -58,7 +58,7 @@ class LiveTradeScript:
         self.cerebro.broker = self.store.getbroker()
 
         # 创建策略，并传入正确的symbol参数
-        self.cerebro.addstrategy(TestStrategy, symbol=symbol)
+        self.cerebro.addstrategy(MagicNineStrategy)
 
         # 运行交易
         self.cerebro.run()
