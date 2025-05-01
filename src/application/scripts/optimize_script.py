@@ -29,7 +29,7 @@ class OptimizeScript(BaseScript):
     每次优化都应该:
     1. 生成一份优化报告
     2. 一条优化结果记录到CSV
-    3. 一次对magic_nine.yaml的参数覆盖
+        3. 一次对magic_nine.yaml的参数覆盖
     """
 
     def __init__(self):
@@ -528,13 +528,13 @@ class OptimizeScript(BaseScript):
         # 按得分排序
         df = df.sort_values(by="score", ascending=False)
 
-        # 保存到CSV
-        df.to_csv(report_file, index=False)
+        # 保存到CSV - 指定UTF-8编码
+        df.to_csv(report_file, index=False, encoding='utf-8')
 
         # 创建汇总报告
         summary_file = f"{report_dir}/summary.txt"
 
-        with open(summary_file, "w") as f:
+        with open(summary_file, "w", encoding='utf-8') as f:
             f.write(f"优化报告 - 标的: {symbol}\n")
             f.write(f"时间: {timestamp}\n")
             f.write(f"参数组合数: {len(param_combinations)}\n")
@@ -646,7 +646,7 @@ class OptimizeScript(BaseScript):
             if os.path.exists(self.history_file) and os.path.getsize(self.history_file) > 0:
                 try:
                     # 尝试读取现有数据
-                    existing_records = pd.read_csv(self.history_file).to_dict('records')
+                    existing_records = pd.read_csv(self.history_file, encoding='utf-8').to_dict('records')
                 except Exception as e:
                     self.logger.warning(f"读取历史记录文件失败: {str(e)}，将创建新文件")
                     # 如果文件损坏或格式错误，将其重命名并创建新文件
@@ -662,7 +662,7 @@ class OptimizeScript(BaseScript):
             
             # 创建DataFrame并保存
             df = pd.DataFrame(all_records)
-            df.to_csv(self.history_file, index=False)
+            df.to_csv(self.history_file, index=False, encoding='utf-8')
             self.logger.info(f"优化历史记录已保存至 {self.history_file}")
                 
         except Exception as e:

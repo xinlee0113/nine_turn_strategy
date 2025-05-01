@@ -32,6 +32,7 @@ class PerformanceAnalyzer(BaseAnalyzer):
         self.initial_capital = 0.0  # 初始资金
         self.final_capital = 0.0  # 最终资金
         self.days_in_market = 0  # 市场天数
+        self.last_date = None  # 上一个交易日期
 
     def start(self):
         """策略开始时的处理 - 兼容backtrader"""
@@ -60,6 +61,14 @@ class PerformanceAnalyzer(BaseAnalyzer):
         """
         # 记录时间戳
         self.timestamps.append(timestamp)
+        
+        # 处理日期，确保同一天只计算一次
+        current_date = timestamp.date()
+        if self.last_date is None or current_date != self.last_date:
+            # 新的交易日
+            self.days_in_market += 1
+            self.last_date = current_date
+            self.logger.debug(f"计入新交易日: {current_date}, 当前交易天数: {self.days_in_market}")
 
         # 记录资金
         current_equity = broker.getvalue()
@@ -73,9 +82,6 @@ class PerformanceAnalyzer(BaseAnalyzer):
         if len(self.equity_curve) > 1:
             daily_return = (self.equity_curve[-1] / self.equity_curve[-2]) - 1
             self.returns.append(daily_return)
-
-        # 更新在市场的天数
-        self.days_in_market += 1
 
     def get_analysis(self):
         """获取分析结果 - 兼容backtrader接口
@@ -98,8 +104,20 @@ class PerformanceAnalyzer(BaseAnalyzer):
         total_return = (self.final_capital / self.initial_capital) - 1 if self.initial_capital > 0 else 0
 
         # 计算年化收益率
-        years = max(self.days_in_market / 252, 0.01)  # 假设一年252个交易日
-        annual_return = (1 + total_return) ** (1 / years) - 1
+        # 使用252个交易日作为一年
+        trading_days_per_year = 252
+        
+        # 记录实际天数，避免日历天数和交易天数混淆
+        self.logger.info(f"回测天数: {self.days_in_market}个交易日")
+        
+        # 正确年化计算: (1+r)^(252/天数) - 1
+        if self.days_in_market > 0:
+            annual_factor = trading_days_per_year / self.days_in_market
+            annual_return = ((1 + total_return) ** annual_factor) - 1
+        else:
+            annual_return = 0.0
+        
+        self.logger.info(f"使用年化系数: {annual_factor:.2f}, 年化收益率: {annual_return*100:.2f}%")
 
         # 计算日收益率统计
         returns_array = np.array(self.returns)

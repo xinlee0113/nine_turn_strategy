@@ -27,11 +27,15 @@ class RiskAnalyzer(BaseAnalyzer):
         self.equity_curve = []  # 权益曲线
         self.timestamps = []  # 时间戳
         self.drawdowns = []  # 回撤序列
+        self.returns = []  # 收益率序列
         self.current_peak = 0.0  # 当前峰值
         self.max_drawdown = 0.0  # 最大回撤
         self.max_drawdown_duration = 0  # 最大回撤持续时间
         self.peak_idx = 0  # 峰值索引
+        self.trough_idx = 0  # 最大回撤低点索引
         self.volatility = 0.0  # 波动率
+        self.sortino_ratio = 0.0  # 索提诺比率
+        self.downside_deviation = 0.0  # 下行偏差
 
     def start(self):
         """策略开始时的处理 - 兼容backtrader"""
@@ -45,6 +49,18 @@ class RiskAnalyzer(BaseAnalyzer):
         # 记录最终结果
         self.logger.info(f"风险分析器 - 结束回测，最大回撤: {self.max_drawdown * 100:.2f}%")
         self.logger.info(f"风险分析器 - 最大回撤持续期: {self.max_drawdown_duration} 个数据点")
+        
+        # 计算并记录最大回撤的具体时间信息
+        if self.max_drawdown > 0 and self.peak_idx < len(self.timestamps) and self.trough_idx < len(self.timestamps):
+            peak_time = self.timestamps[self.peak_idx]
+            trough_time = self.timestamps[self.trough_idx]
+            peak_value = self.equity_curve[self.peak_idx]
+            trough_value = self.equity_curve[self.trough_idx]
+            
+            self.logger.info(f"最大回撤细节:")
+            self.logger.info(f"- 峰值时间: {peak_time}, 峰值资金: {peak_value:.2f}")
+            self.logger.info(f"- 低点时间: {trough_time}, 低点资金: {trough_value:.2f}")
+            self.logger.info(f"- 资金下跌: {peak_value - trough_value:.2f}, 下跌比例: {self.max_drawdown * 100:.2f}%")
 
     def update(self, timestamp, strategy, broker):
         """更新分析数据
@@ -60,6 +76,11 @@ class RiskAnalyzer(BaseAnalyzer):
         # 记录资金
         current_equity = broker.getvalue()
         self.equity_curve.append(current_equity)
+
+        # 计算收益率
+        if len(self.equity_curve) > 1:
+            daily_return = (self.equity_curve[-1] / self.equity_curve[-2]) - 1
+            self.returns.append(daily_return)
 
         # 计算回撤
         if len(self.equity_curve) > 0:
@@ -82,7 +103,13 @@ class RiskAnalyzer(BaseAnalyzer):
                 if drawdown > self.max_drawdown:
                     self.max_drawdown = drawdown
                     self.max_drawdown_duration = len(self.equity_curve) - self.peak_idx
-
+                    self.trough_idx = len(self.equity_curve) - 1
+                    
+                    # 记录最大回撤发生位置
+                    peak_time = self.timestamps[self.peak_idx]
+                    trough_time = self.timestamps[self.trough_idx]
+                    self.logger.info(f"新的最大回撤: {self.max_drawdown * 100:.2f}%, 峰值时间: {peak_time}, 低点时间: {trough_time}")
+                    
     def get_analysis(self):
         """获取分析结果 - 兼容backtrader接口
         
@@ -94,7 +121,10 @@ class RiskAnalyzer(BaseAnalyzer):
             return {
                 'max_drawdown': 0.0,
                 'max_drawdown_duration': 0,
-                'volatility': 0.0
+                'volatility': 0.0,
+                'sortino_ratio': 0.0,
+                'downside_deviation': 0.0,
+                'calmar_ratio': 0.0
             }
 
         # 计算波动率 (如果有日收益率)
@@ -103,12 +133,41 @@ class RiskAnalyzer(BaseAnalyzer):
             returns = np.diff(self.equity_curve) / self.equity_curve[:-1]
             # 计算波动率 (年化)
             self.volatility = np.std(returns) * np.sqrt(252) if len(returns) > 0 else 0
+            
+        # 计算索提诺比率（只关注下行风险）
+        if len(self.returns) > 10:  # 确保有足够的数据点
+            # 计算平均收益率
+            avg_return = np.mean(self.returns)
+            
+            # 计算下行偏差 - 只考虑负收益
+            negative_returns = [r for r in self.returns if r < 0]
+            if negative_returns:
+                self.downside_deviation = np.std(negative_returns) * np.sqrt(252)
+                
+                # 计算索提诺比率
+                if self.downside_deviation > 0:
+                    # 使用0作为最小可接受收益率
+                    self.sortino_ratio = (avg_return * 252) / self.downside_deviation
+                
+        # 计算卡尔玛比率 (年化收益率/最大回撤)
+        calmar_ratio = 0.0
+        if self.max_drawdown > 0:
+            # 计算年化收益率
+            total_return = (self.equity_curve[-1] / self.equity_curve[0]) - 1
+            days = len(self.equity_curve)
+            annual_return = ((1 + total_return) ** (252 / days)) - 1
+            calmar_ratio = annual_return / self.max_drawdown
 
-        # 返回 backtrader 预期的结果格式
+        # 返回分析结果
         return {
             'max_drawdown': self.max_drawdown,
             'max_drawdown_duration': self.max_drawdown_duration,
-            'volatility': self.volatility
+            'volatility': self.volatility,
+            'sortino_ratio': self.sortino_ratio,
+            'downside_deviation': self.downside_deviation,
+            'calmar_ratio': calmar_ratio,
+            'peak_idx': self.peak_idx,
+            'trough_idx': self.trough_idx
         }
 
     def get_results(self) -> Dict[str, Any]:

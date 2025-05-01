@@ -178,11 +178,13 @@ class BaseScript:
             self.logger.info(f"- 最大回撤: {risk.get('max_drawdown', 0) * 100:.2f}%")
             self.logger.info(f"- 最大回撤持续时间: {risk.get('max_drawdown_duration', 0)} 个数据点")
             self.logger.info(f"- 波动率: {risk.get('volatility', 0) * 100:.2f}%")
+            
+            # 添加索提诺比率
+            sortino_ratio = risk.get('sortino_ratio', 0)
+            self.logger.info(f"- 索提诺比率: {sortino_ratio:.4f}")
 
             # 计算卡尔玛比率
-            annual_return = results['performance'].get('annual_return', 0)
-            max_drawdown = risk.get('max_drawdown', 0)
-            calmar_ratio = annual_return / max_drawdown if max_drawdown > 0 else 0
+            calmar_ratio = risk.get('calmar_ratio', 0)
             self.logger.info(f"- 卡尔玛比率: {calmar_ratio:.4f}")
 
         # 记录交易统计
