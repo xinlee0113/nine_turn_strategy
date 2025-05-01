@@ -128,7 +128,7 @@ class BacktestScript(BaseScript):
             self.logger.info("12. 生成并显示回测图表")
             try:
                 # 创建输出目录
-                plot_dir = "results/plots"
+                plot_dir = "results/backtest/plots"
                 os.makedirs(plot_dir, exist_ok=True)
 
                 # 生成文件名
@@ -164,70 +164,34 @@ class BacktestScript(BaseScript):
             # 创建结果目录
             os.makedirs('results/backtest', exist_ok=True)
 
-            # 构建文件名
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            # 获取基本参数
             symbol = getattr(self, 'symbol', 'unknown')
             strategy_name = self.strategy.__name__ if hasattr(self.strategy, '__name__') else 'unknown'
-            period = getattr(self, 'period', 'unknown')
             start_date_str = getattr(self, 'start_date', 'unknown')
             end_date_str = getattr(self, 'end_date', 'unknown')
+            period = getattr(self, 'period', 'unknown')
 
             if isinstance(start_date_str, datetime):
                 start_date_str = start_date_str.strftime("%Y%m%d")
             if isinstance(end_date_str, datetime):
                 end_date_str = end_date_str.strftime("%Y%m%d")
+                
+            # 添加交易开始和结束时间信息
+            if hasattr(self, 'start_time'):
+                results['start_time'] = self.start_time.strftime("%Y-%m-%d %H:%M:%S")
+            if hasattr(self, 'end_time'):
+                results['end_time'] = self.end_time.strftime("%Y-%m-%d %H:%M:%S")
 
-            filename = f"results/backtest/{timestamp}_{symbol}_{strategy_name}_{start_date_str}_{end_date_str}_{period}.csv"
-
-            # 计算附加指标
-            win_rate = results['trades']['won']['total'] / results['trades']['total']['total'] * 100
-
-            # 从trades数据中获取平均每天交易次数
-            avg_trades_per_day = 0
-            if hasattr(self, 'start_date') and hasattr(self, 'end_date') and self.start_date and self.end_date:
-                delta = self.end_date - self.start_date
-                days = max(1, delta.days + 1)  # 加1是为了包括开始日期
-                avg_trades_per_day = results['trades']['total']['total'] / days
-
-            # 准备数据
-            data = {
-                "回测ID": timestamp,
-                "标的": symbol,
-                "策略": strategy_name,
-                "开始日期": start_date_str,
-                "结束日期": end_date_str,
-                "周期": period,
-                "总收益率": round(results['performance']['total_return'] * 100, 3),
-                "年化收益率": round(results['performance']['annual_return'] * 100, 3),
-                "夏普比率": 0.0 if results['performance']['sharpe_ratio'] is None else round(
-                    float(results['performance']['sharpe_ratio']), 3),
-                "最大回撤": round(results['risk']['max_drawdown'] * 100, 3),
-                "最大回撤持续时间": results['risk']['max_drawdown_duration'],
-                "波动率": round(float(results['risk']['volatility']) * 100, 3),
-                "胜率": round(win_rate, 2),
-                "总交易次数": results['trades']['total']['total'],
-                "盈利交易次数": results['trades']['won']['total'],
-                "亏损交易次数": results['trades']['lost']['total'],
-                "平均每天交易次数": round(avg_trades_per_day, 2),
-                "总净利润": round(results['trades']['pnl']['net']['total'], 4),
-                "平均净利润": round(results['trades']['pnl']['net']['average'], 4),
-                "多头总盈亏": round(results['trades']['long']['pnl']['total'], 4),
-                "空头总盈亏": round(results['trades']['short']['pnl']['total'], 4),
-                "最大连续盈利次数": results['trades']['streak']['won']['longest'],
-                "最大连续亏损次数": results['trades']['streak']['lost']['longest'],
-                "交易开始时间": self.start_time.strftime("%Y-%m-%d %H:%M:%S") if hasattr(self, 'start_time') else "",
-                "交易结束时间": self.end_time.strftime("%Y-%m-%d %H:%M:%S") if hasattr(self, 'end_time') else ""
-            }
-
-            # 保存回测结果
+            # 直接将results传递给save_backtest_results函数
             result_file = save_backtest_results(
-                data,
+                results,
                 symbol,
                 strategy_name,
                 start_date_str,
                 end_date_str,
                 period
             )
+            
             self.logger.info(f"回测结果已保存到文件: {result_file}")
 
         except Exception as e:

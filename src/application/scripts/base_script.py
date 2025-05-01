@@ -87,10 +87,12 @@ class BaseScript:
         # 导入自定义分析器
         from src.business.analyzers.performance_analyzer import PerformanceAnalyzer
         from src.business.analyzers.risk_analyzer import RiskAnalyzer
+        from src.business.analyzers.sqn_analyzer import SQNAnalyzer
         
         # 添加分析器，使用一致的命名
         self.cerebro.addanalyzer(PerformanceAnalyzer, _name='performanceanalyzer')
         self.cerebro.addanalyzer(RiskAnalyzer, _name='riskanalyzer')
+        self.cerebro.addanalyzer(SQNAnalyzer, _name='sqnanalyzer')
         
         # 配置SharpeRatio分析器
         # 关键参数: riskfreerate设为0，factor=1让标准差永远>0
@@ -113,7 +115,7 @@ class BaseScript:
         Returns:
             Dict: 分析结果字典
         """
-        analysis_results = {'performance': {}, 'risk': {}, 'trades': {}}
+        analysis_results = {'performance': {}, 'risk': {}, 'trades': {}, 'sqn': {}}
 
         # 从性能分析器获取结果
         perf = strategy.analyzers.performanceanalyzer
@@ -129,6 +131,11 @@ class BaseScript:
         trade = strategy.analyzers.tradeanalyzer
         analysis_results['trades'] = trade.get_analysis()
         self.logger.info(f"成功提取交易分析器结果")
+        
+        # 从SQN分析器获取结果
+        sqn = strategy.analyzers.sqnanalyzer
+        analysis_results['sqn'] = sqn.get_analysis()
+        self.logger.info(f"成功提取SQN分析器结果")
 
         # 从sharperatio分析器获取结果
         sharpe = strategy.analyzers.sharperatio
@@ -170,6 +177,14 @@ class BaseScript:
             # 将numpy值转换为Python标准值
             sharpe_ratio = float(perf.get('sharpe_ratio', 0)) if perf.get('sharpe_ratio') is not None else 0.0
             self.logger.info(f"- 夏普比率: {sharpe_ratio:.4f}")
+        
+        # 记录系统质量指标
+        if 'sqn' in results:
+            sqn = results['sqn']
+            self.logger.info("系统质量指标:")
+            self.logger.info(f"- SQN值: {sqn.get('sqn', 0):.4f}")
+            self.logger.info(f"- 系统质量评级: {sqn.get('system_quality', '未评级')}")
+            self.logger.info(f"- 总交易次数: {sqn.get('total_trades', 0)}")
 
         # 记录风险指标
         if 'risk' in results:

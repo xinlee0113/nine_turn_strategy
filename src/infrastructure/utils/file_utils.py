@@ -19,7 +19,7 @@ def save_backtest_results(results: Dict[str, Any], symbol: str, strategy_name: s
     单个回测结果保存为纵向排列，历史记录文件采用横向排列（每次回测为一列）
     
     Args:
-        results: 回测结果字典
+        results: 回测结果字典（包含performance, risk, trades等分析器结果）
         symbol: 交易标的符号
         strategy_name: 策略名称
         start_date: 回测开始日期
@@ -30,7 +30,7 @@ def save_backtest_results(results: Dict[str, Any], symbol: str, strategy_name: s
         保存的文件路径
     """
     # 确保目录存在
-    results_dir = Path("results/backtest")
+    results_dir = Path("results/backtest/records")
     ensure_directory_exists(str(results_dir))
     
     # 生成文件名（包含时间戳、标的和策略名称）
@@ -38,7 +38,24 @@ def save_backtest_results(results: Dict[str, Any], symbol: str, strategy_name: s
     filename = f"{timestamp}_{symbol}_{strategy_name}_{start_date}_{end_date}_{period}.csv"
     filepath = results_dir / filename
     
-    # 提取需要保存的指标
+    # 计算胜率和每日交易次数
+    win_rate = 0
+    avg_trades_per_day = 0
+    
+    if 'trades' in results and 'won' in results['trades'] and 'total' in results['trades']:
+        if results['trades']['total']['total'] > 0:
+            win_rate = results['trades']['won']['total'] / results['trades']['total']['total'] * 100
+            
+            # 计算交易天数（简化，按照日历天数计算）
+            try:
+                start = datetime.strptime(start_date, "%Y%m%d") if isinstance(start_date, str) else start_date
+                end = datetime.strptime(end_date, "%Y%m%d") if isinstance(end_date, str) else end_date
+                days = max(1, (end - start).days + 1)  # 加1是为了包括开始日期
+                avg_trades_per_day = results['trades']['total']['total'] / days
+            except:
+                logger.warning("无法计算每日平均交易次数，使用默认值0")
+    
+    # 从分析器结果中提取指标
     metrics = {
         "执行时间": timestamp,
         "交易标的": symbol,
@@ -46,24 +63,31 @@ def save_backtest_results(results: Dict[str, Any], symbol: str, strategy_name: s
         "开始日期": start_date,
         "结束日期": end_date,
         "周期": period,
-        "总收益率": results.get("performance", {}).get("total_return", 0),
-        "年化收益率": results.get("performance", {}).get("annual_return", 0),
-        "夏普比率": results.get("performance", {}).get("sharpe_ratio", 0),
-        "最大回撤": results.get("risk", {}).get("max_drawdown", 0),
-        "波动率": results.get("risk", {}).get("volatility", 0),
-        "卡尔玛比率": results.get("risk", {}).get("calmar_ratio", 0),
-        "总交易次数": results.get("trades", {}).get("total_trades", 0),
-        "盈利交易": results.get("trades", {}).get("profitable_trades", 0),
-        "亏损交易": results.get("trades", {}).get("losing_trades", 0),
-        "胜率": results.get("trades", {}).get("win_rate", 0),
-        "平均盈亏比": results.get("trades", {}).get("profit_loss_ratio", 0),
-        "盈利因子": results.get("trades", {}).get("profit_factor", 0),
-        "每笔交易期望收益": results.get("trades", {}).get("expected_payoff", 0),
-        "最大连续盈利次数": results.get("trades", {}).get("max_consecutive_wins", 0),
-        "最大连续亏损次数": results.get("trades", {}).get("max_consecutive_losses", 0),
-        "总净利润": results.get("trades", {}).get("total_net_profit", 0),
-        "平均每天交易次数": results.get("trades", {}).get("avg_trades_per_day", 0),
-        "系统质量指标(SQN)": results.get("trades", {}).get("sqn", 0),
+        # 交易时间信息
+        "交易开始时间": results.get('start_time', ''),
+        "交易结束时间": results.get('end_time', ''),
+        # 从performance分析器中提取
+        "总收益率": round(results.get('performance', {}).get('total_return', 0) * 100, 3),
+        "年化收益率": round(results.get('performance', {}).get('annual_return', 0) * 100, 3),
+        "夏普比率": round(float(results.get('performance', {}).get('sharpe_ratio', 0) or 0), 4),
+        # 从risk分析器中提取
+        "最大回撤": round(results.get('risk', {}).get('max_drawdown', 0) * 100, 3),
+        "最大回撤持续时间": results.get('risk', {}).get('max_drawdown_duration', 0),
+        "波动率": round(float(results.get('risk', {}).get('volatility', 0) or 0) * 100, 3),
+        # 从trades分析器中提取
+        "胜率": round(win_rate, 2),
+        "总交易次数": results.get('trades', {}).get('total', {}).get('total', 0),
+        "盈利交易次数": results.get('trades', {}).get('won', {}).get('total', 0),
+        "亏损交易次数": results.get('trades', {}).get('lost', {}).get('total', 0),
+        "平均每天交易次数": round(avg_trades_per_day, 2),
+        "总净利润": round(results.get('trades', {}).get('pnl', {}).get('net', {}).get('total', 0), 4),
+        "平均净利润": round(results.get('trades', {}).get('pnl', {}).get('net', {}).get('average', 0), 4),
+        "多头总盈亏": round(results.get('trades', {}).get('long', {}).get('pnl', {}).get('total', 0), 4),
+        "空头总盈亏": round(results.get('trades', {}).get('short', {}).get('pnl', {}).get('total', 0), 4),
+        "最大连续盈利次数": results.get('trades', {}).get('streak', {}).get('won', {}).get('longest', 0),
+        "最大连续亏损次数": results.get('trades', {}).get('streak', {}).get('lost', {}).get('longest', 0),
+        # SQN系统质量指标
+        "系统质量指标(SQN)": round(results.get('sqn', {}).get('sqn', 0), 4),
     }
     
     # 保存详细结果（纵向排列）
@@ -151,7 +175,7 @@ def save_optimization_results(
         Dict: 包含保存文件路径的字典
     """
     # 确保输出目录存在
-    output_dir = Path("outputs/optimize")
+    output_dir = Path("results/optimization")
     ensure_directory_exists(str(output_dir))
     
     # 创建时间戳，如果未提供则生成新的

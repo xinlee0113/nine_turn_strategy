@@ -38,7 +38,7 @@ class OptimizeScript(BaseScript):
         super().__init__()
 
         # 优化结果路径
-        self.output_dir = "outputs/optimize"
+        self.output_dir = "results/optimization"
 
         # 历史优化记录文件
         self.history_file = f"{self.output_dir}/optimization_history.csv"

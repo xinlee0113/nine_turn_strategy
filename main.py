@@ -78,6 +78,11 @@ def main():
     logger = logging.getLogger(__name__)
 
     logger.info("九转战略量化交易系统启动")
+    
+    # 初始化目录结构
+    from src.infrastructure.utils.setup_directories import setup_result_directories
+    setup_result_directories()
+    logger.info("已完成目录结构初始化")
 
     # 创建脚本管理器
     script_manager = ScriptManager()
