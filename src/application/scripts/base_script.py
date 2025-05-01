@@ -1,62 +1,65 @@
 """
-基础脚本类
-为各种脚本提供通用功能，如分析器添加、结果处理等
+基础脚本模块
+为所有脚本类提供基础功能
 """
 import logging
-import os
-from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 
+import backtrader as bt
 from backtrader import Cerebro
-from backtrader.analyzers import SharpeRatio, DrawDown, TradeAnalyzer
+from backtrader.analyzers import SharpeRatio, DrawDown
 
 from src.infrastructure.config.strategy_config import StrategyConfig
 from src.infrastructure.logging.logger import Logger
+from src.infrastructure.reporting.report_generator import ReportGenerator
 
 
 class BaseScript:
     """
-    脚本基类
-    提供所有脚本共享的基础功能：
-    1. 配置加载
-    2. 引擎创建与配置 
-    3. 分析器管理
-    4. 结果处理与日志
+    脚本基础类
+    提供所有脚本共用的基础功能，包括：
+    1. 日志记录
+    2. 配置加载
+    3. 引擎创建
+    4. 分析器添加
+    5. 结果提取
     """
 
     def __init__(self):
-        """初始化基础脚本类"""
+        """初始化基础脚本"""
         # 初始化日志
-        self.logger = logging.getLogger(self.__class__.__name__)
-        self.logger.setLevel(logging.INFO)
         self.logger_manager = Logger()
+        self.logger_manager.setup_basic_logging()
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.info(f"初始化{self.__class__.__name__}")
         
-        # 初始化配置
-        self.strategy_config = StrategyConfig()
-        
-        # 初始化引擎和组件
+        # 初始化基础组件
         self.cerebro = None
+        self.broker = None
         self.strategy = None
         self.data_source = None
-        self.broker = None
         self.store = None
         
-        # 执行时间记录
-        self.start_time = None
-        self.end_time = None
-
+        # 初始化报告生成器
+        self.report_generator = ReportGenerator()
+        
+        # 初始化配置
+        self.config = None
+    
     def load_config(self, config_file: str = 'configs/strategy/magic_nine.yaml'):
-        """加载配置文件
+        """加载配置
         
         Args:
             config_file: 配置文件路径
         """
         self.logger.info(f"加载配置: {config_file}")
-        self.strategy_config.load_config(config_file)
-        return self.strategy_config
+        
+        self.config = StrategyConfig()
+        self.config.load_config(config_file)
+        self.logger.info(f"配置加载完成: {config_file}")
     
     def create_cerebro(self) -> Cerebro:
-        """创建回测/交易引擎
+        """创建引擎
         
         Returns:
             Cerebro: 创建好的引擎实例
@@ -158,91 +161,6 @@ class BaseScript:
         self.logger.info(f"已从引擎中提取分析结果: {list(analysis_results.keys())}")
 
         return analysis_results
-        
-    def log_results(self, results: Dict[str, Any]):
-        """记录结果到日志
-        
-        Args:
-            results: 分析结果字典
-        """
-        self.logger.info("=" * 50)
-        self.logger.info("结果摘要")
-        self.logger.info("=" * 50)
-
-        # 记录性能指标
-        if 'performance' in results:
-            perf = results['performance']
-            self.logger.info("性能指标:")
-            self.logger.info(f"- 总收益率: {perf.get('total_return', 0) * 100:.2f}%")
-            self.logger.info(f"- 年化收益率: {perf.get('annual_return', 0) * 100:.2f}%")
-
-            # 将numpy值转换为Python标准值
-            sharpe_ratio = float(perf.get('sharpe_ratio', 0)) if perf.get('sharpe_ratio') is not None else 0.0
-            self.logger.info(f"- 夏普比率: {sharpe_ratio:.4f}")
-        
-        # 记录系统质量指标
-        if 'sqn' in results:
-            sqn = results['sqn']
-            self.logger.info("系统质量指标:")
-            self.logger.info(f"- SQN值: {sqn.get('sqn', 0):.4f}")
-            self.logger.info(f"- 系统质量评级: {sqn.get('system_quality', '未评级')}")
-            self.logger.info(f"- 总交易次数: {sqn.get('total_trades', 0)}")
-
-        # 记录风险指标
-        if 'risk' in results:
-            risk = results['risk']
-            self.logger.info("风险指标:")
-            self.logger.info(f"- 最大回撤: {risk.get('max_drawdown', 0) * 100:.2f}%")
-            self.logger.info(f"- 最大回撤持续时间: {risk.get('max_drawdown_duration', 0)} 个数据点")
-            self.logger.info(f"- 波动率: {risk.get('volatility', 0) * 100:.2f}%")
-            
-            # 添加索提诺比率
-            sortino_ratio = risk.get('sortino_ratio', 0)
-            self.logger.info(f"- 索提诺比率: {sortino_ratio:.4f}")
-
-            # 计算卡尔玛比率
-            calmar_ratio = risk.get('calmar_ratio', 0)
-            self.logger.info(f"- 卡尔玛比率: {calmar_ratio:.4f}")
-
-        # 记录交易统计
-        if 'trades' in results and hasattr(results['trades'], 'total'):
-            trades = results['trades']
-            total = trades.total.total
-            won = trades.won.total
-            lost = trades.lost.total
-            win_rate = won / total if total > 0 else 0
-
-            # 基础交易统计
-            self.logger.info("交易统计:")
-            self.logger.info(f"- 总交易次数: {total}")
-            self.logger.info(f"- 盈利交易: {won}")
-            self.logger.info(f"- 亏损交易: {lost}")
-            self.logger.info(f"- 胜率: {win_rate * 100:.2f}%")
-            
-            # 添加平均每天交易次数
-            if hasattr(trades, 'avg_trades_per_day'):
-                self.logger.info(f"- 交易天数: {trades.trading_days} 天")
-                self.logger.info(f"- 平均每天交易次数: {trades.avg_trades_per_day:.2f}")
-
-            # 计算盈亏比
-            pnl_won = trades.won.pnl.total
-            pnl_lost = abs(trades.lost.pnl.total)
-            win_loss_ratio = pnl_won / pnl_lost if pnl_lost > 0 else float('inf')
-            self.logger.info(f"- 平均盈亏比: {win_loss_ratio:.2f}")
-
-            # 盈利因子
-            profit_factor = pnl_won / pnl_lost if pnl_lost > 0 else float('inf')
-            self.logger.info(f"- 盈利因子: {profit_factor:.2f}")
-
-            # 连续盈亏次数
-            self.logger.info(f"- 最大连续盈利次数: {trades.streak.won.longest}")
-            self.logger.info(f"- 最大连续亏损次数: {trades.streak.lost.longest}")
-
-            # 平均收益和总收益
-            self.logger.info(f"- 平均收益: {trades.pnl.net.average:.4f}")
-            self.logger.info(f"- 总净利润: {trades.pnl.net.total:.4f}")
-
-        self.logger.info("=" * 50)
     
     def run(self, **kwargs):
         """运行脚本的抽象方法，需要子类实现"""
