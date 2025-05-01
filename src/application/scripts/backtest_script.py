@@ -5,6 +5,22 @@
 import os
 from datetime import datetime, timedelta
 
+# 在导入任何绘图相关模块前设置matplotlib后端
+import matplotlib
+matplotlib.use('Agg')  # 默认使用非交互式后端
+
+# 保存原始show函数并替换为空操作
+import matplotlib.pyplot as plt
+original_show = plt.show
+
+def no_display_show(*args, **kwargs):
+    pass
+
+# 默认替换show函数为空操作
+plt.show = no_display_show
+
+import backtrader as bt
+
 from src.application.scripts.base_script import BaseScript
 from src.business.strategy.magic_nine_strategy import MagicNineStrategy
 from src.infrastructure.event.event_manager import EventManager
@@ -72,6 +88,9 @@ class BacktestScript(BaseScript):
             分析结果字典
         """
         self.logger.info(f"开始对标的 {symbol} 进行回测")
+        
+        # 设置是否显示图表
+        plt.show = original_show if enable_plot else no_display_show
 
         # 设置当前标的
         self.symbol = symbol
@@ -146,8 +165,7 @@ class BacktestScript(BaseScript):
         )
 
         # 绘制图表
-        if enable_plot:
-            self._plot_results(symbol, results)
+        self._plot_results(symbol, results, enable_plot)
 
         return analysis_results
 
@@ -190,12 +208,13 @@ class BacktestScript(BaseScript):
 
         return self.all_results
 
-    def _plot_results(self, symbol, results):
+    def _plot_results(self, symbol, results, enable_plot=False):
         """绘制回测结果图表
         
         Args:
             symbol: 标的
             results: 回测结果
+            enable_plot: 是否显示图表界面
         """
         # 创建输出目录
         plot_dir = "results/backtest/plots"
@@ -206,17 +225,44 @@ class BacktestScript(BaseScript):
         plot_filename = f"{timestamp}_{symbol}_{self.strategy.__name__}.png"
         plot_path = os.path.join(plot_dir, plot_filename)
 
-        # 绘制并保存图表
-        figs = self.cerebro.plot(barup='red', bardown='green',
-                                 valuetags=True, volume=True, grid=True)
+        try:
+            # 增加图表大小配置
+            import matplotlib
+            matplotlib.rcParams['figure.figsize'] = [16, 12]  # 更大的图表尺寸
+            matplotlib.rcParams['figure.dpi'] = 150  # 更高的DPI
+            matplotlib.rcParams['savefig.dpi'] = 300  # 保存图片时的DPI
+            matplotlib.rcParams['font.size'] = 12  # 更大的字体
+            matplotlib.rcParams['lines.linewidth'] = 2  # 更粗的线
+            matplotlib.rcParams['axes.titlesize'] = 14  # 更大的标题
+            matplotlib.rcParams['axes.labelsize'] = 12  # 更大的坐标轴标签
+            
+            # 绘制并保存图表
+            figs = self.cerebro.plot(barup='red', bardown='green',
+                                     valuetags=True, volume=True, grid=True,
+                                     plotdist=0.2,  # 增加子图间距
+                                     width=16, height=12,  # 设置图表尺寸
+                                     tight=False)  # 不使用紧凑布局
 
-        # 保存第一个图表(总览图)
-        if figs and len(figs) > 0 and len(figs[0]) > 0:
-            fig = figs[0][0]  # 获取第一个图表
-            fig.savefig(plot_path, dpi=300, bbox_inches='tight')
-            self.logger.info(f"回测图表已保存至: {plot_path}")
-        else:
-            self.logger.warning(f"标的 {symbol} 没有生成图表，可能是数据量太少")
+            # 如果有图表生成，保存第一个图表
+            if figs and len(figs) > 0 and len(figs[0]) > 0:
+                fig = figs[0][0]  # 获取第一个图表
+                
+                # 调整图表布局
+                fig.tight_layout(pad=3.0)  # 增加内边距
+                
+                # 保存图表，增加清晰度
+                fig.savefig(plot_path, dpi=300, bbox_inches='tight', pad_inches=0.5)
+                self.logger.info(f"回测图表已保存至: {plot_path}")
+                
+                # 关闭所有图表，避免内存泄漏
+                plt.close('all')
+            else:
+                self.logger.warning(f"标的 {symbol} 没有生成图表，可能是数据量太少")
+                
+        except Exception as e:
+            self.logger.error(f"生成回测图表时出错: {str(e)}")
+            import traceback
+            self.logger.error(traceback.format_exc())
 
     def stop(self):
         """停止回测"""
