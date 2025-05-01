@@ -88,6 +88,7 @@ class BaseScript:
         from src.business.analyzers.performance_analyzer import PerformanceAnalyzer
         from src.business.analyzers.risk_analyzer import RiskAnalyzer
         from src.business.analyzers.sqn_analyzer import SQNAnalyzer
+        from src.business.analyzers.enhanced_trade_analyzer import EnhancedTradeAnalyzer
         
         # 添加分析器，使用一致的命名
         self.cerebro.addanalyzer(PerformanceAnalyzer, _name='performanceanalyzer')
@@ -99,12 +100,13 @@ class BaseScript:
         from backtrader import TimeFrame
         self.cerebro.addanalyzer(SharpeRatio, 
                                _name='sharperatio',
-                               timeframe=TimeFrame.Days,
+                               timeframe=None,  # 不指定timeframe，使用默认值
                                factor=1,  # 添加小额因子避免标准差为零
                                riskfreerate=0.0)
                                
         self.cerebro.addanalyzer(DrawDown, _name='drawdown')
-        self.cerebro.addanalyzer(TradeAnalyzer, _name='tradeanalyzer')
+        # 使用增强版交易分析器替代原生TradeAnalyzer
+        self.cerebro.addanalyzer(EnhancedTradeAnalyzer, _name='tradeanalyzer')
     
     def extract_analyzer_results(self, strategy) -> Dict[str, Any]:
         """从策略实例中提取分析器结果
@@ -216,6 +218,11 @@ class BaseScript:
             self.logger.info(f"- 盈利交易: {won}")
             self.logger.info(f"- 亏损交易: {lost}")
             self.logger.info(f"- 胜率: {win_rate * 100:.2f}%")
+            
+            # 添加平均每天交易次数
+            if hasattr(trades, 'avg_trades_per_day'):
+                self.logger.info(f"- 交易天数: {trades.trading_days} 天")
+                self.logger.info(f"- 平均每天交易次数: {trades.avg_trades_per_day:.2f}")
 
             # 计算盈亏比
             pnl_won = trades.won.pnl.total

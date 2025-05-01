@@ -40,20 +40,10 @@ def save_backtest_results(results: Dict[str, Any], symbol: str, strategy_name: s
     
     # 计算胜率和每日交易次数
     win_rate = 0
-    avg_trades_per_day = 0
     
     if 'trades' in results and 'won' in results['trades'] and 'total' in results['trades']:
         if results['trades']['total']['total'] > 0:
             win_rate = results['trades']['won']['total'] / results['trades']['total']['total'] * 100
-            
-            # 计算交易天数（简化，按照日历天数计算）
-            try:
-                start = datetime.strptime(start_date, "%Y%m%d") if isinstance(start_date, str) else start_date
-                end = datetime.strptime(end_date, "%Y%m%d") if isinstance(end_date, str) else end_date
-                days = max(1, (end - start).days + 1)  # 加1是为了包括开始日期
-                avg_trades_per_day = results['trades']['total']['total'] / days
-            except:
-                logger.warning("无法计算每日平均交易次数，使用默认值0")
     
     # 从分析器结果中提取指标
     metrics = {
@@ -79,7 +69,8 @@ def save_backtest_results(results: Dict[str, Any], symbol: str, strategy_name: s
         "总交易次数": results.get('trades', {}).get('total', {}).get('total', 0),
         "盈利交易次数": results.get('trades', {}).get('won', {}).get('total', 0),
         "亏损交易次数": results.get('trades', {}).get('lost', {}).get('total', 0),
-        "平均每天交易次数": round(avg_trades_per_day, 2),
+        "平均每天交易次数": round(results.get('trades', {}).get('avg_trades_per_day', 0), 2),
+        "交易天数": results.get('trades', {}).get('trading_days', 0),
         "总净利润": round(results.get('trades', {}).get('pnl', {}).get('net', {}).get('total', 0), 4),
         "平均净利润": round(results.get('trades', {}).get('pnl', {}).get('net', {}).get('average', 0), 4),
         "多头总盈亏": round(results.get('trades', {}).get('long', {}).get('pnl', {}).get('total', 0), 4),

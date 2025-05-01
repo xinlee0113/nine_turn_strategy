@@ -7,11 +7,13 @@ from .performance_analyzer import PerformanceAnalyzer
 from .risk_analyzer import RiskAnalyzer
 from .custom_drawdown import CustomDrawDown
 from .sqn_analyzer import SQNAnalyzer
+from .enhanced_trade_analyzer import EnhancedTradeAnalyzer
 
 __all__ = [
     'BaseAnalyzer',
     'PerformanceAnalyzer',
     'RiskAnalyzer',
     'CustomDrawDown',
-    'SQNAnalyzer'
+    'SQNAnalyzer',
+    'EnhancedTradeAnalyzer'
 ]
