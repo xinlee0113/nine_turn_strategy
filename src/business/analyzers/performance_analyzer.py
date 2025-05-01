@@ -87,8 +87,7 @@ class PerformanceAnalyzer(BaseAnalyzer):
         if not self.equity_curve or len(self.equity_curve) < 2:
             return {
                 'total_return': 0.0,
-                'annual_return': 0.0,
-                'sharpe_ratio': 0.0
+                'annual_return': 0.0
             }
 
         # 计算最终资金（如果stop方法尚未运行）
@@ -107,19 +106,10 @@ class PerformanceAnalyzer(BaseAnalyzer):
         daily_return_mean = np.mean(returns_array) if len(returns_array) > 0 else 0
         daily_return_std = np.std(returns_array) if len(returns_array) > 1 else 0
 
-        # 计算夏普比率
-        risk_free_rate = self.p.risk_free_rate / 252  # 日化无风险利率
-        sharpe_ratio = 0.0
-        if daily_return_std > 0 and len(returns_array) > 0:
-            sharpe_ratio = (daily_return_mean - risk_free_rate) / daily_return_std
-            # 转换为年化夏普比率
-            sharpe_ratio *= np.sqrt(252)
-
-        # 返回 backtrader 预期的结果格式
+        # 返回结果 - 不包含夏普比率，由Backtrader的SharpeRatio分析器提供
         return {
             'total_return': total_return,
             'annual_return': annual_return,
-            'sharpe_ratio': sharpe_ratio,
             'daily_return_mean': daily_return_mean,
             'daily_return_std': daily_return_std
         }
@@ -145,10 +135,9 @@ class PerformanceAnalyzer(BaseAnalyzer):
         # 记录日志
         total_return = basic_results.get('total_return', 0)
         annual_return = basic_results.get('annual_return', 0)
-        sharpe_ratio = basic_results.get('sharpe_ratio', 0)
         
         self.logger.info(
-            f"性能分析: 总收益率={total_return * 100:.2f}%, 年化收益率={annual_return * 100:.2f}%, 夏普比率={sharpe_ratio:.4f}")
+            f"性能分析: 总收益率={total_return * 100:.2f}%, 年化收益率={annual_return * 100:.2f}%")
 
         return results
 

@@ -1,0 +1,12 @@
+symbols:
+  QQQ:
+    atr_multiplier: 2.0
+    atr_period: 14
+    magic_count: 5
+    magic_period: 3
+    profit_target_pct: 1.5
+    rsi_overbought: 70
+    rsi_oversold: 25
+    rsi_period: 14
+    stop_loss_pct: 0.8
+    trailing_pct: 1.0

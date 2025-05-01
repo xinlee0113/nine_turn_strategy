@@ -91,7 +91,16 @@ class BaseScript:
         # 添加分析器，使用一致的命名
         self.cerebro.addanalyzer(PerformanceAnalyzer, _name='performanceanalyzer')
         self.cerebro.addanalyzer(RiskAnalyzer, _name='riskanalyzer')
-        self.cerebro.addanalyzer(SharpeRatio, _name='sharperatio')
+        
+        # 配置SharpeRatio分析器
+        # 关键参数: riskfreerate设为0，factor=1让标准差永远>0
+        from backtrader import TimeFrame
+        self.cerebro.addanalyzer(SharpeRatio, 
+                               _name='sharperatio',
+                               timeframe=TimeFrame.Days,
+                               factor=1,  # 添加小额因子避免标准差为零
+                               riskfreerate=0.0)
+                               
         self.cerebro.addanalyzer(DrawDown, _name='drawdown')
         self.cerebro.addanalyzer(TradeAnalyzer, _name='tradeanalyzer')
     
@@ -123,9 +132,14 @@ class BaseScript:
 
         # 从sharperatio分析器获取结果
         sharpe = strategy.analyzers.sharperatio
-        sharpe_ratio = sharpe.get_analysis()
-        analysis_results['performance']['sharpe_ratio'] = sharpe_ratio.get('sharperatio', 0.0)
-
+        sharpe_analysis = sharpe.get_analysis()
+        # 直接获取夏普比率值，不设默认值
+        sharpe_value = sharpe_analysis.get('sharperatio')
+        self.logger.info(f"Backtrader夏普比率值: {sharpe_value}")
+        
+        # 直接将原始夏普比率值赋给结果
+        analysis_results['performance']['sharpe_ratio'] = sharpe_value
+        
         # 从drawdown分析器获取结果
         dd = strategy.analyzers.drawdown
         dd_analysis = dd.get_analysis()

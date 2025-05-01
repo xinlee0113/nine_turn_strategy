@@ -1,0 +1,22 @@
+优化报告 - 标的: QQQ
+时间: 20250501_090542
+参数组合数: 64
+优化耗时: 328.36 秒
+
+最佳参数组合:
+- magic_period: 3
+- magic_count: 5
+- rsi_period: 14
+- rsi_overbought: 70
+- rsi_oversold: 25
+- atr_period: 14
+- atr_multiplier: 2.0
+- trailing_pct: 1.0
+- profit_target_pct: 1.5
+- stop_loss_pct: 0.8
+
+最佳性能指标:
+- 胜率: 61.36%
+- 总收益率: 4.46%
+- 夏普比率: 0.2070
+- 最大回撤: 6.99%

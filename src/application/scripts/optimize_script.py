@@ -4,6 +4,7 @@
 """
 import itertools
 import os
+import multiprocessing
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
@@ -44,6 +45,10 @@ class OptimizeScript(BaseScript):
 
         # 确保输出目录存在
         ensure_directory_exists(self.output_dir)
+        
+        # 并行处理设置 - 由于Tiger API速率限制，改为禁用并行
+        self.use_parallel = False  # 禁用并行处理以避免API速率限制
+        self.max_workers = 1       # 顺序执行
 
         # 可优化的参数定义 - 确保使用策略支持的参数
         self.param_definitions = {
@@ -68,20 +73,20 @@ class OptimizeScript(BaseScript):
         
         # 默认的参数网格，较小的配置用于测试
         self.default_param_grid = {
-            # 神奇九转参数
-            "magic_period": [3, 4],
-            "magic_count": [4, 5],
+            # 神奇九转参数 - 减少组合数量
+            "magic_period": [3],  # 固定为3
+            "magic_count": [5],   # 固定为5
             
-            # RSI参数
-            "rsi_period": [10, 14],
+            # RSI参数 - 减少组合
+            "rsi_period": [14],   # 固定为14
             "rsi_overbought": [70, 75],
             "rsi_oversold": [25, 30],
             
-            # ATR参数
-            "atr_period": [12, 14],
+            # ATR参数 - 减少组合
+            "atr_period": [14],   # 固定为14
             "atr_multiplier": [2.0, 2.5],
             
-            # 交易控制参数
+            # 交易控制参数 - 这些对策略收益影响较大，保留多个选项
             "trailing_pct": [1.0, 1.5],
             "profit_target_pct": [1.5, 2.0],
             "stop_loss_pct": [0.8, 1.0]
@@ -98,13 +103,15 @@ class OptimizeScript(BaseScript):
         # 设定目标改进阈值
         self.improvement_threshold = 0.05  # 5%
 
-    def run(self, symbol: Optional[str] = None, param_grid: Optional[Dict[str, List[Any]]] = None) -> Dict[str, Any]:
+    def run(self, symbol: Optional[str] = None, param_grid: Optional[Dict[str, List[Any]]] = None,
+             early_stop: bool = True) -> Dict[str, Any]:
         """
         运行优化流程
         
         Args:
             symbol: 指定要优化的交易标的，如果为None则使用所有配置的标的
             param_grid: 自定义参数网格，如果为None则使用默认网格
+            early_stop: 是否启用提前终止策略，可以跳过一些表现差的参数
             
         Returns:
             Dict: 包含各个标的优化结果的字典
@@ -144,7 +151,7 @@ class OptimizeScript(BaseScript):
             self.logger.info(f"开始优化标的 {sym} 的参数")
 
             # 执行优化
-            optimize_result = self._optimize_for_symbol(sym, param_grid)
+            optimize_result = self._optimize_for_symbol(sym, param_grid, early_stop)
 
             # 存储结果
             results[sym] = optimize_result
@@ -169,13 +176,15 @@ class OptimizeScript(BaseScript):
         self.logger.info("参数优化流程完成")
         return results
 
-    def _optimize_for_symbol(self, symbol: str, param_grid: Dict[str, List[Any]]) -> Dict[str, Any]:
+    def _optimize_for_symbol(self, symbol: str, param_grid: Dict[str, List[Any]], 
+                             early_stop: bool = True) -> Dict[str, Any]:
         """
         对单个标的进行参数优化
         
         Args:
             symbol: 交易标的
             param_grid: 参数网格
+            early_stop: 是否启用提前终止策略
             
         Returns:
             Dict: 优化结果
@@ -199,29 +208,76 @@ class OptimizeScript(BaseScript):
         start_time = datetime.now()
 
         # 4. 评估每种参数组合
-        for i, params in enumerate(param_combinations):
-            self.logger.info(f"评估参数组合 {i + 1}/{total_combinations}")
+        if self.use_parallel and total_combinations > 1:
+            self.logger.info(f"使用{self.max_workers}个进程并行评估参数")
+            
+            # 创建部分函数用于并行处理
+            from functools import partial
+            evaluate_func = partial(self._evaluate_single_parameter, symbol=symbol)
+            
+            # 使用进程池并行处理
+            with multiprocessing.Pool(processes=self.max_workers) as pool:
+                # 将参数组合分批提交给进程池
+                for i, (params, metrics) in enumerate(pool.imap(evaluate_func, param_combinations)):
+                    self.logger.info(f"完成参数组合评估 {i + 1}/{total_combinations}")
+                    
+                    # 计算组合得分
+                    score = self._calculate_optimization_score(metrics)
+                    
+                    # 记录结果
+                    result_entry = {
+                        "params": params,
+                        "metrics": metrics,
+                        "score": score
+                    }
+                    results_log.append(result_entry)
+                    
+                    # 更新最佳结果
+                    if score > best_score:
+                        best_score = score
+                        best_params = params.copy()
+                        best_metrics = metrics.copy()
+                        self.logger.info(f"发现新的最佳参数组合，得分: {best_score:.4f}")
+        else:
+            # 顺序评估每个参数组合
+            for i, params in enumerate(param_combinations):
+                self.logger.info(f"评估参数组合 {i + 1}/{total_combinations}")
 
-            # 评估参数
-            metrics = self._evaluate_parameters(symbol, params)
+                # 评估参数
+                metrics = self._evaluate_parameters(symbol, params)
 
-            # 计算组合得分
-            score = self._calculate_optimization_score(metrics)
+                # 计算组合得分
+                score = self._calculate_optimization_score(metrics)
 
-            # 记录结果
-            result_entry = {
-                "params": params,
-                "metrics": metrics,
-                "score": score
-            }
-            results_log.append(result_entry)
+                # 记录结果
+                result_entry = {
+                    "params": params,
+                    "metrics": metrics,
+                    "score": score
+                }
+                results_log.append(result_entry)
 
-            # 更新最佳结果
-            if score > best_score:
-                best_score = score
-                best_params = params.copy()
-                best_metrics = metrics.copy()
-                self.logger.info(f"发现新的最佳参数组合，得分: {best_score:.4f}")
+                # 更新最佳结果
+                if score > best_score:
+                    improvement = (score - best_score) / (abs(best_score) if best_score != 0 else 1)
+                    best_score = score
+                    best_params = params.copy()
+                    best_metrics = metrics.copy()
+                    self.logger.info(f"发现新的最佳参数组合，得分: {best_score:.4f}, 提升: {improvement:.2%}")
+                
+                # 提前停止判断 - 如果已经评估了足够多的组合且没有明显改进，则停止
+                if early_stop and i > 0 and i > total_combinations * 0.3:
+                    # 计算阈值评分 - 如果最佳分数很低，设置较高阈值
+                    if best_score < 0.3:
+                        # 如果表现很差，提前结束
+                        self.logger.info(f"当前最佳得分({best_score:.4f})较低，停止继续评估")
+                        break
+                    
+                    # 如果当前得分远低于最佳得分的60%，跳过剩余评估
+                    if score < best_score * 0.6:
+                        remaining = total_combinations - i - 1
+                        self.logger.info(f"当前得分({score:.4f})远低于最佳得分，跳过剩余{remaining}个组合")
+                        break
 
         # 记录结束时间
         end_time = datetime.now()
@@ -319,19 +375,8 @@ class OptimizeScript(BaseScript):
         # 添加数据
         self.cerebro.adddata(data)
         
-        # 动态获取策略支持的参数
-        # 从MagicNineStrategy参数中提取所有参数名
-        supported_params = {key for key, _ in MagicNineStrategy.params._getitems()}
-        self.logger.info(f"策略支持的参数: {supported_params}")
-        
-        # 只保留支持的参数
-        strategy_params = {k: v for k, v in params.items() if k in supported_params}
-        
-        # 记录实际使用的参数
-        self.logger.info(f"使用以下参数: {strategy_params}")
-        
-        # 添加策略
-        self.cerebro.addstrategy(MagicNineStrategy, **strategy_params)
+        # 将所有参数传递给策略，让策略自己选择需要的参数
+        self.cerebro.addstrategy(MagicNineStrategy, **params)
 
         # 运行回测
         results = self.cerebro.run()
@@ -362,8 +407,9 @@ class OptimizeScript(BaseScript):
         # 从性能分析器中获取总收益率
         if 'performance' in analysis:
             metrics["总收益率"] = analysis['performance'].get('total_return', 0)
-            metrics["夏普比率"] = float(analysis['performance'].get('sharpe_ratio', 0)) if analysis['performance'].get(
-                'sharpe_ratio') is not None else 0
+            
+            # 直接使用Backtrader的SharpeRatio分析器结果
+            metrics["夏普比率"] = float(analysis['performance'].get('sharpe_ratio', 0))
         else:
             metrics["总收益率"] = 0
             metrics["夏普比率"] = 0
@@ -522,6 +568,11 @@ class OptimizeScript(BaseScript):
         # 加载当前配置
         config = self.strategy_config.get_config()
 
+        # 检查配置是否为None
+        if config is None:
+            self.logger.warning("当前策略配置为空，将创建新配置")
+            config = {'symbols': {}}  # 创建基本配置结构
+
         # 更新配置
         for symbol, result in results.items():
             best_params = result.get('best_params', {})
@@ -559,6 +610,9 @@ class OptimizeScript(BaseScript):
 
         # 生成历史记录
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # 准备记录数据列表
+        all_records = []
 
         for symbol, result in results.items():
             best_params = result.get('best_params', {})
@@ -580,20 +634,51 @@ class OptimizeScript(BaseScript):
             # 添加参数
             for param_name, param_value in best_params.items():
                 record[f"param_{param_name}"] = param_value
+                
+            all_records.append(record)
 
-            # 检查历史文件是否存在
-            try:
-                if os.path.exists(self.history_file):
-                    # 如果存在，追加记录
-                    df = pd.read_csv(self.history_file)
-                    df = pd.concat([df, pd.DataFrame([record])], ignore_index=True)
-                else:
-                    # 如果不存在，创建新文件
-                    df = pd.DataFrame([record])
+        # 创建历史文件记录的目录
+        ensure_directory_exists(os.path.dirname(self.history_file))
+        
+        try:
+            existing_records = []
+            # 检查历史文件是否存在且有效
+            if os.path.exists(self.history_file) and os.path.getsize(self.history_file) > 0:
+                try:
+                    # 尝试读取现有数据
+                    existing_records = pd.read_csv(self.history_file).to_dict('records')
+                except Exception as e:
+                    self.logger.warning(f"读取历史记录文件失败: {str(e)}，将创建新文件")
+                    # 如果文件损坏或格式错误，将其重命名并创建新文件
+                    backup_file = f"{self.history_file}.bak.{timestamp.replace(':', '-')}"
+                    try:
+                        os.rename(self.history_file, backup_file)
+                        self.logger.info(f"已备份原历史文件到: {backup_file}")
+                    except Exception as rename_error:
+                        self.logger.error(f"备份历史文件失败: {str(rename_error)}")
+            
+            # 合并现有记录和新记录
+            all_records = existing_records + all_records
+            
+            # 创建DataFrame并保存
+            df = pd.DataFrame(all_records)
+            df.to_csv(self.history_file, index=False)
+            self.logger.info(f"优化历史记录已保存至 {self.history_file}")
+                
+        except Exception as e:
+            self.logger.error(f"保存优化历史记录失败: {str(e)}")
 
-                # 保存历史记录
-                df.to_csv(self.history_file, index=False)
-                self.logger.info(f"优化历史记录已保存至 {self.history_file}")
-
-            except Exception as e:
-                self.logger.error(f"保存优化历史记录失败: {str(e)}")
+    def _evaluate_single_parameter(self, params: Dict[str, Any], symbol: str) -> tuple:
+        """
+        评估单个参数组合，供并行处理使用
+        
+        Args:
+            params: 参数组合
+            symbol: 交易标的
+            
+        Returns:
+            tuple: (参数, 评估指标)
+        """
+        # 评估参数
+        metrics = self._evaluate_parameters(symbol, params)
+        return params, metrics
