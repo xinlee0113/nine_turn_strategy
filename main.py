@@ -50,7 +50,8 @@ def parse_args():
     parser.add_argument('--cash', type=float, default=DEFAULT_INITIAL_CAPITAL, help='初始资金')
     parser.add_argument('--commission', type=float, default=DEFAULT_COMMISSION_RATE, help='佣金率')
 
-    parser.add_argument('--symbols', type=str, default='QQQ', help='标的')
+    parser.add_argument('--symbols', type=str, default='QQQ,SPY,AAPL,NVDA,TSLA,META,GOOGL,AMZN,MSFT',
+                        help='交易标的，多个标的用逗号分隔，如 QQQ,SPY,AAPL')
 
     # 绘图参数
     parser.add_argument('--plot', action='store_true', help='启用绘图功能')
@@ -91,20 +92,30 @@ def main():
     symbols = args.symbols.split(',')
     if args.mode == 'backtest':
         logger.info("运行回测模式")
+        
+        # 显示回测标的
+        if len(symbols) > 1:
+            logger.info(f"将对多个标的进行回测: {', '.join(symbols)}")
+        else:
+            logger.info(f"将对标的 {symbols[0]} 进行回测")
 
         # 处理绘图参数
         if args.plot:
             logger.info("将启用绘图功能")
 
         # 通过脚本管理器运行回测脚本
-        results = script_manager.run_backtest(enable_plot=args.plot)
+        results = script_manager.run_backtest(enable_plot=args.plot, symbols=symbols)
 
         if not results:
             logger.error("回测执行失败")
             sys.exit(1)
 
         logger.info("回测完成")
-
+        
+        # 打印汇总结果
+        if len(symbols) > 1:
+            logger.info("多标的回测汇总结果已保存")
+        
     elif args.mode == 'optimize':
         logger.info("运行参数优化模式")
 

@@ -31,7 +31,16 @@ class ScriptManager:
         self.scripts['backtest'] = backtest_script
         return backtest_script
 
-    def run_backtest(self, enable_plot: bool = False) -> Dict[str, Any]:
+    def run_backtest(self, enable_plot: bool = False, symbols: Optional[List[str]] = None) -> Dict[str, Any]:
+        """运行回测脚本
+        
+        Args:
+            enable_plot: 是否启用图表
+            symbols: 回测标的列表，如果为None则使用默认标的
+            
+        Returns:
+            Dict: 回测结果
+        """
         if enable_plot:
             self.logger.info("启用回测图表")
 
@@ -41,9 +50,14 @@ class ScriptManager:
 
         # 运行回测
         backtest_script = self.scripts['backtest']
+        
+        # 如果提供了标的列表，则设置
+        if symbols:
+            backtest_script.set_symbols(symbols)
+            
         results = backtest_script.run(enable_plot=enable_plot)
 
-        # 展示回测结果
+        # 返回回测结果
         self.logger.info("回测执行完成，返回结果")
         return results
         
