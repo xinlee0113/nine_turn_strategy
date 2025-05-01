@@ -49,8 +49,8 @@ class SignalGenerator:
         Returns:
             bool: 是否产生多头信号
         """
-        # 多头信号条件：买入计数达标且EMA20>EMA50（上升趋势）且RSI不超买
-        if magic_nine.lines.buy_setup[0] >= self.params['magic_count']:
+        # 多头信号条件：连续下跌次数达标且EMA20>EMA50（上升趋势）且RSI不超买
+        if magic_nine.lines.drop_count[0] >= self.params['magic_count']:
             # 确认趋势方向 (EMA20 > EMA50 为上升趋势)
             trend_up = ema20[0] > ema50[0]
             
@@ -73,8 +73,8 @@ class SignalGenerator:
         Returns:
             bool: 是否产生空头信号
         """
-        # 空头信号条件：卖出计数达标且EMA20<EMA50（下降趋势）且RSI不超卖
-        if self.params['enable_short'] and magic_nine.lines.sell_setup[0] >= self.params['magic_count']:
+        # 空头信号条件：连续上涨次数达标且EMA20<EMA50（下降趋势）且RSI不超卖
+        if self.params['enable_short'] and magic_nine.lines.rise_count[0] >= self.params['magic_count']:
             # 确认趋势方向 (EMA20 < EMA50 为下降趋势)
             trend_down = ema20[0] < ema50[0]
             
@@ -94,8 +94,8 @@ class SignalGenerator:
         Returns:
             bool: 是否产生多头平仓信号
         """
-        # 卖出信号作为多头平仓条件
-        return magic_nine.lines.sell_setup[0] >= self.params['magic_count']
+        # 连续上涨达到阈值作为多头平仓条件
+        return magic_nine.lines.rise_count[0] >= self.params['magic_count']
     
     def check_short_exit_signal(self, magic_nine) -> bool:
         """检查是否产生空头平仓信号
@@ -106,8 +106,8 @@ class SignalGenerator:
         Returns:
             bool: 是否产生空头平仓信号
         """
-        # 买入信号作为空头平仓条件
-        return magic_nine.lines.buy_setup[0] >= self.params['magic_count']
+        # 连续下跌达到阈值作为空头平仓条件
+        return magic_nine.lines.drop_count[0] >= self.params['magic_count']
     
     def generate_signal(self, magic_nine, rsi, ema20, ema50, current_position: int = 0) -> Tuple[int, str]:
         """生成交易信号

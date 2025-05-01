@@ -98,7 +98,7 @@ class OrderManager:
         current_price = self.strategy.data.close[0]
         logger.info(
             f'{self.strategy.data.datetime.datetime(0).isoformat()} 买入信号! '
-            f'计数: {self.strategy.magic_nine.buy_count}, 价格: {current_price:.2f}, '
+            f'连续下跌次数: {self.strategy.magic_nine.lines.drop_count[0]:.0f}, 价格: {current_price:.2f}, '
             f'数量: {size}, RSI: {self.strategy.rsi[0]:.2f}')
         
         # 下买入订单
@@ -123,7 +123,7 @@ class OrderManager:
         current_price = self.strategy.data.close[0]
         logger.info(
             f'{self.strategy.data.datetime.datetime(0).isoformat()} 卖空信号! '
-            f'计数: {self.strategy.magic_nine.sell_count}, 价格: {current_price:.2f}, '
+            f'连续上涨次数: {self.strategy.magic_nine.lines.rise_count[0]:.0f}, 价格: {current_price:.2f}, '
             f'数量: {size}, RSI: {self.strategy.rsi[0]:.2f}')
         
         # 下卖空订单

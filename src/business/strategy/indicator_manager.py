@@ -33,7 +33,7 @@ class IndicatorManager:
     def _init_indicators(self):
         """初始化各种指标"""
         # 初始化神奇九转指标
-        self.indicators['magic_nine'] = MagicNine(self.data, period=self.params.magic_period)
+        self.indicators['magic_nine'] = MagicNine(self.data, lookback=self.params.magic_period)
         
         # 初始化RSI指标
         self.indicators['rsi'] = bt.indicators.RSI(

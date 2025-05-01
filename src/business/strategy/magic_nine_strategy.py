@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class MagicNineStrategy(bt.Strategy):
     """神奇九转交易策略 - 优化版本，支持双向交易（多空）"""
     params = (
-        ('magic_period', 3),  # 神奇九转比较周期
+        ('magic_period', 3),  # 神奇九转比较间隔(与3分钟前价格比较，使用1分钟K线)
         ('magic_count', 5),  # 神奇九转信号触发计数
         ('rsi_period', 14),  # RSI周期
         ('rsi_overbought', 70),  # RSI超买值
@@ -100,7 +100,7 @@ class MagicNineStrategy(bt.Strategy):
         self.indicators = IndicatorManager(self)
 
         logger.info(
-            f"策略初始化完成 - 双向交易神奇九转模式 (比较周期:{self.p.magic_period}, 信号触发计数:{self.p.magic_count})")
+            f"策略初始化完成 - 双向交易神奇九转模式 (比较间隔:{self.p.magic_period}分钟, 信号触发计数:{self.p.magic_count})")
         logger.info(f"避开开盘后{self.p.avoid_open_minutes}分钟和收盘前{self.p.avoid_close_minutes}分钟的交易")
         
     @property
