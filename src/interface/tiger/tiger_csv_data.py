@@ -26,7 +26,11 @@ class TigerCsvData(bt.CSVDataBase):
 
         # 使用当前symbol参数构建文件路径
         symbol = self.p.symbol
-        self.tmp_csv_data_path = os.path.join(base_dir, "data", "cache", 'tiger', symbol, f'tiger_30days_1min_k_line.csv')
+        # 构建包含时间范围的文件名
+        from_date_str = self.p.fromdate.strftime('%Y%m%d')
+        to_date_str = self.p.todate.strftime('%Y%m%d')
+        self.tmp_csv_data_path = os.path.join(base_dir, "data", "cache", 'tiger', symbol, 
+                                             f'tiger_{from_date_str}_{to_date_str}_{self.p.period.value}_k_line.csv')
 
         # 确保数据目录存在
         data_dir = os.path.dirname(self.tmp_csv_data_path)
@@ -39,8 +43,39 @@ class TigerCsvData(bt.CSVDataBase):
     def start(self):
         print(f"开始加载 {self.p.symbol} 数据")
 
-        # 如果csv数据文件不存在，则从 Tiger API 获取数据并保存到 CSV 文件
-        if not os.path.exists(self.p.dataname):
+        # 检查是否需要重新获取数据
+        need_refresh = False
+        if os.path.exists(self.p.dataname):
+            # 读取现有数据的时间范围
+            df = pd.read_csv(self.p.dataname)
+            df['utc_date'] = pd.to_datetime(df['utc_date'])
+            # 确保时间戳是naive datetime
+            existing_start = df['utc_date'].min().tz_localize(None)
+            existing_end = df['utc_date'].max().tz_localize(None)
+            
+            # 确保fromdate和todate也是naive datetime
+            fromdate = self.p.fromdate.tz_localize(None) if self.p.fromdate.tzinfo else self.p.fromdate
+            todate = self.p.todate.tz_localize(None) if self.p.todate.tzinfo else self.p.todate
+            
+            # 检查时间范围是否匹配
+            # 考虑到美股交易时间（美东时间9:30-16:00），我们允许一定的日期误差
+            # 将时间转换为日期进行比较
+            existing_start_date = existing_start.date()
+            existing_end_date = existing_end.date()
+            fromdate_date = fromdate.date()
+            todate_date = todate.date()
+            
+            # 如果现有数据的日期范围基本覆盖了请求的日期范围（允许前后各1天的误差），则认为数据满足需求
+            if (existing_start_date - fromdate_date).days <= 1 and (todate_date - existing_end_date).days <= 1:
+                print(f"现有数据时间范围 ({existing_start} 到 {existing_end}) 满足需求 ({fromdate} 到 {todate})")
+            else:
+                print(f"现有数据时间范围 ({existing_start} 到 {existing_end}) 与需求时间 ({fromdate} 到 {todate}) 差异过大")
+                need_refresh = True
+        else:
+            need_refresh = True
+
+        # 如果需要刷新数据，则从 Tiger API 获取数据并保存到 CSV 文件
+        if need_refresh:
             print(f"获取 {self.p.symbol} 数据并保存到 {self.p.dataname}")
             df = self.p.store.get_bar_data(symbol=self.p.symbol,
                                            begin_time=self.p.fromdate,

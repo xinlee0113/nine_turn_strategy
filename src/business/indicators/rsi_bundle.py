@@ -26,9 +26,9 @@ class RSIBundle(bt.Indicator):
 
     def __init__(self):
         # 创建三个不同周期的RSI指标
-        self.rsi1 = bt.indicators.RSI(self.data, period=self.p.period1)
-        self.rsi2 = bt.indicators.RSI(self.data, period=self.p.period2)
-        self.rsi3 = bt.indicators.RSI(self.data, period=self.p.period3)
+        self.rsi1 = bt.indicators.RSI(self.data.close, period=self.p.period1)
+        self.rsi2 = bt.indicators.RSI(self.data.close, period=self.p.period2)
+        self.rsi3 = bt.indicators.RSI(self.data.close, period=self.p.period3)
 
     def next(self):
         # 更新lines值

@@ -37,13 +37,13 @@ class IndicatorManager:
         
         # 初始化RSI指标
         self.indicators['rsi'] = bt.indicators.RSI(
-            self.data,
+            self.data.close,
             period=self.params.rsi_period
         )
         
         # 初始化EMA指标
-        self.indicators['ema20'] = bt.indicators.EMA(self.data, period=20)
-        self.indicators['ema50'] = bt.indicators.EMA(self.data, period=50)
+        self.indicators['ema20'] = bt.indicators.EMA(self.data.close, period=20)
+        self.indicators['ema50'] = bt.indicators.EMA(self.data.close, period=50)
         
         # 初始化ATR指标
         self.indicators['atr'] = bt.indicators.ATR(
